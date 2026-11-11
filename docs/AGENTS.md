@@ -14,7 +14,7 @@
 | Waktu | 21 hari |
 | Arsitektur | Monolith Laravel (bukan microservices) |
 | Stack | Laravel 13 · PHP 8.4 · Filament 5 · Blade + Livewire + Alpine.js · Tailwind CSS 4 · Vite 8 · MySQL 8 |
-| Integrasi | Digiflazz API v1 (supplier) · 1 payment gateway (kandidat: Tripay) |
+| Integrasi | Melo H2H API (supplier) · 1 payment gateway (kandidat: Tripay) |
 | Deploy | VPS + Coolify atau Laravel Forge + Cloudflare |
 
 Detail lengkap ada di [`docs/PROJECT_SPEC.md`](PROJECT_SPEC.md).
@@ -32,7 +32,7 @@ Detail lengkap ada di [`docs/PROJECT_SPEC.md`](PROJECT_SPEC.md).
 | Alur order, status, pembayaran | [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) |
 | Struktur folder, lokasi file baru, route | [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) |
 | Migration, model, query | [`DATABASE_DESIGN.md`](DATABASE_DESIGN.md) |
-| Tripay / Digiflazz / webhook | [`API_INTEGRATION.md`](API_INTEGRATION.md) |
+| Tripay / Melo / webhook | [`API_INTEGRATION.md`](API_INTEGRATION.md) |
 | Auth, validasi, data sensitif | [`SECURITY_RULES.md`](SECURITY_RULES.md) |
 | Penjadwalan pekerjaan | [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) |
 
@@ -58,7 +58,7 @@ Catatan: panduan Boost menyarankan Laravel Cloud untuk deploy. Proyek ini **tida
 - Audit kode yang ada sebelum menulis kode baru. Pakai ulang service/model/enum yang sudah ada:
   - stok akun → `app/Services/AccountStockService.php`
   - payment → `app/Services/Payment/TripayService.php`
-  - supplier → `app/Services/Supplier/DigiflazzService.php`
+  - supplier → `app/Services/Supplier/MeloService.php`
   - status → `app/Enums/*`
 - Jangan membuat duplikat controller, model, service, enum, atau migration.
 - Jangan mengubah arsitektur (folder dasar, pola service, monolith) tanpa persetujuan.
@@ -85,7 +85,7 @@ Catatan: panduan Boost menyarankan Laravel Cloud untuk deploy. Proyek ini **tida
 
 - Setiap perilaku baru atau perubahan perilaku harus punya feature test (PHPUnit), di `tests/Feature/`.
 - Test memakai database `topup_game_test` (lihat `phpunit.xml`). Jangan arahkan test ke `topup_game`.
-- HTTP ke Tripay/Digiflazz di test harus di-fake (`Http::fake()`). Jangan memanggil API asli dari test.
+- HTTP ke Tripay/Melo di test harus di-fake (`Http::fake()`). Jangan memanggil API asli dari test.
 - Jalankan test tersempit dulu, lalu `php artisan test --compact` sebelum melapor selesai.
 - **Pekerjaan belum dianggap selesai jika test belum dijalankan dan lulus.**
 

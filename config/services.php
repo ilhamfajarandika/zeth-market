@@ -42,11 +42,12 @@ return [
         'sandbox' => env('TRIPAY_SANDBOX', true),
     ],
 
-    'digiflazz' => [
-        'username' => env('DIGIFLAZZ_USERNAME'),
-        'api_key' => env('DIGIFLAZZ_API_KEY'),
-        'webhook_secret' => env('DIGIFLAZZ_WEBHOOK_SECRET'),
-        'testing' => env('DIGIFLAZZ_TESTING', true),
+    'melo' => [
+        'base_url' => env('MELO_BASE_URL', 'https://api.melostore.id/api/v1/h2h'),
+        'api_key' => env('MELO_API_KEY'),
+        'secret_key' => env('MELO_SECRET_KEY'),
+        'webhook_secret' => env('MELO_WEBHOOK_SECRET'),
+        'sandbox' => env('MELO_SANDBOX'),
     ],
 
 ];

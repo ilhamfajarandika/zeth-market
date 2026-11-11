@@ -31,7 +31,7 @@ class TripayCallbackController extends Controller
 
         // TODO (minggu 2): dispatch job HandlePaymentCallback
         //  - cari order by merchant_ref, abaikan jika status sudah final (idempotent)
-        //  - PAID    -> status Paid, lalu: topup => kirim ke Digiflazz, account => AccountStockService::markSold
+        //  - PAID    -> status Paid, lalu: topup => kirim ke Melo, account => AccountStockService::markSold
         //  - EXPIRED / FAILED -> status Expired/Failed + AccountStockService::release
 
         return response()->json(['success' => true]);

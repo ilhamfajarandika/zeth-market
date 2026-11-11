@@ -22,7 +22,7 @@ Prinsip pemilihan stack: **satu monolith + admin panel instan**, supaya tidak pe
 | Build tool | Vite | 8.x | Bawaan Laravel. |
 | Database | **MySQL 8** (dev & production) | 8.0 | Transaksi + row locking untuk stok akun. |
 | Cache & Queue | **Redis** (production), database driver (dev) | — | Callback payment, order ke supplier, dan retry diproses di background. |
-| Supplier top up | **Digiflazz** | API v1 | Satu API untuk ratusan produk game, ada webhook dan price list. |
+| Supplier top up | **Melo** | API v1 | Satu API untuk ratusan produk game, ada webhook dan price list. |
 | Payment gateway | **Tripay** (alternatif: Duitku / Midtrans / Xendit) | — | QRIS, VA, dan e-wallet dengan fee murah. |
 | Notifikasi | Email (SMTP/Resend) + WhatsApp gateway (Fonnte/Wablas), opsional | — | Kirim invoice dan detail akun. |
 | Testing | PHPUnit + Postman CLI | — | Feature test + uji callback API. |
@@ -65,10 +65,10 @@ app/
 ├── Services/
 │   ├── AccountStockService.php      reserve / markSold / release / releaseExpired
 │   ├── Payment/TripayService.php    create transaction + verifikasi signature callback
-│   └── Supplier/DigiflazzService.php saldo, price list, topup + verifikasi signature webhook
+│   └── Supplier/MeloService.php saldo, price list, topup + verifikasi signature webhook
 ├── Http/Controllers/
 │   ├── StorefrontController.php     home, halaman game, invoice
-│   └── Webhook/                     TripayCallbackController, DigiflazzCallbackController
+│   └── Webhook/                     TripayCallbackController, MeloCallbackController
 ├── Console/Commands/ReleaseExpiredAccounts.php   accounts:release-expired
 ├── Exceptions/OutOfStockException.php
 └── Filament/
@@ -101,7 +101,7 @@ tests/Feature/                 AccountStockService, WebhookSignature, Storefront
 | GET | `/game/{slug}` | Daftar produk + stok akun |
 | GET | `/invoice/{invoice}` | Status order + detail akun (setelah sukses) |
 | POST | `/webhook/tripay` | Callback Tripay (tanpa CSRF, signature wajib) |
-| POST | `/webhook/digiflazz` | Webhook Digiflazz (tanpa CSRF, signature wajib) |
+| POST | `/webhook/melo` | Webhook Melo (tanpa CSRF, signature wajib) |
 | — | `/admin` | Filament admin panel (hanya `role = admin`) |
 
 ---
@@ -155,9 +155,9 @@ php artisan schedule:work      # lokal
 
 | Minggu | Target | Status |
 |---|---|---|
-| **1** | Setup project, skema DB, admin Filament (game, produk, stok akun), service stok akun, signature webhook, sync harga Digiflazz, desain dasar UI | ✅ skeleton selesai, ⏳ sync harga dan desain UI |
+| **1** | Setup project, skema DB, admin Filament (game, produk, stok akun), service stok akun, signature webhook, sync harga Melo, desain dasar UI | ✅ skeleton selesai, ⏳ sync harga dan desain UI |
 | **2** | Checkout Livewire (input ID + validasi regex, pilih produk, pilih metode bayar), `TripayService::createTransaction`, job `HandlePaymentCallback`, halaman invoice | ⏳ |
-| **3** | Job kirim order ke Digiflazz, job `HandleSupplierCallback`, alur stok akun di checkout (reserve → sold / release), notifikasi email/WA, cek status order | ⏳ |
+| **3** | Job kirim order ke Melo, job `HandleSupplierCallback`, alur stok akun di checkout (reserve → sold / release), notifikasi email/WA, cek status order | ⏳ |
 | **4** | Testing end-to-end (Postman + transaksi nominal kecil), hardening keamanan, SEO dasar, deploy, revisi client | ⏳ |
 
 ---
@@ -165,15 +165,15 @@ php artisan schedule:work      # lokal
 ## 6. Checklist Keamanan & Keandalan
 
 - [x] Verifikasi signature callback Tripay (`X-Callback-Signature`, HMAC-SHA256).
-- [x] Verifikasi signature webhook Digiflazz (`X-Hub-Signature`, HMAC-SHA1).
+- [x] Verifikasi signature webhook Melo (`X-H2H-Signature`, HMAC-SHA256).
 - [x] Kredensial akun dienkripsi di database.
 - [x] Row lock saat reserve stok akun.
 - [x] Hanya `role = admin` yang bisa masuk `/admin`.
 - [x] Rate limit endpoint webhook (`throttle:120,1`).
 - [ ] **Idempotency** callback: abaikan jika `OrderStatus::isFinal()` (dikerjakan di job minggu 2–3).
 - [ ] Rate limit + Cloudflare Turnstile di form checkout.
-- [ ] Alert saldo Digiflazz menipis (cek via `DigiflazzService::balance()` terjadwal).
-- [ ] Whitelist IP callback di sisi Tripay/Digiflazz (opsional, tambahan dari signature).
+- [ ] Alert saldo Melo menipis (cek via `MeloService::balance()` terjadwal).
+- [ ] Whitelist IP callback di sisi Tripay/Melo (opsional, tambahan dari signature).
 - [ ] Backup database harian di VPS.
 
 ---

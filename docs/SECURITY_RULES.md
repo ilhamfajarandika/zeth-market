@@ -56,15 +56,15 @@
 | Provider | Mekanisme | Status |
 |---|---|---|
 | Tripay | `X-Callback-Signature` = HMAC-SHA256(raw body, private key), dibandingkan dengan `hash_equals` | ✅ dites |
-| Digiflazz | `X-Hub-Signature` = `sha1=` + HMAC-SHA1(raw body, webhook secret), dibandingkan dengan `hash_equals` | ✅ dites |
-| Signature salah/kosong → 403 + dicatat di `api_logs` | | ✅ |
+| Melo | `X-H2H-Signature` = hex HMAC-SHA256(raw body, webhook secret), dibandingkan dengan `hash_equals`; ditolak juga jika secret belum diisi | ✅ dites |
+| Signature salah/kosong → Tripay 403, Melo 401, keduanya dicatat di `api_logs` | | ✅ |
 | Cocokkan nominal callback dengan `orders.total` | | ⏳ |
 
 ## 7. Idempotency
 
 - Callback yang sama bisa datang lebih dari sekali. Order berstatus final (`OrderStatus::isFinal()`) tidak boleh diproses ulang. ⏳
 - `markSold()` sudah idempotent. ✅
-- Satu invoice hanya menghasilkan satu transaksi supplier (`ref_id = invoice`). Retry memakai `ref_id` yang sama. ⏳
+- Satu invoice hanya menghasilkan satu transaksi supplier (`buyer_trx_id = invoice`). Retry memakai `buyer_trx_id` yang sama. ⏳
 - Job pemrosesan callback sebaiknya unik per invoice (`ShouldBeUnique` atau lock). [REKOMENDASI] ⏳
 
 ## 8. Transaksi Database

@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-12, oleh AI agent (audit dokumentasi; tidak ada perubahan kode).
+> **Terakhir diperbarui:** 2026-11-12, oleh AI agent (supplier diganti dari Digiflazz ke Melo atas keputusan PO).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -9,7 +9,7 @@
 |---|---|
 | Fase | Skeleton selesai, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md). Tanggal H1 = [TBD] |
-| Test | `php artisan test --compact` → **22 lulus, 0 gagal** (51 assertion, MySQL `topup_game_test`, 2026-11-12) |
+| Test | Terakhir di MySQL `topup_game_test`: 22 lulus (sebelum penggantian supplier). Setelah penggantian: 29 dari 30 lulus **di SQLite in-memory** karena MySQL tidak aktif; 1 gagal = `ExampleTest` (Vite manifest belum di-build). **Perlu dijalankan ulang di MySQL.** |
 | Versi | Laravel 13.x, Filament 5.x, PHP 8.4, MySQL 8.0.30 (Laragon), Tailwind 4, Vite 8 |
 | Git | **Belum diinisialisasi** |
 
@@ -25,9 +25,9 @@
 | Enkripsi kredensial | cast `encrypted` + hidden | `GameAccount`, test `test_credentials_are_encrypted_at_rest` |
 | Admin panel | Resource Kategori, Game, Produk (kolom stok), Stok Akun, Pesanan (tanpa create); widget dashboard; akses hanya admin | `app/Filament`, `AdminPanelAccessTest` |
 | Storefront dasar | Home, halaman game (stok akun + input ID statis), invoice (kredensial hanya jika sukses) | `StorefrontController`, `resources/views/storefront`, `StorefrontTest` |
-| Webhook | Verifikasi signature Tripay & Digiflazz, log ke `api_logs`, 403 jika salah, CSRF dikecualikan, throttle | `app/Http/Controllers/Webhook`, `WebhookSignatureTest` |
-| Service integrasi | Tripay: channel, createTransaction, signature. Digiflazz: saldo, price list, topup, sign | `app/Services/Payment`, `app/Services/Supplier` (**belum diuji ke API asli**) |
-| Konfigurasi | MySQL, timezone Asia/Jakarta, locale `id`, key `.env` Tripay/Digiflazz (kosong) | `.env.example`, `config/app.php`, `config/services.php` |
+| Webhook | Verifikasi signature Tripay & Melo, log ke `api_logs`, 403 (Tripay) / 401 (Melo) jika salah, CSRF dikecualikan, throttle | `app/Http/Controllers/Webhook`, `WebhookSignatureTest` |
+| Service integrasi | Tripay: channel, createTransaction, signature. Melo: profil, saldo, katalog, topup, cek status, signature webhook | `app/Services/Payment`, `app/Services/Supplier` (**belum diuji ke API asli**) |
+| Konfigurasi | MySQL, timezone Asia/Jakarta, locale `id`, key `.env` Tripay/Melo (kosong) | `.env.example`, `config/services.php` |
 
 ## 3. Belum Dikerjakan
 
@@ -37,7 +37,7 @@
 - Pemrosesan callback payment & supplier (masih TODO di controller); queue jobs.
 - Pemanggilan `createTransaction` dari alur order; tampilan instruksi bayar.
 - Cek status supplier; penandaan order `pending` kedaluwarsa menjadi `expired`.
-- Sinkron harga Digiflazz, import CSV stok akun.
+- Sinkron harga Melo, import CSV stok akun.
 - Notifikasi.
 - Desain storefront final dan branding admin.
 - Deployment.
@@ -54,7 +54,7 @@
 | M6 | Panduan Boost menyarankan Laravel Cloud (`boost.json` `"cloud": true`), padahal deploy = VPS | `CLAUDE.md`, `AGENTS.md` root | Saran deploy menyesatkan |
 | M7 | Dokumen root `TECH_STACK.md` berbeda dari `docs/`: timeline 4 minggu (vs 21 hari), menyebut harga reseller, tanpa pelanggan login | root | Duplikasi/konflik dokumen |
 | M8 | File tidak terpakai: `database/database.sqlite`, `resources/views/welcome.blade.php` | — | Kebersihan |
-| M9 | Format `customer_no` Digiflazz (User ID + Zone ID digabung) belum diverifikasi per produk | `DigiflazzService::topup` | Top up salah tujuan |
+| M9 | Melo menerima `customer_target` dan `customer_target_zone` terpisah. Apakah tiap SKU game memakai format itu (dan nilai zone-nya) belum diverifikasi dengan SKU nyata | `MeloService::topup` | Top up salah tujuan |
 
 ## 5. Keputusan yang Menunggu (PO/Klien)
 
@@ -72,10 +72,14 @@
 12. Cara mengaktifkan `docs/AGENTS.md` dan nasib `TECH_STACK.md` root (M5, M7).
 13. Tanggal mulai H1.
 
+## 5a. Perubahan Supplier (2026-11-12)
+
+Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webhook/melo`, `services.melo.*`, `MELO_*` di `.env`). Kode dan route Digiflazz dihapus. Kolom `products.supplier` default factory kini `melo`; data lama bernilai `digiflazz` (jika ada) perlu diubah manual. Signature webhook dites; `topup`, `status`, `profile`, `balance`, `priceList` dites dengan `Http::fake()`, **belum diuji ke API Melo asli**. Pemrosesan callback (job) masih TODO.
+
 ## 6. Pekerjaan Berikutnya
 
 1. PO me-review dan merevisi dokumen `docs/`.
 2. Putuskan item 5.1, 5.3, 5.5, 5.12 (berpengaruh ke tahap awal).
 3. `git init` + commit awal (atas izin PO).
-4. Daftar akun sandbox payment gateway & Digiflazz (risiko E1/E2).
+4. Daftar akun sandbox payment gateway & Melo (risiko E1/E2).
 5. Mulai Tahap 2: resource Pelanggan, batasi form pesanan.

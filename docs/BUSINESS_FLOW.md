@@ -11,7 +11,7 @@
 |---|---|---|---|
 | `pending` | Menunggu Pembayaran | Order dibuat, invoice payment aktif | Tidak |
 | `paid` | Dibayar | Payment gateway mengonfirmasi lunas | Tidak |
-| `processing` | Diproses | Sudah dikirim ke Digiflazz, menunggu hasil | Tidak |
+| `processing` | Diproses | Sudah dikirim ke Melo, menunggu hasil | Tidak |
 | `success` | Sukses | Top up terkirim / akun diserahkan | Ya |
 | `failed` | Gagal | Pembayaran gagal atau supplier gagal | Ya |
 | `expired` | Kedaluwarsa | Tidak dibayar sampai batas waktu | Ya |
@@ -107,29 +107,30 @@ sequenceDiagram
 | Kedaluwarsa (`EXPIRED`) | status `expired`, akun → `release()` |
 | Gagal (`FAILED`) | status `failed`, akun → `release()` |
 
-## 6. Alur Pengiriman ke Digiflazz [FINAL]
+## 6. Alur Pengiriman ke Melo [FINAL]
 
-1. Job mengirim `DigiflazzService::topup($order)` dengan `ref_id` = invoice.
+1. Job mengirim `MeloService::topup($order)` dengan `buyer_trx_id` = invoice.
 2. Status order menjadi `processing`, lalu simpan `supplier_reference` / `supplier_status` / `supplier_message`.
-3. Respons langsung bisa sudah final (Sukses/Gagal) atau `Pending`.
-4. Jika `Pending`, tunggu webhook (§7). Cek status ulang (request dengan `ref_id` yang sama) dilakukan jika webhook tidak datang dalam waktu tertentu ([TBD] interval).
-5. Timeout atau error jaringan → retry di queue dengan `ref_id` yang sama, supaya tidak terjadi transaksi ganda.
+3. Respons 201 berarti diterima, bukan selesai: `data.status` biasanya `pending`/`processing`, tetapi bisa sudah final (`success`/`failed`).
+4. Jika belum final, tunggu webhook (§7). Cek status ulang (`MeloService::status()` dengan invoice) dilakukan jika webhook tidak datang dalam waktu tertentu ([TBD] interval).
+5. Timeout atau error jaringan → retry di queue dengan `buyer_trx_id` yang sama (Melo mengembalikan transaksi yang ada, tanpa debit ganda). Setelah respons 500, cek `status()` dulu sebelum mengulang.
 
 ## 7. Alur Callback Supplier [FINAL]
 
-1. `POST /webhook/digiflazz`, lalu verifikasi `X-Hub-Signature`.
-2. Cari order berdasarkan `data.ref_id`. Jika sudah final → abaikan.
-3. `Sukses` → §8. `Gagal` → §9. `Pending` → tidak ada perubahan.
+1. `POST /webhook/melo`, lalu verifikasi `X-H2H-Signature`.
+2. Cari order berdasarkan `buyer_trx_id`. Jika sudah final → abaikan. Callback yang sama bisa datang berkali-kali.
+3. Event `transaction.action_change` (tindakan pelanggan/2FA) → hanya simpan, tidak menyelesaikan order dan tidak mengubah saldo.
+4. Tanpa `event`: `success` → §8. `failed` → §9. `pending`/`processing` → tidak ada perubahan.
 
 ```mermaid
 sequenceDiagram
     participant Q as Queue Job
-    participant D as Digiflazz
+    participant D as Melo
     participant W as Webhook Controller
-    Q->>D: transaction (ref_id = invoice)
+    Q->>D: transaction (buyer_trx_id = invoice)
     D-->>Q: status Pending / Sukses / Gagal
     Q->>Q: order = processing (atau final)
-    D->>W: webhook (X-Hub-Signature)
+    D->>W: webhook (X-H2H-Signature)
     W->>W: verifikasi + idempotency
     W->>Q: dispatch HandleSupplierCallback
     Q->>Q: order = success (+ SN) / failed

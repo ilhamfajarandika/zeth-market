@@ -8,9 +8,9 @@
 | # | Kebutuhan | Dibutuhkan paling lambat | Status |
 |---|---|---|---|
 | E1 | Akun **sandbox** payment gateway (Tripay atau pengganti) + keputusan provider | H8 | ❌ belum ada |
-| E2 | Akun Digiflazz (mode testing) + whitelist IP server | H12 | ❌ belum ada |
+| E2 | Akun Melo (mode sandbox) + API Key/Secret Key/Webhook Secret + whitelist IP server (opsional) | H12 | ❌ belum ada |
 | E3 | Akun **production** payment gateway (verifikasi merchant bisa memakan beberapa hari) | H17 | ❌ belum ada |
-| E4 | Saldo deposit Digiflazz untuk uji nyata | H19 | ❌ belum ada |
+| E4 | Saldo deposit Melo untuk uji nyata | H19 | ❌ belum ada |
 | E5 | Aset klien: logo, warna brand, daftar game & produk, harga jual/markup | H4 | ❌ belum ada |
 | E6 | VPS + domain + akses Cloudflare | H19 | ❌ belum ada |
 | E7 | Keputusan TBD di [`PROJECT_SPEC.md`](PROJECT_SPEC.md) (refund, notifikasi, akses invoice, dll.) | sesuai tahap | ❌ |
@@ -43,7 +43,7 @@ Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tand
   - ⏳ Batasi form edit Pesanan (read-only + aksi yang disetujui).
   - ⏳ Sembunyikan/mask kredensial akun di admin [TBD].
   - ⏳ Import stok akun CSV [REKOMENDASI].
-  - ⏳ Sinkron harga modal Digiflazz [REKOMENDASI, butuh E2].
+  - ⏳ Sinkron harga modal Melo [REKOMENDASI, butuh E2].
   - ⏳ Branding panel (logo, warna dari E5).
 - **Dependensi:** E5 (aset), keputusan aksi admin pesanan.
 - **Output:** panel admin lengkap.
@@ -65,13 +65,13 @@ Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tand
 - **Kriteria selesai:** test validasi input, harga tidak bisa dimanipulasi, stok habis ditolak, riwayat hanya milik sendiri.
 - **Risiko:** revisi desain berulang. Batasi jumlah revisi di kontrak.
 
-## Tahap 4 — Hari 12–15: Payment Gateway & Digiflazz
+## Tahap 4 — Hari 12–15: Payment Gateway & Melo
 
 - **Tujuan:** order lunas diproses otomatis.
 - **Pekerjaan:**
   - ⏳ Panggil `createTransaction`, simpan data payment, tampilkan instruksi bayar.
   - ⏳ Job `HandlePaymentCallback` (idempotent, cek nominal, lock order).
-  - ⏳ Job kirim ke Digiflazz (`ref_id = invoice`, retry aman).
+  - ⏳ Job kirim ke Melo (`buyer_trx_id = invoice`, retry aman).
   - ⏳ Job `HandleSupplierCallback` (Sukses/Gagal + SN).
   - ⏳ Cek status supplier jika webhook tidak datang.
   - ⏳ Penandaan order `pending` yang lewat `expired_at` menjadi `expired`.

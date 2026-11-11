@@ -18,7 +18,7 @@ class ApiLogFactory extends Factory
     public function definition(): array
     {
         return [
-            'provider' => fake()->randomElement(['tripay', 'digiflazz']),
+            'provider' => fake()->randomElement(['tripay', 'melo']),
             'direction' => fake()->randomElement(['outgoing', 'callback']),
             'reference' => fake()->uuid(),
             'request' => [],

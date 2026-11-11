@@ -1,3 +1,53 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+Indonesian game top-up storefront: a single Laravel 13 monolith (PHP 8.4) with a Filament 5 admin panel at `/admin`, Blade + Tailwind 4 storefront, MySQL, and PHPUnit. Two product types: `topup` (fulfilled via the Melo supplier API) and `account` (sold from internal stock in `game_accounts`). Payment goes through Tripay. There is no nickname/ID lookup by design (only regex format validation per game).
+
+Project docs are in Indonesian. `docs/` holds the spec and rules; `docs/PROJECT_SPEC.md` is the source of truth, then `docs/AGENTS.md`, then other docs, then code. `docs/CURRENT_STATUS.md` lists what is built, known issues and open decisions. Read `docs/AGENTS.md` and `docs/CURRENT_STATUS.md` before non-trivial work. Claude Code does not load `docs/AGENTS.md` automatically. If sources conflict, report it instead of choosing. Features outside the spec (reseller pricing, nickname checks, MLBB calculator) need approval. Root `TECH_STACK.md` is older and partly outdated (4-week timeline, reseller pricing).
+
+Deployment is a VPS (Coolify or Forge) behind Cloudflare, **not** Laravel Cloud, despite the Boost section below.
+
+## Commands
+
+```bash
+composer run setup          # install, .env, key, migrate, npm build
+composer run dev            # dev server (runs `php artisan dev`)
+php artisan migrate --seed  # seeds admin@example.com / password, sample games, products, stock
+npm run build               # Vite build (npm run dev for HMR)
+php artisan schedule:work   # required locally/in production: runs accounts:release-expired every minute
+php artisan test --compact                                   # full suite
+php artisan test --compact tests/Feature/StorefrontTest.php  # one file
+php artisan test --compact --filter=test_name                # one test
+vendor/bin/pint --format agent                               # format after editing PHP
+```
+
+Tests need a running MySQL with two databases, `topup_game` (app) and `topup_game_test` (used by `phpunit.xml`, wiped per test). `vendor/` is not committed, so run `composer install` first. In tests, fake all Tripay/Melo HTTP with `Http::fake()`.
+
+## Architecture
+
+**Order and stock lifecycle.** `OrderStatus` runs `pending → paid → processing → success`, or ends in `failed`, `expired` or `refunded`. `OrderStatus::isFinal()` marks states that callbacks must never change, so callback handling has to be idempotent. Orders store a snapshot of the product name and price, and the price must never be re-read from `products` after the order exists. Totals are always computed server-side.
+
+**Account stock** (`App\Services\AccountStockService`) is the only place `game_accounts` change state: `available → reserved → sold`, with `reserved → available` on release or expiry. Every mutation uses `DB::transaction` + `lockForUpdate()` so an account can't be sold twice. A reservation lasts 15 minutes (`RESERVATION_MINUTES`) and should match the payment invoice expiry. `accounts:release-expired` (scheduled in `routes/console.php`) calls `releaseExpired()`, which currently checks only time, not order status (known issue M2). Displayed stock is `Product::withStock()` (`available_accounts_count`). `game_accounts.credentials` uses the `encrypted` cast and is shown only on the invoice page after the order succeeds.
+
+**External integrations** live in `App\Services\Payment\TripayService` and `App\Services\Supplier\MeloService`. They log requests to `api_logs` and are configured in `config/services.php` from `.env` (`TRIPAY_*`, `MELO_*`). Neither has been tested against the real APIs. Melo authenticates with `X-API-Key`/`X-Secret-Key` headers, uses the invoice as `buyer_trx_id` (retry-safe, no double debit), and replaced Digiflazz; `MELO_SANDBOX=true` simulates orders without debit.
+
+**Webhooks** (`POST /webhook/tripay`, `/webhook/melo`, `app/Http/Controllers/Webhook/`) are excluded from CSRF in `bootstrap/app.php` (`preventRequestForgery(except: ['webhook/*'])`) and throttled. They verify the signature (Tripay: HMAC-SHA256 `X-Callback-Signature`; Melo: hex HMAC-SHA256 `X-H2H-Signature`), write an `ApiLog` row with `signature_valid`, and return 403 (Tripay) or 401 (Melo) on a bad signature. The step after that is still a TODO in the controllers: dispatching the payment and supplier callback jobs. Checkout (Livewire), the order-creation flow and those jobs are not built yet, so check `docs/CURRENT_STATUS.md` before assuming a feature exists.
+
+**Admin.** Filament resources under `app/Filament/Resources/<Name>/` are split into `Schemas/`, `Tables/` and `Pages/`. `User::canAccessPanel()` allows only `UserRole::Admin`. Enums in `app/Enums` implement Filament's `HasLabel`/`HasColor`, so the same enum drives admin UI and domain logic.
+
+**Storefront.** `StorefrontController` serves `home`, `game` and `invoice`. Orders are routed by `invoice` number (`Order::getRouteKeyName()`), and the games route is `/game/{game}`. The storefront views are in `resources/views/storefront`, with the layout at `resources/views/components/layouts/app.blade.php`.
+
+## Project rules that differ from or add to Boost
+
+- Schema changes go in new migrations only (never edit existing ones), and new tables or columns must be recorded in `docs/DATABASE_DESIGN.md`.
+- Don't add Composer/NPM packages or services without approval.
+- Don't run `git commit`/`git push` unless asked.
+- Don't mark work done until tests pass. After a task, update `docs/CURRENT_STATUS.md`, and update `docs/DATABASE_DESIGN.md` or `docs/API_INTEGRATION.md` if the schema or an integration changed.
+- Bugs found outside the current task go in `docs/CURRENT_STATUS.md` under "Masalah Ditemukan"; don't fix them unprompted.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

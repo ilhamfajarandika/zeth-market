@@ -13,7 +13,7 @@ flowchart TB
     subgraph Laravel["Aplikasi Laravel 13"]
         R[Routes + Controllers / Livewire]
         F[Filament Resources]
-        SV[Services<br/>AccountStockService<br/>TripayService<br/>DigiflazzService]
+        SV[Services<br/>AccountStockService<br/>TripayService<br/>MeloService]
         J[Queue Jobs]
         SC[Scheduler]
         M[Eloquent Models]
@@ -21,7 +21,7 @@ flowchart TB
     DB[(MySQL 8)]
     RD[(Redis — production<br/>cache + queue)]
     PG[Payment Gateway<br/>kandidat: Tripay]
-    DF[Digiflazz API v1]
+    DF[Melo H2H API]
 
     U --> R
     A --> F
@@ -36,7 +36,7 @@ flowchart TB
     SV -->|HTTPS| PG
     SV -->|HTTPS| DF
     PG -->|callback /webhook/tripay| R
-    DF -->|webhook /webhook/digiflazz| R
+    DF -->|webhook /webhook/melo| R
 ```
 
 ## 2. Peran Komponen
@@ -50,14 +50,14 @@ flowchart TB
 | **Alpine.js** | Interaksi kecil di sisi klien (toggle, copy kode bayar, modal). Ikut terpasang bersama Livewire. |
 | **Tailwind CSS 4** | Styling storefront (`resources/css/app.css`). Admin memakai styling Filament. |
 | **Services** (`app/Services`) | Logika bisnis dan integrasi eksternal. Controller, Livewire, dan Job memanggil service, bukan memanggil API langsung. |
-| **Queue Jobs** | Proses callback payment, pengiriman ke Digiflazz, callback supplier, notifikasi. [REKOMENDASI] Belum dibuat. |
+| **Queue Jobs** | Proses callback payment, pengiriman ke Melo, callback supplier, notifikasi. [REKOMENDASI] Belum dibuat. |
 | **Scheduler** | `accounts:release-expired` tiap menit (`routes/console.php`) |
 
 ## 3. Komunikasi Frontend ↔ Backend
 
 - Storefront dirender di server (Blade). Interaksi checkout lewat Livewire, tanpa REST API publik. [FINAL]
 - Admin sepenuhnya lewat Filament (Livewire). [FINAL]
-- Endpoint non-HTML hanya webhook: `POST /webhook/tripay`, `POST /webhook/digiflazz`. Keduanya dikecualikan dari CSRF (`bootstrap/app.php`) dan diberi throttle. [FINAL]
+- Endpoint non-HTML hanya webhook: `POST /webhook/tripay`, `POST /webhook/melo`. Keduanya dikecualikan dari CSRF (`bootstrap/app.php`) dan diberi throttle. [FINAL]
 
 ## 4. Database, Cache, Queue
 
@@ -72,8 +72,8 @@ flowchart TB
 ## 5. Integrasi Eksternal
 
 - **Payment gateway:** `app/Services/Payment/TripayService.php` (kandidat). Jika provider berubah, buat service baru dengan metode yang setara (buat transaksi, verifikasi callback). Controller dan job tidak boleh bergantung pada detail Tripay. [REKOMENDASI]
-- **Digiflazz:** `app/Services/Supplier/DigiflazzService.php`.
-- Konfigurasi di `config/services.php` (`services.tripay.*`, `services.digiflazz.*`), nilai dari `.env`.
+- **Melo:** `app/Services/Supplier/MeloService.php`.
+- Konfigurasi di `config/services.php` (`services.tripay.*`, `services.melo.*`), nilai dari `.env`.
 - Detail ada di [`API_INTEGRATION.md`](API_INTEGRATION.md).
 
 ## 6. Struktur Direktori
@@ -91,7 +91,7 @@ app/
 │   └── Widgets/StoreOverview.php                   ✅
 ├── Http/
 │   ├── Controllers/StorefrontController.php        ✅ home, game, invoice
-│   ├── Controllers/Webhook/                        ✅ TripayCallbackController, DigiflazzCallbackController
+│   ├── Controllers/Webhook/                        ✅ TripayCallbackController, MeloCallbackController
 │   ├── Controllers/Auth/ (login/register pelanggan) ➕
 │   └── Requests/                                   ➕ Form Request validasi
 ├── Jobs/                                           ➕ HandlePaymentCallback, SendTopupToSupplier, HandleSupplierCallback
@@ -102,7 +102,7 @@ app/
 └── Services/
     ├── AccountStockService.php                     ✅
     ├── Payment/TripayService.php                   ✅
-    └── Supplier/DigiflazzService.php               ✅
+    └── Supplier/MeloService.php               ✅
 database/
 ├── migrations/2026_11_11_*                         ✅ lihat DATABASE_DESIGN.md
 ├── factories/                                      ✅ satu per model
@@ -127,7 +127,7 @@ Aturan: jangan membuat folder dasar baru di luar daftar ini tanpa persetujuan.
 | GET | `/game/{game}` (binding by `slug`) | `game.show` | `StorefrontController@game` |
 | GET | `/invoice/{order}` (binding by `invoice`) | `invoice.show` | `StorefrontController@invoice` |
 | POST | `/webhook/tripay` | `webhook.tripay` | `TripayCallbackController` |
-| POST | `/webhook/digiflazz` | `webhook.digiflazz` | `DigiflazzCallbackController` |
+| POST | `/webhook/melo` | `webhook.melo` | `MeloCallbackController` |
 | — | `/admin/*` | `filament.admin.*` | Filament |
 
 Cek terbaru: `php artisan route:list --except-vendor`.
@@ -153,4 +153,4 @@ php artisan test --compact
 
 - VPS + Coolify **atau** Laravel Forge, dengan Cloudflare di depan (DNS, SSL, proteksi). Pilihan Coolify vs Forge = [TBD].
 - Wajib di server: cron `schedule:run` tiap menit, queue worker sebagai service, Redis, backup database harian [REKOMENDASI].
-- URL webhook production harus didaftarkan di dashboard payment gateway dan Digiflazz.
+- URL webhook production harus didaftarkan di dashboard payment gateway dan Melo.
