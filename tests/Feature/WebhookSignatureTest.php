@@ -16,7 +16,7 @@ class WebhookSignatureTest extends TestCase
 
         config([
             'services.tripay.private_key' => 'tripay-secret',
-            'services.digiflazz.webhook_secret' => 'digiflazz-secret',
+            'services.melo.webhook_secret' => 'melo-secret',
         ]);
     }
 
@@ -46,23 +46,50 @@ class WebhookSignatureTest extends TestCase
         $this->assertFalse(ApiLog::where('reference', 'INV123')->sole()->signature_valid);
     }
 
-    public function test_digiflazz_webhook_with_valid_signature_is_accepted(): void
+    public function test_melo_webhook_with_valid_signature_is_accepted(): void
     {
-        $body = json_encode(['data' => ['ref_id' => 'INV456', 'status' => 'Sukses']]);
+        $body = json_encode(['buyer_trx_id' => 'INV456', 'status' => 'success']);
 
-        $response = $this->call('POST', route('webhook.digiflazz'), [], [], [], [
+        $response = $this->call('POST', route('webhook.melo'), [], [], [], [
             'CONTENT_TYPE' => 'application/json',
-            'HTTP_X_HUB_SIGNATURE' => 'sha1='.hash_hmac('sha1', $body, 'digiflazz-secret'),
+            'HTTP_X_H2H_SIGNATURE' => hash_hmac('sha256', $body, 'melo-secret'),
         ], $body);
 
         $response->assertOk();
         $this->assertTrue(ApiLog::where('reference', 'INV456')->sole()->signature_valid);
     }
 
-    public function test_digiflazz_webhook_without_signature_is_rejected(): void
+    public function test_melo_webhook_with_wrong_signature_is_rejected_and_logged(): void
     {
-        $response = $this->postJson(route('webhook.digiflazz'), ['data' => ['ref_id' => 'INV456']]);
+        $body = json_encode(['buyer_trx_id' => 'INV456', 'status' => 'success']);
 
-        $response->assertForbidden();
+        $response = $this->call('POST', route('webhook.melo'), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_H2H_SIGNATURE' => hash_hmac('sha256', $body, 'other-secret'),
+        ], $body);
+
+        $response->assertUnauthorized();
+        $this->assertFalse(ApiLog::where('reference', 'INV456')->sole()->signature_valid);
+    }
+
+    public function test_melo_webhook_without_signature_is_rejected(): void
+    {
+        $response = $this->postJson(route('webhook.melo'), ['buyer_trx_id' => 'INV456']);
+
+        $response->assertUnauthorized();
+    }
+
+    public function test_melo_webhook_is_rejected_when_webhook_secret_is_not_configured(): void
+    {
+        config(['services.melo.webhook_secret' => null]);
+
+        $body = json_encode(['buyer_trx_id' => 'INV456']);
+
+        $response = $this->call('POST', route('webhook.melo'), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_H2H_SIGNATURE' => hash_hmac('sha256', $body, ''),
+        ], $body);
+
+        $response->assertUnauthorized();
     }
 }

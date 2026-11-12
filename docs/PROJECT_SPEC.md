@@ -6,7 +6,7 @@
 
 ## 1. Deskripsi Proyek
 
-Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** milik toko. Top up diproses otomatis lewat supplier Digiflazz. Akun game dijual dari stok yang dikelola admin. Pembayaran dilakukan lewat satu payment gateway.
+Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** milik toko. Top up diproses otomatis lewat supplier Melo. Akun game dijual dari stok yang dikelola admin. Pembayaran dilakukan lewat satu payment gateway.
 
 ## 2. Tujuan & Ruang Lingkup
 
@@ -26,7 +26,7 @@ Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** 
 
 | Jenis | Sumber pemenuhan | Status |
 |---|---|---|
-| **Top up game** (`products.type = topup`) | Dikirim otomatis ke Digiflazz berdasarkan `supplier_sku` | [FINAL] |
+| **Top up game** (`products.type = topup`) | Dikirim otomatis ke Melo berdasarkan `supplier_sku` | [FINAL] |
 | **Akun game** (`products.type = account`) | Diambil dari stok `game_accounts`. Stok tampil di halaman produk. | [FINAL] |
 
 ## 5. Fitur Pelanggan / Guest
@@ -56,7 +56,7 @@ Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** 
 | A6 | Kelola pesanan (lihat detail, status, log supplier/payment) | [FINAL] |
 | A7 | Kelola pelanggan | [FINAL] (cakupan aksi: [TBD], mis. lihat saja / blokir) |
 | A8 | Dashboard ringkas: omzet hari ini, order perlu diproses, stok akun | [FINAL] (sudah ada di skeleton) |
-| A9 | Sinkron harga modal dari Digiflazz | [REKOMENDASI] |
+| A9 | Sinkron harga modal dari Melo | [REKOMENDASI] |
 | A10 | Pengaturan markup harga | [TBD] |
 
 ## 7. Kebutuhan Fungsional Inti
@@ -64,7 +64,7 @@ Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** 
 1. Harga & total dihitung di server. Order menyimpan snapshot nama produk dan harga. [FINAL]
 2. Satu akun game tidak boleh terjual ke dua order. Akun ditahan (reserved) saat checkout dan dilepas jika tidak dibayar. [FINAL]
 3. Lama penahanan akun & masa berlaku invoice: **15 menit**. [REKOMENDASI]
-4. Pembayaran sukses → top up dikirim otomatis ke Digiflazz / akun langsung ditandai terjual. [FINAL]
+4. Pembayaran sukses → top up dikirim otomatis ke Melo / akun langsung ditandai terjual. [FINAL]
 5. Semua callback payment & supplier diverifikasi signature dan diproses sekali saja (idempotent). [FINAL]
 6. Order yang gagal di supplier setelah dibayar → penanganan [TBD] (refund otomatis / manual / saldo).
 
@@ -84,7 +84,7 @@ Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** 
 
 - Waktu 21 hari, budget Rp4.500.000. [FINAL]
 - Hanya **satu** payment gateway. [FINAL]
-- Bergantung pada akses API Digiflazz & payment gateway yang harus didaftarkan klien/developer. Akses belum tersedia. [FINAL, risiko]
+- Bergantung pada akses API Melo & payment gateway yang harus didaftarkan klien/developer. Akses belum tersedia. [FINAL, risiko]
 - Stack tidak boleh diganti tanpa persetujuan. [FINAL]
 
 ## 10. Di Luar Scope
@@ -112,7 +112,7 @@ Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** 
 | Build | Vite 8 | [FINAL] |
 | Database | MySQL 8 | [FINAL] |
 | Cache & queue | Redis (production), database driver (development) | [FINAL] |
-| Supplier | Digiflazz API v1 | [FINAL] |
+| Supplier | Melo H2H API | [FINAL] |
 | Payment | 1 provider. Kandidat awal **Tripay**, alternatif Duitku / Midtrans / Xendit. | [TBD] provider final |
 | Testing | PHPUnit + Postman CLI | [FINAL] |
 | Deploy | VPS + Coolify **atau** Laravel Forge, ditambah Cloudflare | [TBD] Coolify vs Forge |
@@ -120,7 +120,7 @@ Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** 
 
 ## 12. Kriteria Keberhasilan
 
-1. Guest dan pelanggan bisa membeli top up sampai sukses terkirim (diuji di sandbox/testing Digiflazz & payment).
+1. Guest dan pelanggan bisa membeli top up sampai sukses terkirim (diuji di sandbox/testing Melo & payment).
 2. Pembelian akun menampilkan detail akun hanya setelah pembayaran sukses, tanpa akun ganda.
 3. Order expired otomatis dan stok akun kembali.
 4. Callback palsu (signature salah) ditolak; callback ganda tidak memproses order dua kali.

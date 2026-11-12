@@ -7,7 +7,7 @@ use Filament\Support\Contracts\HasLabel;
 
 enum ProductType: string implements HasColor, HasLabel
 {
-    /** Top up via supplier API (Digiflazz, dll.). */
+    /** Top up via supplier API (Melo, dll.). */
     case Topup = 'topup';
 
     /** Penjualan akun game dari stok internal (tabel game_accounts). */

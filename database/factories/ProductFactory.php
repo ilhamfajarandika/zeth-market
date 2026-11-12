@@ -26,7 +26,7 @@ class ProductFactory extends Factory
             'type' => ProductType::Topup,
             'name' => fake()->numberBetween(10, 2000).' Diamonds',
             'group' => 'Diamond',
-            'supplier' => 'digiflazz',
+            'supplier' => 'melo',
             'supplier_sku' => fake()->unique()->bothify('SKU-####??'),
             'base_price' => $basePrice,
             'price' => $basePrice * 1.05,

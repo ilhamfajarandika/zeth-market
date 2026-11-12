@@ -109,8 +109,8 @@ erDiagram
 | `name`, `group` | VARCHAR | `group` = pengelompokan tampilan (Diamond, Weekly Pass, ...) |
 | `image` | VARCHAR, NULL | |
 | `description` | TEXT, NULL | |
-| `supplier` | VARCHAR, NULL | `digiflazz` (khusus `topup`) |
-| `supplier_sku` | VARCHAR, NULL, INDEX | `buyer_sku_code` Digiflazz |
+| `supplier` | VARCHAR, NULL | `melo` (khusus `topup`) |
+| `supplier_sku` | VARCHAR, NULL, INDEX | `sku_code` Melo |
 | `base_price` | DECIMAL(15,2) | Harga modal |
 | `price` | DECIMAL(15,2) | Harga jual |
 | `reseller_price` | DECIMAL(15,2), NULL | **Ditinjau, out of scope** |
@@ -156,7 +156,7 @@ Riwayat transaksi pelanggan = `orders` dengan `user_id` miliknya. Tidak perlu ta
 ### `api_logs`
 | Kolom | Tipe | Keterangan |
 |---|---|---|
-| `provider` | VARCHAR(30) | `tripay` / `digiflazz` |
+| `provider` | VARCHAR(30) | `tripay` / `melo` |
 | `direction` | VARCHAR(10) | `outgoing` / `callback` |
 | `reference` | VARCHAR, NULL, INDEX | Invoice |
 | `endpoint` | VARCHAR, NULL | |
