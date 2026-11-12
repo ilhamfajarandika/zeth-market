@@ -41,17 +41,27 @@ flowchart TB
 
 ## 2. Peran Komponen
 
-| Komponen | Peran |
-|---|---|
-| **Laravel** | Routing, auth, validasi, Eloquent, queue, scheduler, HTTP client, enkripsi |
-| **Filament 5** | Seluruh panel admin di `/admin`: CRUD katalog, stok akun, pesanan, dashboard. Akses dibatasi `User::canAccessPanel()` (role admin). |
-| **Blade** | Layout dan halaman storefront (`resources/views/storefront/*`, `resources/views/components/layouts/app.blade.php`) |
-| **Livewire** | Bagian interaktif storefront, terutama form checkout (pilih produk, input ID, metode bayar, total). [REKOMENDASI] Belum dibuat. |
-| **Alpine.js** | Interaksi kecil di sisi klien (toggle, copy kode bayar, modal). Ikut terpasang bersama Livewire. |
-| **Tailwind CSS 4** | Styling storefront (`resources/css/app.css`). Admin memakai styling Filament. |
-| **Services** (`app/Services`) | Logika bisnis dan integrasi eksternal. Controller, Livewire, dan Job memanggil service, bukan memanggil API langsung. |
-| **Queue Jobs** | Proses callback payment, pengiriman ke Melo, callback supplier, notifikasi. [REKOMENDASI] Belum dibuat. |
-| **Scheduler** | `accounts:release-expired` tiap menit (`routes/console.php`) |
+| Komponen       | Peran                                                    | Status |
+| -------------- | -------------------------------------------------------- | ------ |
+| Laravel        | Routing, auth, validasi, Eloquent, queue, HTTP, enkripsi | ✅     |
+| Filament 5     | Seluruh panel admin di `/admin` (1)                      | ✅     |
+| Blade          | Layout dan halaman storefront (2)                        | ✅     |
+| Livewire       | Bagian interaktif storefront, terutama checkout (3)      | ➕     |
+| Alpine.js      | Interaksi kecil: toggle, copy kode bayar, modal (4)      | ➕     |
+| Tailwind CSS 4 | Styling storefront (`resources/css/app.css`) (5)         | ✅     |
+| Services       | Logika bisnis & integrasi eksternal (6)                  | ✅     |
+| Queue Jobs     | Callback payment, kirim ke Melo, notifikasi         | ➕     |
+| Scheduler      | `accounts:release-expired` tiap menit                    | ✅     |
+
+✅ ada di kode · ➕ direkomendasikan, belum dibuat.
+
+1. CRUD katalog, stok akun, pesanan, dashboard. Akses dibatasi `User::canAccessPanel()` (role admin).
+2. `resources/views/storefront/*` dan `resources/views/components/layouts/app.blade.php`.
+3. Form checkout: pilih produk, input ID, metode bayar, total.
+4. Ikut terpasang bersama Livewire.
+5. Admin memakai styling bawaan Filament.
+6. Folder `app/Services`. Controller, Livewire, dan Job memanggil service, bukan memanggil API langsung.
+- Scheduler didaftarkan di `routes/console.php`.
 
 ## 3. Komunikasi Frontend ↔ Backend
 
@@ -61,13 +71,16 @@ flowchart TB
 
 ## 4. Database, Cache, Queue
 
-| Kebutuhan | Development | Production |
-|---|---|---|
-| Database | MySQL 8 (Laragon), DB `topup_game`; test: `topup_game_test` | MySQL 8 di VPS |
-| Cache | `database` | Redis [FINAL] |
-| Queue | `database` | Redis [FINAL]. Worker: `php artisan queue:work --tries=3`. Horizon = [TBD] (dependency baru). |
-| Session | `database` | `database` atau Redis [TBD] |
-| Mail | `log` | SMTP / Resend [TBD] |
+| Kebutuhan | Development           | Production               |
+| --------- | --------------------- | ------------------------ |
+| Database  | MySQL 8 (Laragon) (1) | MySQL 8 di VPS           |
+| Cache     | `database`            | Redis [FINAL]            |
+| Queue     | `database`            | Redis [FINAL] (2)        |
+| Session   | `database`            | `database` / Redis [TBD] |
+| Mail      | `log`                 | SMTP / Resend [TBD]      |
+
+1. Database `topup_game`; test memakai `topup_game_test`.
+2. Worker: `php artisan queue:work --tries=3`. Horizon = [TBD] (dependency baru).
 
 ## 5. Integrasi Eksternal
 
@@ -102,7 +115,7 @@ app/
 └── Services/
     ├── AccountStockService.php                     ✅
     ├── Payment/TripayService.php                   ✅
-    └── Supplier/MeloService.php               ✅
+    └── Supplier/MeloService.php                    ✅
 database/
 ├── migrations/2026_11_11_*                         ✅ lihat DATABASE_DESIGN.md
 ├── factories/                                      ✅ satu per model
@@ -114,21 +127,23 @@ resources/views/
 routes/
 ├── web.php                                         ✅ storefront + webhook
 └── console.php                                     ✅ scheduler
-tests/Feature/                                      ✅ AccountStockService, WebhookSignature, Storefront, AdminPanelAccess
+tests/Feature/                                      ✅ AccountStockService, WebhookSignature, Storefront, AdminPanelAccess, MeloService
 ```
 
 Aturan: jangan membuat folder dasar baru di luar daftar ini tanpa persetujuan.
 
 ## 7. Route Aktual
 
-| Method | URL | Nama | Handler |
-|---|---|---|---|
-| GET | `/` | `home` | `StorefrontController@home` |
-| GET | `/game/{game}` (binding by `slug`) | `game.show` | `StorefrontController@game` |
-| GET | `/invoice/{order}` (binding by `invoice`) | `invoice.show` | `StorefrontController@invoice` |
-| POST | `/webhook/tripay` | `webhook.tripay` | `TripayCallbackController` |
-| POST | `/webhook/melo` | `webhook.melo` | `MeloCallbackController` |
-| — | `/admin/*` | `filament.admin.*` | Filament |
+| Method | URL                  | Nama                | Handler                        |
+| ------ | -------------------- | ------------------- | ------------------------------ |
+| GET    | `/`                  | `home`              | `StorefrontController@home`    |
+| GET    | `/game/{game}`       | `game.show`         | `StorefrontController@game`    |
+| GET    | `/invoice/{order}`   | `invoice.show`      | `StorefrontController@invoice` |
+| POST   | `/webhook/tripay`    | `webhook.tripay`    | `TripayCallbackController`     |
+| POST   | `/webhook/melo` | `webhook.melo` | `MeloCallbackController`  |
+| —      | `/admin/*`           | `filament.admin.*`  | Filament                       |
+
+- `{game}` dicari berdasarkan `slug`; `{order}` dicari berdasarkan `invoice`.
 
 Cek terbaru: `php artisan route:list --except-vendor`.
 

@@ -22,10 +22,10 @@ MELO_WEBHOOK_SECRET=
 MELO_SANDBOX=true
 ```
 
-| Key config | Dipakai di |
-|---|---|
-| `services.tripay.*` | `app/Services/Payment/TripayService.php` |
-| `services.melo.*` | `app/Services/Supplier/MeloService.php` |
+| Key config             | Dipakai di                                   |
+| ---------------------- | -------------------------------------------- |
+| `services.tripay.*`    | `app/Services/Payment/TripayService.php`     |
+| `services.melo.*`      | `app/Services/Supplier/MeloService.php`      |
 
 Kredensial sandbox/production didaftarkan oleh: [TBD] (developer atau klien). Status akses: **belum tersedia** (risiko, lihat `IMPLEMENTATION_PLAN.md`).
 
@@ -81,7 +81,7 @@ Payload (`MeloService::topup`):
 | `customer_target` | `orders.target_user_id` |
 | `customer_target_zone` | `orders.target_zone_id` (tidak dikirim jika kosong) |
 | `buyer_trx_id` | `orders.invoice` (unik) |
-| `sandbox_mode` | `MELO_SANDBOX` (true di development: tanpa debit dan tanpa fulfilment nyata) |
+| `sandbox_mode` | `MELO_SANDBOX` (true di development: tanpa debit dan tanpa fulfilment nyata). ⚠️ Tidak ada default di `config/services.php`: jika variabel kosong/tidak ada, nilainya `false` dan order menjadi transaksi nyata (M12). |
 
 Respons:
 - **201**: diterima dan diantrekan, **bukan selesai**. Baca `data.status` (`pending`, `processing`, `success`, `failed`, `refunded`), lalu tunggu webhook.
@@ -116,16 +116,19 @@ Base URL: sandbox `https://tripay.co.id/api-sandbox`, production `https://tripay
 ### 3.2 Pembuatan invoice / transaksi
 `POST /transaction/create` → `createTransaction($order, $method)`. ✅ ada.
 
-| Field | Nilai |
-|---|---|
-| `method` | kode channel |
-| `merchant_ref` | `orders.invoice` |
-| `amount` | `orders.total` (integer Rupiah) |
-| `customer_name/email/phone` | dari order (fallback email jika guest tanpa email: [TBD]) |
-| `order_items` | 1 item = `product_name` |
-| `return_url` | `route('invoice.show', $order)` |
-| `expired_time` | `orders.expired_at` (timestamp) |
-| `signature` | `HMAC-SHA256(merchant_code + merchant_ref + amount, private_key)` |
+| Field                       | Nilai                           |
+| --------------------------- | ------------------------------- |
+| `method`                    | kode channel                    |
+| `merchant_ref`              | `orders.invoice`                |
+| `amount`                    | `orders.total` (integer Rupiah) |
+| `customer_name/email/phone` | dari order (1)                  |
+| `order_items`               | 1 item = `product_name`         |
+| `return_url`                | `route('invoice.show', $order)` |
+| `expired_time`              | `orders.expired_at` (timestamp) |
+| `signature`                 | HMAC-SHA256 (2)                 |
+
+1. Fallback email jika guest tidak mengisi email: [TBD].
+2. `HMAC-SHA256(merchant_code + merchant_ref + amount, private_key)`.
 
 Simpan dari respons: `reference` → `payment_reference`, `checkout_url` → `payment_url`, `pay_code` / `qr_string` → `payment_code`. [ASUMSI] nama field respons. Mapping ini belum diimplementasikan.
 
@@ -134,12 +137,12 @@ Simpan dari respons: `reference` → `payment_reference`, `checkout_url` → `pa
 - Signature: header `X-Callback-Signature` = `HMAC-SHA256(raw body, private_key)` → `isValidCallbackSignature()`. ✅ ada + dites.
 - Referensi order: `merchant_ref`.
 
-| Status Tripay | Status order | Aksi stok akun |
-|---|---|---|
-| `PAID` | `paid`, lalu `processing` (top up) / `success` (akun) | `markSold()` |
-| `EXPIRED` | `expired` | `release()` |
-| `FAILED` | `failed` | `release()` |
-| `REFUND` | [TBD] | [TBD] |
+| Status Tripay | Status order                                          | Aksi stok akun |
+| ------------- | ----------------------------------------------------- | -------------- |
+| `PAID`        | `paid`, lalu `processing` (top up) / `success` (akun) | `markSold()`   |
+| `EXPIRED`     | `expired`                                             | `release()`    |
+| `FAILED`      | `failed`                                              | `release()`    |
+| `REFUND`      | [TBD]                                                 | [TBD]          |
 
 Pemrosesan status: ➕ belum (TODO di controller).
 
@@ -150,14 +153,19 @@ Buat service setara di `app/Services/Payment/` dengan kemampuan: daftar channel,
 
 ## 4. Timeout, Retry, Idempotency
 
-| Aturan | Status |
-|---|---|
-| Timeout HTTP: Tripay 15 detik, Melo 30 detik | ✅ di service |
-| Retry Tripay: 2x jeda 500 ms (`retry(2, 500, throw: false)`) | ✅ |
-| Retry Melo **tidak** otomatis di HTTP client. Retry dilakukan job queue dengan `buyer_trx_id` sama (aman, tidak debit ganda); setelah respons 500 cek `status()` dulu | [REKOMENDASI], job belum ada |
-| Callback diproses di queue job; controller hanya verifikasi, log, dispatch, lalu balas cepat | [REKOMENDASI], belum |
-| Callback untuk order berstatus final diabaikan (`OrderStatus::isFinal()`) | [FINAL], belum diterapkan |
-| Satu invoice = satu `ref_id` = satu transaksi supplier | [FINAL] |
+| Aturan                                             | Status               |
+| -------------------------------------------------- | -------------------- |
+| Timeout HTTP: Tripay 15 detik, Melo 30 detik      | ✅ di service        |
+| Retry Tripay 2x, jeda 500 ms (1)                   | ✅                   |
+| Retry Melo lewat job queue, `buyer_trx_id` sama (2) | [REKOMENDASI], belum |
+| Callback diproses di queue job (3)                 | [REKOMENDASI], belum |
+| Callback untuk order final diabaikan (4)           | [FINAL], belum       |
+| 1 invoice = 1 `buyer_trx_id` = 1 transaksi supplier | [FINAL]              |
+
+1. `retry(2, 500, throw: false)`.
+2. HTTP client Melo **tidak** retry otomatis. Retry aman karena `buyer_trx_id` sama (tanpa debit ganda); setelah respons 500, cek `status()` dulu. Job-nya belum ada.
+3. Controller hanya verifikasi, log, dispatch, lalu langsung membalas. Lock order, cek `isFinal()`, dan perubahan status dilakukan di job. Syarat idempotent = [FINAL]; mekanisme queue = [REKOMENDASI].
+4. Memakai `OrderStatus::isFinal()`. Belum diterapkan.
 
 ## 5. Logging
 

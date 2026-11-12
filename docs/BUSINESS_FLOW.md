@@ -2,31 +2,32 @@
 
 > Label: **[FINAL] / [REKOMENDASI] / [ASUMSI] / [TBD]** (lihat [`PROJECT_SPEC.md`](PROJECT_SPEC.md)).
 > Nama status mengikuti kode: `app/Enums/OrderStatus.php` dan `app/Enums/AccountStatus.php`.
+> Label di judul bagian berlaku untuk alur utama bagian itu. Poin di dalamnya yang punya label sendiri ([REKOMENDASI]/[TBD]) mengikuti label tersebut.
 
 ## 1. Status yang Dipakai
 
 ### Status order (`orders.status`)
 
-| Nilai | Label UI | Arti | Final? |
-|---|---|---|---|
-| `pending` | Menunggu Pembayaran | Order dibuat, invoice payment aktif | Tidak |
-| `paid` | Dibayar | Payment gateway mengonfirmasi lunas | Tidak |
-| `processing` | Diproses | Sudah dikirim ke Melo, menunggu hasil | Tidak |
-| `success` | Sukses | Top up terkirim / akun diserahkan | Ya |
-| `failed` | Gagal | Pembayaran gagal atau supplier gagal | Ya |
-| `expired` | Kedaluwarsa | Tidak dibayar sampai batas waktu | Ya |
-| `refunded` | Refund | Dana dikembalikan ([TBD] apakah dipakai) | Ya |
+| Nilai        | Label UI            | Arti                                       | Final? |
+| ------------ | ------------------- | ------------------------------------------ | ------ |
+| `pending`    | Menunggu Pembayaran | Order dibuat, invoice payment aktif        | Tidak  |
+| `paid`       | Dibayar             | Payment gateway mengonfirmasi lunas        | Tidak  |
+| `processing` | Diproses            | Sudah dikirim ke Melo, menunggu hasil      | Tidak  |
+| `success`    | Sukses              | Top up terkirim / akun diserahkan          | Ya     |
+| `failed`     | Gagal               | Pembayaran gagal atau supplier gagal       | Ya     |
+| `expired`    | Kedaluwarsa         | Tidak dibayar sampai batas waktu           | Ya     |
+| `refunded`   | Refund              | Dana dikembalikan ([TBD] apakah dipakai)   | Ya     |
 
 Status final tidak boleh diubah oleh callback (`OrderStatus::isFinal()`). [FINAL]
 
 ### Status akun (`game_accounts.status`)
 
-| Nilai | Arti |
-|---|---|
-| `available` | Bisa dibeli, dihitung sebagai stok |
-| `reserved` | Ditahan untuk satu order yang belum dibayar |
-| `sold` | Sudah terjual |
-| `disabled` | Dinonaktifkan admin, tidak dihitung stok |
+| Nilai       | Arti                                        |
+| ----------- | ------------------------------------------- |
+| `available` | Bisa dibeli, dihitung sebagai stok          |
+| `reserved`  | Ditahan untuk satu order yang belum dibayar |
+| `sold`      | Sudah terjual                               |
+| `disabled`  | Dinonaktifkan admin, tidak dihitung stok    |
 
 ```mermaid
 stateDiagram-v2
@@ -95,17 +96,19 @@ sequenceDiagram
 
 ## 5. Alur Callback Payment Gateway [FINAL]
 
-1. Endpoint `POST /webhook/{provider}` menerima callback.
+1. Endpoint `POST /webhook/tripay` (`TripayCallbackController`) menerima callback. Jika provider diganti, route dan controller mengikuti provider baru.
 2. Verifikasi signature. Jika tidak valid → respons 403 dan dicatat di `api_logs`.
-3. Cari order berdasarkan `merchant_ref` = `orders.invoice`.
-4. Jika order sudah berstatus final → abaikan dan balas sukses (idempotent).
-5. Proses status di dalam job queue:
+3. Controller mencatat callback, men-dispatch job `HandlePaymentCallback`, lalu langsung membalas sukses. Controller tidak mengubah status order.
+4. Job mencari order berdasarkan `merchant_ref` = `orders.invoice` dengan `lockForUpdate()`. Jika order sudah berstatus final → abaikan (idempotent).
+5. Job memproses status. Pemrosesan lewat queue = [REKOMENDASI] (`API_INTEGRATION.md` §4); syarat idempotent = [FINAL].
 
-| Status dari gateway | Tindakan |
-|---|---|
-| Lunas (Tripay: `PAID`) | `paid_at` diisi, status `paid`, lalu: top up → §6; akun → `markSold()` → `success` |
-| Kedaluwarsa (`EXPIRED`) | status `expired`, akun → `release()` |
-| Gagal (`FAILED`) | status `failed`, akun → `release()` |
+| Status gateway (Tripay) | Status order | Tindakan lanjut               |
+| ----------------------- | ------------ | ----------------------------- |
+| `PAID` (lunas)          | `paid`       | Isi `paid_at`, lalu lihat (1) |
+| `EXPIRED`               | `expired`    | Akun → `release()`            |
+| `FAILED`                | `failed`     | Akun → `release()`            |
+
+1. Top up → kirim ke Melo (§6). Akun → `markSold()`, lalu order `success`.
 
 ## 6. Alur Pengiriman ke Melo [FINAL]
 
@@ -117,10 +120,11 @@ sequenceDiagram
 
 ## 7. Alur Callback Supplier [FINAL]
 
-1. `POST /webhook/melo`, lalu verifikasi `X-H2H-Signature`.
-2. Cari order berdasarkan `buyer_trx_id`. Jika sudah final → abaikan. Callback yang sama bisa datang berkali-kali.
-3. Event `transaction.action_change` (tindakan pelanggan/2FA) → hanya simpan, tidak menyelesaikan order dan tidak mengubah saldo.
-4. Tanpa `event`: `success` → §8. `failed` → §9. `pending`/`processing` → tidak ada perubahan.
+1. `POST /webhook/melo` (`MeloCallbackController`), lalu verifikasi `X-H2H-Signature`. Jika tidak valid → 401 dan dicatat di `api_logs`.
+2. Controller menyimpan callback, men-dispatch job `HandleSupplierCallback`, lalu membalas 2xx dengan cepat (Melo menunggu maksimal 10 detik dan mengulang hingga 3 kali).
+3. Job mencari order berdasarkan `buyer_trx_id` dengan lock. Jika sudah final → abaikan. Callback yang sama bisa datang berkali-kali.
+4. Event `transaction.action_change` (tindakan pelanggan/2FA) → hanya disimpan, tidak menyelesaikan order dan tidak mengubah saldo.
+5. Tanpa `event`: `success` → §8. `failed` → §9. `pending`/`processing` → tidak ada perubahan.
 
 ```mermaid
 sequenceDiagram
@@ -128,11 +132,12 @@ sequenceDiagram
     participant D as Melo
     participant W as Webhook Controller
     Q->>D: transaction (buyer_trx_id = invoice)
-    D-->>Q: status Pending / Sukses / Gagal
+    D-->>Q: 201, status pending / processing / success / failed
     Q->>Q: order = processing (atau final)
     D->>W: webhook (X-H2H-Signature)
-    W->>W: verifikasi + idempotency
+    W->>W: verifikasi signature + simpan log
     W->>Q: dispatch HandleSupplierCallback
+    Q->>Q: lock order, cek isFinal()
     Q->>Q: order = success (+ SN) / failed
 ```
 
@@ -145,7 +150,7 @@ sequenceDiagram
 ## 9. Alur Transaksi Gagal
 
 - **Pembayaran gagal:** order `failed`, akun di-`release()`. [FINAL]
-- **Supplier gagal setelah dibayar:** order `failed`, pembeli sudah membayar. Penanganannya [TBD]:
+- **Supplier gagal setelah dibayar:** order `failed`, pembeli sudah membayar. Saldo Melo yang ditahan dikembalikan otomatis ke toko; yang perlu diputuskan adalah pengembalian ke pembeli. Penanganannya [TBD]:
   - kirim ulang ke supplier (retry manual oleh admin)?
   - refund manual oleh admin di luar sistem?
   - refund lewat payment gateway?
@@ -161,7 +166,7 @@ flowchart LR
 ```
 
 - Scheduler `accounts:release-expired` (`routes/console.php`) berjalan tiap menit dan memanggil `AccountStockService::releaseExpired()`.
-- Order `pending` yang lewat `expired_at` tanpa callback juga perlu ditandai `expired`. [REKOMENDASI] Belum ada di kode.
+- Order `pending` yang lewat `expired_at` tanpa callback juga wajib ditandai `expired` [FINAL, `PROJECT_SPEC.md` §12 no. 3]. Mekanismenya (mis. scheduler) [REKOMENDASI]. Belum ada di kode.
 - **Masalah terbuka:** `releaseExpired()` saat ini tidak mengecek status order. Jika callback lunas datang setelah reservasi habis, akun bisa sudah dilepas. Lihat [`CURRENT_STATUS.md`](CURRENT_STATUS.md).
 
 ## 11. Alur Refund [TBD]
