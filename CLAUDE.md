@@ -6,9 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Indonesian game top-up storefront: a single Laravel 13 monolith (PHP 8.4) with a Filament 5 admin panel at `/admin`, Blade + Tailwind 4 storefront, MySQL, and PHPUnit. Two product types: `topup` (fulfilled via the Melo supplier API) and `account` (sold from internal stock in `game_accounts`). Payment goes through Tripay. There is no nickname/ID lookup by design (only regex format validation per game).
 
-Project docs are in Indonesian. `docs/` holds the spec and rules; `docs/PROJECT_SPEC.md` is the source of truth, then `docs/AGENTS.md`, then other docs, then code. `docs/CURRENT_STATUS.md` lists what is built, known issues and open decisions. Read `docs/AGENTS.md` and `docs/CURRENT_STATUS.md` before non-trivial work. Claude Code does not load `docs/AGENTS.md` automatically. If sources conflict, report it instead of choosing. Features outside the spec (reseller pricing, nickname checks, MLBB calculator) need approval. Root `TECH_STACK.md` is older and partly outdated (4-week timeline, reseller pricing).
+Project docs are in Indonesian. `docs/` holds the spec and rules. For what must be built, `docs/PROJECT_SPEC.md` is the source of truth, then `docs/AGENTS.md`, then other docs. For what already exists (schema, routes, class names), the code and migrations are the truth (see `docs/AGENTS.md` §3). `docs/CURRENT_STATUS.md` lists what is built, known issues and open decisions. `docs/AGENTS.md` is imported below and always applies. Read `docs/CURRENT_STATUS.md` before non-trivial work. If sources conflict, stop the affected work and report it instead of choosing. Features outside the spec (reseller pricing, nickname checks, MLBB calculator) need approval. Root `TECH_STACK.md` is a short summary that points to `docs/`; `docs/` wins if they differ.
 
 Deployment is a VPS (Coolify or Forge) behind Cloudflare, **not** Laravel Cloud, despite the Boost section below.
+
+@docs/AGENTS.md
 
 ## Commands
 
@@ -21,7 +23,7 @@ php artisan schedule:work   # required locally/in production: runs accounts:rele
 php artisan test --compact                                   # full suite
 php artisan test --compact tests/Feature/StorefrontTest.php  # one file
 php artisan test --compact --filter=test_name                # one test
-vendor/bin/pint --format agent                               # format after editing PHP
+vendor/bin/pint --dirty --format agent                       # format changed PHP files only
 ```
 
 Tests need a running MySQL with two databases, `topup_game` (app) and `topup_game_test` (used by `phpunit.xml`, wiped per test). `vendor/` is not committed, so run `composer install` first. In tests, fake all Tripay/Melo HTTP with `Http::fake()`.
@@ -42,7 +44,7 @@ Tests need a running MySQL with two databases, `topup_game` (app) and `topup_gam
 
 ## Project rules that differ from or add to Boost
 
-- Schema changes go in new migrations only (never edit existing ones), and new tables or columns must be recorded in `docs/DATABASE_DESIGN.md`.
+- Schema changes go in new migrations only (never edit a migration that is already committed), and new tables or columns must be recorded in `docs/DATABASE_DESIGN.md`.
 - Don't add Composer/NPM packages or services without approval.
 - Don't run `git commit`/`git push` unless asked.
 - Don't mark work done until tests pass. After a task, update `docs/CURRENT_STATUS.md`, and update `docs/DATABASE_DESIGN.md` or `docs/API_INTEGRATION.md` if the schema or an integration changed.

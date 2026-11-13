@@ -1,22 +1,25 @@
 # DATABASE_DESIGN — Rancangan Database
 
-> Sumber kebenaran skema = migration di `database/migrations/`. Dokumen ini harus diperbarui setiap kali ada migration baru.
-> Prinsip [FINAL]: sesederhana mungkin untuk 21 hari. **Tidak ada tabel baru yang diusulkan** di luar yang sudah ada.
-> Engine MySQL 8, charset `utf8mb4_unicode_ci`. Uang disimpan sebagai `DECIMAL(15,2)` dalam Rupiah.
+> - Sumber kebenaran skema = migration di `database/migrations/`. Dokumen ini harus diperbarui setiap kali ada migration baru.
+> - Prinsip [FINAL]: sesederhana mungkin untuk timeline 1 bulan. **Tidak ada tabel baru yang diusulkan** di luar yang sudah ada.
+> - Engine MySQL 8, charset `utf8mb4_unicode_ci`. Uang disimpan sebagai `DECIMAL(15,2)` dalam Rupiah.
 
 ## 1. Daftar Entitas
 
-| Tabel | Fungsi | Migration |
-|---|---|---|
-| `users` | Admin dan pelanggan | `0001_01_01_000000_*` + `2026_11_11_000100_add_role_to_users_table.php` |
-| `categories` | Pengelompokan game (Mobile, PC, Voucher, ...) | `2026_11_11_000200_*` |
-| `games` | Game yang dijual + aturan input User/Zone ID | `2026_11_11_000300_*` |
-| `products` | Item yang dijual (top up atau akun) + harga | `2026_11_11_000400_*` |
-| `orders` | Transaksi pembelian, termasuk data payment & supplier | `2026_11_11_000500_*` |
-| `game_accounts` | Stok akun game (1 baris = 1 akun) | `2026_11_11_000600_*` |
-| `api_logs` | Log request/callback ke payment & supplier | `2026_11_11_000700_*` |
-| `settings` | Pengaturan key-value (nama situs, dll.) | `2026_11_11_000800_*` |
-| `sessions`, `password_reset_tokens`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs` | Tabel bawaan Laravel | `0001_01_01_*` |
+| Tabel           | Fungsi                                        | Migration (1)            |
+| --------------- | --------------------------------------------- | ------------------------ |
+| `users`         | Admin dan pelanggan                           | `0001…000000` + `000100` |
+| `categories`    | Pengelompokan game (Mobile, PC, Voucher, ...) | `000200`                 |
+| `games`         | Game yang dijual + aturan input User/Zone ID  | `000300`                 |
+| `products`      | Item yang dijual (top up atau akun) + harga   | `000400`                 |
+| `orders`        | Transaksi pembelian + data payment & supplier | `000500`                 |
+| `game_accounts` | Stok akun game (1 baris = 1 akun)             | `000600`                 |
+| `api_logs`      | Log request/callback payment & supplier       | `000700`                 |
+| `settings`      | Pengaturan key-value (nama situs, dll.)       | `000800`                 |
+
+Catatan:
+1. Nama lengkap file: `database/migrations/2026_11_11_<nomor>_*.php`. Kolom `role`, `whatsapp`, dan `balance` di `users` ditambahkan oleh `2026_11_11_000100_add_role_to_users_table.php`.
+- Tabel bawaan Laravel (`0001_01_01_*`): `sessions`, `password_reset_tokens`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`.
 
 ## 2. ERD
 
@@ -62,112 +65,150 @@ erDiagram
 
 ## 3. Rancangan Tabel
 
+Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** index · **N** nullable.
+
 ### `users`
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| `id` | BIGINT PK | |
-| `name` | VARCHAR | |
-| `email` | VARCHAR, UNIQUE | |
-| `whatsapp` | VARCHAR(20), NULL | |
-| `email_verified_at` | TIMESTAMP, NULL | Verifikasi email pelanggan = [TBD] |
-| `password` | VARCHAR | Hash (cast `hashed`) |
-| `role` | VARCHAR(20), default `member`, INDEX | `admin` / `member` (pelanggan). `reseller` ada di enum → **ditinjau, out of scope** |
-| `balance` | DECIMAL(15,2), default 0 | **Ditinjau, out of scope** (terkait reseller/saldo) |
-| `remember_token`, timestamps | | |
+
+| Kolom               | Tipe            | Keterangan                            |
+| ------------------- | --------------- | ------------------------------------- |
+| `id`                | BIGINT PK       |                                       |
+| `name`              | VARCHAR         |                                       |
+| `email`             | VARCHAR UQ      |                                       |
+| `whatsapp`          | VARCHAR(20) N   |                                       |
+| `email_verified_at` | TIMESTAMP N     | Verifikasi email pelanggan = [TBD]    |
+| `password`          | VARCHAR         | Hash (cast `hashed`)                  |
+| `role`              | VARCHAR(20) IDX | Default `member` (1)                  |
+| `balance`           | DECIMAL(15,2)   | Default 0. **Ditinjau, out of scope** |
+| `remember_token`    | VARCHAR N       |                                       |
+| timestamps          |                 |                                       |
+
+1. Nilai: `admin` / `member` (pelanggan). Nilai `reseller` ada di enum → **ditinjau, out of scope**.
 
 ### `categories`
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| `id` | BIGINT PK | |
-| `name` | VARCHAR | |
-| `slug` | VARCHAR, UNIQUE | |
-| `sort` | INT UNSIGNED, default 0 | Urutan tampil |
-| `is_active` | BOOLEAN, default true | |
+
+| Kolom       | Tipe         | Keterangan    |
+| ----------- | ------------ | ------------- |
+| `id`        | BIGINT PK    |               |
+| `name`      | VARCHAR      |               |
+| `slug`      | VARCHAR UQ   |               |
+| `sort`      | INT UNSIGNED | Urutan tampil |
+| `is_active` | BOOLEAN      | Default true  |
 
 ### `games`
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| `id` | BIGINT PK | |
-| `category_id` | FK → `categories.id`, NULL, `ON DELETE SET NULL` | |
-| `name`, `publisher` | VARCHAR | |
-| `slug` | VARCHAR, UNIQUE | Dipakai di URL `/game/{slug}` |
-| `thumbnail`, `banner` | VARCHAR, NULL | Path file di storage |
-| `description`, `instruction` | TEXT, NULL | `instruction` = cara menemukan User ID |
-| `requires_zone_id` | BOOLEAN | Mis. MLBB = true |
-| `user_id_label` | VARCHAR, default `User ID` | |
-| `zone_id_label` | VARCHAR, NULL | |
-| `user_id_regex`, `zone_id_regex` | VARCHAR, NULL | Validasi format (pengganti cek nickname) |
-| `is_active`, `is_popular` | BOOLEAN | |
-| `sort` | INT UNSIGNED | |
+
+| Kolom                            | Tipe         | Keterangan                        |
+| -------------------------------- | ------------ | --------------------------------- |
+| `id`                             | BIGINT PK    |                                   |
+| `category_id`                    | FK N         | → `categories.id`, set null (1)   |
+| `name`, `publisher`              | VARCHAR      |                                   |
+| `slug`                           | VARCHAR UQ   | Dipakai di URL `/game/{slug}`     |
+| `thumbnail`, `banner`            | VARCHAR N    | Path file di storage              |
+| `description`, `instruction`     | TEXT N       | `instruction` = cara cari User ID |
+| `requires_zone_id`               | BOOLEAN      | Mis. MLBB = true                  |
+| `user_id_label`                  | VARCHAR      | Default `User ID`                 |
+| `zone_id_label`                  | VARCHAR N    |                                   |
+| `user_id_regex`, `zone_id_regex` | VARCHAR N    | Validasi format (2)               |
+| `is_active`, `is_popular`        | BOOLEAN      |                                   |
+| `sort`                           | INT UNSIGNED |                                   |
+
+1. `ON DELETE SET NULL`.
+2. Pengganti cek nickname.
 
 ### `products`
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| `id` | BIGINT PK | |
-| `game_id` | FK → `games.id`, `ON DELETE CASCADE` | |
-| `type` | VARCHAR(20), INDEX | `topup` / `account` |
-| `name`, `group` | VARCHAR | `group` = pengelompokan tampilan (Diamond, Weekly Pass, ...) |
-| `image` | VARCHAR, NULL | |
-| `description` | TEXT, NULL | |
-| `supplier` | VARCHAR, NULL | `melo` (khusus `topup`) |
-| `supplier_sku` | VARCHAR, NULL, INDEX | `sku_code` Melo |
-| `base_price` | DECIMAL(15,2) | Harga modal |
-| `price` | DECIMAL(15,2) | Harga jual |
-| `reseller_price` | DECIMAL(15,2), NULL | **Ditinjau, out of scope** |
-| `strike_price` | DECIMAL(15,2), NULL | Harga coret |
-| `is_active`, `sort` | | |
-| | UNIQUE(`supplier`, `supplier_sku`) | Mencegah SKU ganda |
+
+| Kolom            | Tipe            | Keterangan                             |
+| ---------------- | --------------- | -------------------------------------- |
+| `id`             | BIGINT PK       |                                        |
+| `game_id`        | FK              | → `games.id`, cascade (1)              |
+| `type`           | VARCHAR(20) IDX | `topup` / `account`                    |
+| `name`           | VARCHAR         |                                        |
+| `group`          | VARCHAR N       | Pengelompokan tampilan (Diamond, dll.) |
+| `image`          | VARCHAR N       |                                        |
+| `description`    | TEXT N          |                                        |
+| `supplier`       | VARCHAR N       | `melo` (khusus `topup`)                |
+| `supplier_sku`   | VARCHAR N IDX   | `sku_code` Melo                        |
+| `base_price`     | DECIMAL(15,2)   | Harga modal                            |
+| `price`          | DECIMAL(15,2)   | Harga jual                             |
+| `reseller_price` | DECIMAL(15,2) N | **Ditinjau, out of scope**             |
+| `strike_price`   | DECIMAL(15,2) N | Harga coret                            |
+| `is_active`      | BOOLEAN         |                                        |
+| `sort`           | INT UNSIGNED    |                                        |
+
+1. `ON DELETE CASCADE`.
+- Index tambahan: UQ(`supplier`, `supplier_sku`) untuk mencegah SKU ganda.
 
 ### `orders`
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| `id` | BIGINT PK | |
-| `invoice` | VARCHAR, UNIQUE | Format `INV{yymmdd}{8 random}`. Dipakai sebagai `merchant_ref` dan `ref_id` |
-| `user_id` | FK → `users.id`, NULL, `ON DELETE SET NULL` | NULL = guest (login opsional [FINAL]) |
-| `game_id`, `product_id` | FK, `ON DELETE RESTRICT` | Produk/game yang pernah dibeli tidak bisa dihapus |
-| `product_type`, `product_name` | VARCHAR | **Snapshot** saat order |
-| `target_user_id`, `target_zone_id` | VARCHAR, NULL | Kosong untuk pembelian akun |
-| `email`, `whatsapp` | VARCHAR, NULL | Kontak pembeli |
-| `price`, `fee`, `total` | DECIMAL(15,2) | **Snapshot**. `total = price + fee` [ASUMSI] |
-| `status` | VARCHAR(20), INDEX, default `pending` | Lihat `BUSINESS_FLOW.md` §1 |
-| `payment_method`, `payment_reference` (INDEX) | VARCHAR, NULL | |
-| `payment_url`, `payment_code` | TEXT, NULL | URL checkout / nomor VA / string QR |
-| `paid_at`, `expired_at` | TIMESTAMP, NULL | |
-| `supplier_reference` (INDEX), `supplier_status` | VARCHAR, NULL | |
-| `supplier_message`, `serial_number` | TEXT, NULL | SN = bukti top up |
-| `completed_at` | TIMESTAMP, NULL | |
 
-Riwayat transaksi pelanggan = `orders` dengan `user_id` miliknya. Tidak perlu tabel terpisah. [FINAL]
+| Kolom                              | Tipe            | Keterangan                           |
+| ---------------------------------- | --------------- | ------------------------------------ |
+| `id`                               | BIGINT PK       |                                      |
+| `invoice`                          | VARCHAR UQ      | Nomor order (1)                      |
+| `user_id`                          | FK N            | → `users.id`, set null. NULL = guest |
+| `game_id`, `product_id`            | FK              | Restrict (2)                         |
+| `product_type`, `product_name`     | VARCHAR         | **Snapshot** saat order              |
+| `target_user_id`, `target_zone_id` | VARCHAR N       | Kosong untuk pembelian akun          |
+| `email`, `whatsapp`                | VARCHAR N       | Kontak pembeli                       |
+| `price`, `fee`, `total`            | DECIMAL(15,2)   | **Snapshot** (3)                     |
+| `status`                           | VARCHAR(20) IDX | Default `pending` (4)                |
+| `payment_method`                   | VARCHAR N       |                                      |
+| `payment_reference`                | VARCHAR N IDX   |                                      |
+| `payment_url`, `payment_code`      | TEXT N          | URL checkout / nomor VA / string QR  |
+| `paid_at`, `expired_at`            | TIMESTAMP N     |                                      |
+| `supplier_reference`               | VARCHAR N IDX   |                                      |
+| `supplier_status`                  | VARCHAR N       |                                      |
+| `supplier_message`                 | TEXT N          |                                      |
+| `serial_number`                    | TEXT N          | SN = bukti top up                    |
+| `completed_at`                     | TIMESTAMP N     |                                      |
+
+1. Format `INV{yymmdd}{8 karakter acak}`. Dipakai juga sebagai `merchant_ref` (payment) dan `buyer_trx_id` (Melo).
+2. `ON DELETE RESTRICT`: produk/game yang pernah dibeli tidak bisa dihapus.
+3. `total = price + fee` [ASUMSI].
+4. Daftar status ada di `BUSINESS_FLOW.md` §1.
+- Login opsional [FINAL], jadi `user_id` boleh kosong.
+- Riwayat transaksi pelanggan = `orders` dengan `user_id` miliknya. Tidak perlu tabel terpisah. [FINAL]
 
 ### `game_accounts`
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| `id` | BIGINT PK | |
-| `product_id` | FK → `products.id`, `ON DELETE CASCADE` | Produk ber-`type = account` |
-| `credentials` | TEXT | **Terenkripsi** (cast `encrypted`, kunci `APP_KEY`). Disembunyikan dari serialisasi (`#[Hidden]`). |
-| `public_info` | TEXT, NULL | Boleh tampil publik (rank, skin) |
-| `status` | VARCHAR(20), default `available` | `available` / `reserved` / `sold` / `disabled` |
-| `order_id` | FK → `orders.id`, NULL, `ON DELETE SET NULL` | Order yang menahan/membeli |
-| `reserved_until` | TIMESTAMP, NULL | Batas penahanan |
-| `sold_at` | TIMESTAMP, NULL | |
-| | INDEX(`product_id`, `status`) | Hitung stok & ambil akun tersedia |
-| | INDEX(`status`, `reserved_until`) | Scheduler release |
+
+| Kolom            | Tipe        | Keterangan                                 |
+| ---------------- | ----------- | ------------------------------------------ |
+| `id`             | BIGINT PK   |                                            |
+| `product_id`     | FK          | → `products.id`, cascade. Produk `account` |
+| `credentials`    | TEXT        | **Terenkripsi** (1)                        |
+| `public_info`    | TEXT N      | Boleh tampil publik (rank, skin)           |
+| `status`         | VARCHAR(20) | Default `available` (2)                    |
+| `order_id`       | FK N        | → `orders.id`, set null (3)                |
+| `reserved_until` | TIMESTAMP N | Batas penahanan                            |
+| `sold_at`        | TIMESTAMP N |                                            |
+
+1. Cast `encrypted` (kunci `APP_KEY`), disembunyikan dari serialisasi (`#[Hidden]`).
+2. `available` / `reserved` / `sold` / `disabled`.
+3. Order yang sedang menahan atau sudah membeli akun.
+- Index: (`product_id`, `status`) untuk hitung stok & ambil akun tersedia.
+- Index: (`status`, `reserved_until`) untuk scheduler release.
 
 ### `api_logs`
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| `provider` | VARCHAR(30) | `tripay` / `melo` |
-| `direction` | VARCHAR(10) | `outgoing` / `callback` |
-| `reference` | VARCHAR, NULL, INDEX | Invoice |
-| `endpoint` | VARCHAR, NULL | |
-| `request`, `response` | JSON, NULL | **Tanpa** secret/sign |
-| `signature_valid` | BOOLEAN, NULL | |
-| `http_status` | SMALLINT, NULL | |
 
-Masa simpan log: [TBD] (rekomendasi: hapus setelah 90 hari).
+| Kolom                 | Tipe          | Keterangan              |
+| --------------------- | ------------- | ----------------------- |
+| `provider`            | VARCHAR(30)   | `tripay` / `melo`       |
+| `direction`           | VARCHAR(10)   | `outgoing` / `callback` |
+| `reference`           | VARCHAR N IDX | Invoice                 |
+| `endpoint`            | VARCHAR N     |                         |
+| `request`, `response` | JSON N        | **Tanpa** secret/sign   |
+| `signature_valid`     | BOOLEAN N     |                         |
+| `http_status`         | SMALLINT N    |                         |
+
+- Masa simpan log: [TBD] (rekomendasi: hapus setelah 90 hari).
 
 ### `settings`
-`key` (UNIQUE), `value` (TEXT). Diakses lewat `Setting::get()` dengan cache. Isi yang dibutuhkan (nama situs, kontak CS, dll.): [TBD].
+
+| Kolom   | Tipe       | Keterangan |
+| ------- | ---------- | ---------- |
+| `key`   | VARCHAR UQ |            |
+| `value` | TEXT N     |            |
+
+- Diakses lewat `Setting::get()` dengan cache.
+- Isi yang dibutuhkan (nama situs, kontak CS, dll.): [TBD].
 
 ## 4. Aturan Penyimpanan Data [FINAL]
 
@@ -187,22 +228,25 @@ Masa simpan log: [TBD] (rekomendasi: hapus setelah 90 hari).
 
 Diimplementasikan di `app/Services/AccountStockService.php`:
 
-| Metode | Perilaku |
-|---|---|
-| `reserve($product, $order)` | Transaksi + `lockForUpdate()` pada akun `available` pertama, lalu set `reserved`, `order_id`, dan `reserved_until`. Jika tidak ada → `OutOfStockException`. |
-| `markSold($order)` | Transaksi + lock, set `sold`, `sold_at`. Idempotent (akun yang sudah sold tidak diubah). |
-| `release($order)` | Akun `reserved` milik order kembali ke `available`. |
-| `releaseExpired()` | Semua akun `reserved` dengan `reserved_until` yang sudah lewat kembali ke `available`. |
+| Metode             | Perilaku                                                   |
+| ------------------ | ---------------------------------------------------------- |
+| `reserve()`        | Kunci 1 akun `available` → `reserved` untuk order (1)      |
+| `markSold()`       | Akun milik order → `sold`, isi `sold_at`. Idempotent       |
+| `release()`        | Akun `reserved` milik order → `available`                  |
+| `releaseExpired()` | Semua `reserved` yang lewat `reserved_until` → `available` |
 
-Dites di `tests/Feature/AccountStockServiceTest.php` (MySQL, termasuk kasus dua order tidak mendapat akun yang sama).
+1. Di dalam transaksi + `lockForUpdate()`. Mengisi `order_id` dan `reserved_until`. Jika tidak ada stok → `OutOfStockException`.
 
-**Masalah terbuka:** `releaseExpired()` belum mengecek status order (lihat `CURRENT_STATUS.md`).
+- Dites di `tests/Feature/AccountStockServiceTest.php` (MySQL, termasuk kasus dua order tidak mendapat akun yang sama).
+- **Masalah terbuka:** `releaseExpired()` belum mengecek status order (lihat `CURRENT_STATUS.md`).
 
 ## 7. Item Ditinjau / TBD
 
-| Item | Status |
-|---|---|
-| `users.balance`, `products.reseller_price`, role `reseller`, `Product::priceFor()` | Out of scope. Hapus atau biarkan = [TBD] keputusan PO |
-| Verifikasi email pelanggan | [TBD] |
-| Masa simpan `api_logs` | [TBD] |
-| Kolom tambahan untuk refund | [TBD] (tunggu keputusan alur refund) |
+| Item                        | Status                              |
+| --------------------------- | ----------------------------------- |
+| Kolom & role reseller (1)   | Out of scope. Hapus/biarkan = [TBD] |
+| Verifikasi email pelanggan  | [TBD]                               |
+| Masa simpan `api_logs`      | [TBD]                               |
+| Kolom tambahan untuk refund | [TBD], tunggu alur refund           |
+
+1. `users.balance`, `products.reseller_price`, role `reseller`, `Product::priceFor()`.

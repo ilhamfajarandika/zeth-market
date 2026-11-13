@@ -1,32 +1,40 @@
-# IMPLEMENTATION_PLAN — Rencana 21 Hari
+# IMPLEMENTATION_PLAN — Rencana 1 Bulan
 
 > Tanggal mulai hari ke-1 (H1): **[TBD]**. Skeleton sudah dibuat pada 2026-11-11 (lihat [`CURRENT_STATUS.md`](CURRENT_STATUS.md)), sehingga sebagian pekerjaan tahap 1–2 sudah ada (ditandai ✅).
-> Menggantikan timeline 4 minggu di `TECH_STACK.md` (root).
+> Durasi **1 bulan** (keputusan PO 2026-11-12, menggantikan 21 hari). [ASUMSI] 1 bulan = 30 hari (H1–H30); konfirmasi ke PO.
+> Ini timeline resmi proyek. `TECH_STACK.md` (root) hanya merujuk ke dokumen ini.
 
 ## Ketergantungan Eksternal (Risiko Utama)
 
-| # | Kebutuhan | Dibutuhkan paling lambat | Status |
-|---|---|---|---|
-| E1 | Akun **sandbox** payment gateway (Tripay atau pengganti) + keputusan provider | H8 | ❌ belum ada |
-| E2 | Akun Melo (mode sandbox) + API Key/Secret Key/Webhook Secret + whitelist IP server (opsional) | H12 | ❌ belum ada |
-| E3 | Akun **production** payment gateway (verifikasi merchant bisa memakan beberapa hari) | H17 | ❌ belum ada |
-| E4 | Saldo deposit Melo untuk uji nyata | H19 | ❌ belum ada |
-| E5 | Aset klien: logo, warna brand, daftar game & produk, harga jual/markup | H4 | ❌ belum ada |
-| E6 | VPS + domain + akses Cloudflare | H19 | ❌ belum ada |
-| E7 | Keputusan TBD di [`PROJECT_SPEC.md`](PROJECT_SPEC.md) (refund, notifikasi, akses invoice, dll.) | sesuai tahap | ❌ |
+| #   | Kebutuhan                               | Paling lambat | Status       |
+| --- | --------------------------------------- | ------------- | ------------ |
+| E1  | Akun **sandbox** payment gateway (1)    | H11           | ❌ belum ada |
+| E2  | Akun Melo (sandbox) + key + IP (5)      | H17           | ❌ belum ada |
+| E3  | Akun **production** payment gateway (2) | H24           | ❌ belum ada |
+| E4  | Saldo deposit Melo untuk uji nyata      | H27           | ❌ belum ada |
+| E5  | Aset klien (3)                          | H5            | ❌ belum ada |
+| E6  | VPS + domain + akses Cloudflare         | H27           | ❌ belum ada |
+| E7  | Keputusan TBD di `PROJECT_SPEC.md` (4)  | sesuai tahap  | ❌           |
+
+1. Tripay atau pengganti, sekaligus keputusan provider final.
+2. Verifikasi merchant bisa memakan beberapa hari.
+3. Logo, warna brand, daftar game & produk, harga jual/markup.
+4. Refund, notifikasi, akses invoice, dll.
+5. API Key, Secret Key, Webhook Secret (dibuat lewat Rotate Keys di dashboard Melo); whitelist IP server opsional.
 
 Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tandai integrasi nyata sebagai **tertunda**, bukan selesai.
 
 ---
 
-## Tahap 1 — Hari 1–3: Setup & Konfigurasi Dasar
+## Tahap 1 — Hari 1–4: Setup & Konfigurasi Dasar
 
 - **Tujuan:** fondasi proyek siap dan dapat dijalankan oleh siapa pun.
 - **Pekerjaan:**
   - ✅ Project Laravel 13 + Filament 5, MySQL, Laravel Boost.
   - ✅ Migration, model, enum, factory, seeder.
   - ✅ Service stok akun, signature webhook, scheduler.
-  - ⏳ `git init` + repository privat.
+  - ✅ Repository git + remote `origin` (GitHub).
+  - ✅ Supplier diganti dari Digiflazz ke Melo (PR #1).
   - ⏳ Keputusan atas kolom reseller (out of scope).
   - ⏳ Finalisasi `docs/`.
 - **Dependensi:** —
@@ -34,7 +42,7 @@ Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tand
 - **Kriteria selesai:** `php artisan migrate:fresh --seed` dan `php artisan test --compact` lulus di mesin baru; dokumen `docs/` disetujui PO.
 - **Risiko:** keputusan TBD tertunda, sehingga tahap berikutnya ikut tertahan.
 
-## Tahap 2 — Hari 4–7: Admin Panel & Manajemen Game/Produk
+## Tahap 2 — Hari 5–10: Admin Panel & Manajemen Game/Produk
 
 - **Tujuan:** admin bisa mengelola seluruh katalog tanpa menyentuh database.
 - **Pekerjaan:**
@@ -50,7 +58,7 @@ Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tand
 - **Kriteria selesai:** feature test untuk setiap resource (akses admin, non-admin ditolak, aturan khusus); demo ke PO.
 - **Risiko:** permintaan desain admin melebihi kemampuan Filament (lihat catatan desain di `PROJECT_SPEC.md` §8).
 
-## Tahap 3 — Hari 8–11: Frontend & Sistem Order
+## Tahap 3 — Hari 11–16: Frontend & Sistem Order
 
 - **Tujuan:** pembeli bisa memilih produk dan membuat order.
 - **Pekerjaan:**
@@ -65,7 +73,7 @@ Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tand
 - **Kriteria selesai:** test validasi input, harga tidak bisa dimanipulasi, stok habis ditolak, riwayat hanya milik sendiri.
 - **Risiko:** revisi desain berulang. Batasi jumlah revisi di kontrak.
 
-## Tahap 4 — Hari 12–15: Payment Gateway & Melo
+## Tahap 4 — Hari 17–22: Payment Gateway & Melo
 
 - **Tujuan:** order lunas diproses otomatis.
 - **Pekerjaan:**
@@ -80,7 +88,7 @@ Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tand
 - **Kriteria selesai:** test dengan `Http::fake()` untuk semua cabang (paid, expired, failed, callback ganda, signature salah); uji sandbox lewat Postman CLI.
 - **Risiko:** akses API terlambat, IP whitelist, perbedaan format respons dari asumsi di `API_INTEGRATION.md`.
 
-## Tahap 5 — Hari 16–18: Stok Akun, Transaksi & Notifikasi
+## Tahap 5 — Hari 23–26: Stok Akun, Transaksi & Notifikasi
 
 - **Tujuan:** penjualan akun aman dan pembeli mendapat hasil.
 - **Pekerjaan:**
@@ -95,7 +103,7 @@ Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tand
 - **Kriteria selesai:** test race/expiry, kredensial tidak bocor, notifikasi terkirim (mail `log` di lokal).
 - **Risiko:** keputusan refund/akses invoice belum ada.
 
-## Tahap 6 — Hari 19–21: Testing, Bug Fixing & Deployment
+## Tahap 6 — Hari 27–30: Testing, Bug Fixing & Deployment
 
 - **Tujuan:** aplikasi live dan stabil.
 - **Pekerjaan:**

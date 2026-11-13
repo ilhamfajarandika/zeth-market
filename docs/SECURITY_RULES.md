@@ -4,23 +4,31 @@
 
 ## 1. Password & Autentikasi
 
-| Aturan | Status |
-|---|---|
-| Password di-hash otomatis (cast `hashed` di `app/Models/User.php`, bcrypt) | ✅ |
-| Login admin lewat Filament `/admin/login` | ✅ |
-| Login/registrasi pelanggan di storefront, terpisah dari panel admin | ⏳ |
-| Rate limit untuk login & registrasi pelanggan | ⏳ |
-| Session di-regenerate setelah login | ⏳ (perilaku bawaan Laravel auth) |
-| Akun admin contoh `admin@example.com / password` **hanya untuk lokal**. Wajib diganti/dihapus di production. | ⚠️ saat deploy |
+| Aturan                                            | Status             |
+| ------------------------------------------------- | ------------------ |
+| Password di-hash otomatis (cast `hashed`, bcrypt) | ✅                 |
+| Login admin lewat Filament `/admin/login`         | ✅                 |
+| Login/registrasi pelanggan, terpisah dari admin   | ⏳                 |
+| Rate limit login & registrasi pelanggan           | ⏳                 |
+| Session di-regenerate setelah login               | ⏳ (1)             |
+| Akun admin contoh hanya untuk lokal               | ⚠️ saat deploy (2) |
+
+1. Perilaku bawaan Laravel auth.
+2. `admin@example.com / password` wajib diganti/dihapus di production.
+- Cast `hashed` ada di `app/Models/User.php`.
 
 ## 2. Otorisasi & Role
 
-| Role | Akses | Status |
-|---|---|---|
-| `admin` | Panel `/admin` (`User::canAccessPanel()` → `role === Admin`) | ✅ dites (`AdminPanelAccessTest`) |
-| `member` (pelanggan) | Storefront + riwayat order **miliknya sendiri** | ⏳ |
-| guest | Storefront, checkout, invoice | ✅ / ⏳ |
-| `reseller` | **Out of scope**. Enum masih ada, jangan dipakai. | ⚠️ ditinjau |
+| Role                 | Akses                                   | Status       |
+| -------------------- | --------------------------------------- | ------------ |
+| `admin`              | Panel `/admin` (1)                      | ✅ dites (2) |
+| `member` (pelanggan) | Storefront + riwayat order **miliknya** | ⏳           |
+| guest                | Storefront, checkout, invoice           | ✅ / ⏳      |
+| `reseller`           | **Out of scope**, jangan dipakai (3)    | ⚠️ ditinjau  |
+
+1. `User::canAccessPanel()` → `role === Admin`.
+2. `AdminPanelAccessTest`.
+3. Nilainya masih ada di enum `UserRole`.
 
 - Riwayat transaksi wajib difilter `orders.user_id = auth()->id()`. ⏳
 - Kolom `role` tidak boleh diisi dari input registrasi (mass assignment). Default `member`. ⏳
@@ -31,34 +39,44 @@
 - User ID / Zone ID divalidasi dengan `games.user_id_regex` / `zone_id_regex` jika diisi, plus batas panjang. ⏳
 - Produk yang dipilih harus `is_active`, milik game yang sama, dan (untuk akun) stoknya tersedia. ⏳
 - Email/WhatsApp divalidasi formatnya. ⏳
-- Upload gambar admin hanya tipe gambar (`FileUpload::image()`). ✅
+- Upload gambar produk hanya tipe gambar (`FileUpload::image()` di `ProductForm`). ✅
+- Gambar game (`games.thumbnail`, `games.banner`) masih berupa input teks path, belum upload. Jika diubah menjadi upload, wajib `FileUpload::image()`. ⚠️ ditinjau
 
 ## 4. Proteksi Endpoint
 
-| Aturan | Status |
-|---|---|
-| CSRF aktif untuk semua route web, **kecuali** `webhook/*` (`bootstrap/app.php`) | ✅ |
-| Webhook di-throttle `120 request/menit` | ✅ |
-| Rate limit form checkout | ⏳ |
-| Anti-bot checkout (mis. Cloudflare Turnstile) | [TBD] dependency/layanan baru |
-| Whitelist IP callback provider | [TBD] opsional, tambahan dari signature |
-| `APP_DEBUG=false` di production | ⚠️ saat deploy |
+| Aturan                                        | Status         |
+| --------------------------------------------- | -------------- |
+| CSRF aktif, **kecuali** `webhook/*` (1)       | ✅             |
+| Webhook di-throttle 120 request/menit         | ✅             |
+| Rate limit form checkout                      | ⏳             |
+| Anti-bot checkout (mis. Cloudflare Turnstile) | [TBD] (2)      |
+| Whitelist IP callback provider                | [TBD] (3)      |
+| `APP_DEBUG=false` di production               | ⚠️ saat deploy |
+
+1. Diatur di `bootstrap/app.php`.
+2. Termasuk dependency/layanan baru, butuh persetujuan.
+3. Opsional, sebagai tambahan dari verifikasi signature.
 
 ## 5. Secret & Konfigurasi
 
 - Semua secret di `.env` (tidak masuk git). `.env.example` hanya berisi nama variabel tanpa nilai. ✅
 - Kode membaca secret lewat `config('services.*')`, bukan `env()` langsung di luar folder `config/`. ✅
+- AI agent tidak membaca atau menampilkan isi `.env` (`AGENTS.md` §9). [FINAL]
+- `MELO_SANDBOX` wajib `true` di semua lingkungan selain production. Di `config/services.php` variabel ini tidak punya default, jadi jika lupa diisi, sandbox **mati** dan order memotong saldo sungguhan. ⚠️ (M12)
 - `APP_KEY` production dibuat sekali, dibackup aman, dan tidak pernah diganti (kunci enkripsi kredensial akun). ⚠️ saat deploy
 - Jangan menulis secret di dokumen, test, log, atau screenshot. [FINAL]
 
 ## 6. Verifikasi Callback
 
-| Provider | Mekanisme | Status |
-|---|---|---|
-| Tripay | `X-Callback-Signature` = HMAC-SHA256(raw body, private key), dibandingkan dengan `hash_equals` | ✅ dites |
-| Melo | `X-H2H-Signature` = hex HMAC-SHA256(raw body, webhook secret), dibandingkan dengan `hash_equals`; ditolak juga jika secret belum diisi | ✅ dites |
-| Signature salah/kosong → Tripay 403, Melo 401, keduanya dicatat di `api_logs` | | ✅ |
-| Cocokkan nominal callback dengan `orders.total` | | ⏳ |
+| Provider  | Header                 | Algoritma                             | Status   |
+| --------- | ---------------------- | ------------------------------------- | -------- |
+| Tripay    | `X-Callback-Signature` | HMAC-SHA256(raw body, private key)    | ✅ dites |
+| Melo      | `X-H2H-Signature`      | hex HMAC-SHA256(raw body, secret)     | ✅ dites |
+
+- Signature dibandingkan dengan `hash_equals`. ✅
+- Signature salah/kosong → Tripay 403, Melo 401; keduanya dicatat di `api_logs`. Melo juga ditolak jika webhook secret belum diisi. ✅
+- Test: `WebhookSignatureTest` (Tripay valid/salah; Melo valid/salah/tanpa signature/secret kosong) dan `MeloServiceTest::test_webhook_signature_is_case_insensitive_hex_hmac_sha256`.
+- Nominal callback dicocokkan dengan `orders.total`. ⏳
 
 ## 7. Idempotency
 
@@ -69,7 +87,7 @@
 
 ## 8. Transaksi Database
 
-- Stok akun: transaksi + `lockForUpdate()` (`AccountStockService`). ✅
+- Stok akun: transaksi + `lockForUpdate()` (`AccountStockService`). ✅ dites (`test_two_orders_never_receive_the_same_account`)
 - Perubahan status order dari callback: transaksi + lock order. ⏳
 - Tidak boleh ada panggilan HTTP eksternal di dalam transaksi yang memegang lock. [FINAL]
 
@@ -82,9 +100,9 @@
 
 ## 10. Perlindungan Informasi Akun Game
 
-- `game_accounts.credentials` terenkripsi (cast `encrypted`) dan disembunyikan dari serialisasi. ✅ dites
+- `game_accounts.credentials` terenkripsi (cast `encrypted`) dan disembunyikan dari serialisasi. ✅ dites (`test_credentials_are_encrypted_at_rest`)
 - Hanya `public_info` yang tampil di halaman produk. ✅
-- Kredensial hanya tampil di invoice jika order `success`. ✅ dites
+- Kredensial hanya tampil di invoice jika order `success`. ✅ dites (`test_invoice_hides_account_credentials_until_order_succeeds`)
 - ⚠️ **Invoice dapat dibuka siapa saja yang tahu nomor invoice** (`/invoice/{invoice}`), termasuk kredensial setelah sukses. Perlu aturan akses [TBD]: mis. URL bertanda tangan (signed URL), token rahasia di link email, atau wajib login untuk order milik pelanggan.
 - Admin melihat kredensial di form edit Stok Akun. Apakah perlu disembunyikan atau di-mask = [TBD].
 
