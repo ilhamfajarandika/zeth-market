@@ -96,19 +96,20 @@ sequenceDiagram
 
 ## 5. Alur Callback Payment Gateway [FINAL]
 
-1. Endpoint `POST /webhook/tripay` (`TripayCallbackController`) menerima callback. Jika provider diganti, route dan controller mengikuti provider baru.
+1. Endpoint `POST /webhook/duitku` (`DuitkuCallbackController`) menerima callback (form-urlencoded). Jika provider diganti, route dan controller mengikuti provider baru.
 2. Verifikasi signature. Jika tidak valid → respons 403 dan dicatat di `api_logs`.
 3. Controller mencatat callback, men-dispatch job `HandlePaymentCallback`, lalu langsung membalas sukses. Controller tidak mengubah status order.
-4. Job mencari order berdasarkan `merchant_ref` = `orders.invoice` dengan `lockForUpdate()`. Jika order sudah berstatus final → abaikan (idempotent).
+4. Job mencari order berdasarkan `merchantOrderId` = `orders.invoice` dengan `lockForUpdate()`. Jika order sudah berstatus final → abaikan (idempotent).
 5. Job memproses status. Pemrosesan lewat queue = [REKOMENDASI] (`API_INTEGRATION.md` §4); syarat idempotent = [FINAL].
 
-| Status gateway (Tripay) | Status order | Tindakan lanjut               |
-| ----------------------- | ------------ | ----------------------------- |
-| `PAID` (lunas)          | `paid`       | Isi `paid_at`, lalu lihat (1) |
-| `EXPIRED`               | `expired`    | Akun → `release()`            |
-| `FAILED`                | `failed`     | Akun → `release()`            |
+| Status gateway (Duitku)       | Status order | Tindakan lanjut               |
+| ----------------------------- | ------------ | ----------------------------- |
+| callback `resultCode` = `00`  | `paid`       | Isi `paid_at`, lalu lihat (1) |
+| callback `resultCode` = `01`  | `failed`     | Akun → `release()`            |
+| kedaluwarsa (tanpa callback) (2) | `expired` | Akun → `release()`            |
 
 1. Top up → kirim ke Melo (§6). Akun → `markSold()`, lalu order `success`.
+2. Duitku tidak mengirim callback kedaluwarsa. Ditandai dari `orders.expired_at` (scheduler) dan/atau `DuitkuService::transactionStatus()`.
 
 ## 6. Alur Pengiriman ke Melo [FINAL]
 
