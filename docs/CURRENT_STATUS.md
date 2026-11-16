@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-12, oleh AI agent (sinkron dengan `origin/main` (Melo), perapian konflik, dan hardening dokumen; tidak ada perubahan kode).
+> **Terakhir diperbarui:** 2026-11-14, oleh AI agent (provider payment diganti dari Tripay ke Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -10,11 +10,11 @@
 | Fase          | Skeleton selesai, supplier Melo terpasang, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat `IMPLEMENTATION_PLAN.md`                                |
 | Tanggal H1    | [TBD]                                                                          |
-| Test          | **49 lulus, 0 gagal** (1)                                                      |
+| Test          | **58 lulus, 0 gagal** (1)                                                      |
 | Versi         | Laravel 13, Filament 5, PHP 8.4, MySQL 8.0.30 (2)                              |
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
-1. `php artisan test --compact`, 98 assertion, MySQL `topup_game_test`, 2026-11-12.
+1. `php artisan test --compact`, 114 assertion, MySQL `topup_game_test` (MAMP, port 8889), 2026-11-14. Perlu `npm run build` dulu agar `ExampleTest` lulus.
 2. Ditambah Tailwind 4 dan Vite 8. MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
@@ -30,8 +30,8 @@
 | Enkripsi kredensial | cast `encrypted` + hidden                     | `AccountStockServiceTest` |
 | Admin panel         | 5 resource + widget, hanya admin              | `AdminPanelAccessTest`    |
 | Storefront dasar    | Home, halaman game, invoice                   | `StorefrontTest`          |
-| Webhook             | Verifikasi signature Tripay & Melo            | `WebhookSignatureTest`    |
-| Service integrasi   | Tripay & Melo (**belum ke API asli**)         | `MeloServiceTest`         |
+| Webhook             | Verifikasi signature Duitku & Melo            | `WebhookSignatureTest`    |
+| Service integrasi   | Duitku & Melo (**belum ke API asli**)         | `DuitkuServiceTest`, `MeloServiceTest` |
 | Konfigurasi         | MySQL, Asia/Jakarta, locale `id`, key `.env`  | —                         |
 
 Lokasi & detail:
@@ -44,12 +44,12 @@ Lokasi & detail:
 - **Enkripsi:** model `GameAccount`, test `test_credentials_are_encrypted_at_rest`.
 - **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok), Stok Akun, dan Pesanan (tanpa halaman create), plus widget dashboard.
 - **Storefront:** `StorefrontController`, `resources/views/storefront`. Input ID di halaman game masih statis. Kredensial di invoice hanya tampil jika order sukses.
-- **Webhook:** `app/Http/Controllers/Webhook` (`TripayCallbackController`, `MeloCallbackController`). Hasilnya dicatat di `api_logs`, signature salah → 403 (Tripay) / 401 (Melo), CSRF dikecualikan, ada throttle.
+- **Webhook:** `app/Http/Controllers/Webhook` (`DuitkuCallbackController`, `MeloCallbackController`). Hasilnya dicatat di `api_logs`, signature salah → 403 (Duitku) / 401 (Melo), CSRF dikecualikan, ada throttle.
 - **Service integrasi:**
-  - Tripay (`app/Services/Payment`): channel, createTransaction, signature.
+  - Duitku (`app/Services/Payment/DuitkuService.php`): paymentMethods, createTransaction, transactionStatus, verifikasi signature callback. Tanpa SDK. Dites dengan `Http::fake()`.
   - Melo (`app/Services/Supplier/MeloService.php`): profil, saldo, katalog, topup, cek status, signature webhook. Juga ada method di luar scope (lihat M10). Dites dengan `Http::fake()`.
   - Spesifikasi OpenAPI resmi Melo: `melostore-h2h.json` (root).
-- **Konfigurasi:** `.env.example`, `config/app.php`, `config/services.php` (`services.tripay.*`, `services.melo.*`). Key Tripay/Melo masih kosong.
+- **Konfigurasi:** `.env.example`, `config/app.php`, `config/services.php` (`services.duitku.*`, `services.melo.*`). Key Duitku/Melo masih kosong.
 
 ## 3. Belum Dikerjakan
 
@@ -101,7 +101,7 @@ Semua diputuskan oleh PO. Kolom "Dibutuhkan sebelum" diturunkan dari `IMPLEMENTA
 
 | #   | Keputusan                                                       | Dibutuhkan sebelum   |
 | --- | --------------------------------------------------------------- | -------------------- |
-| 1   | Provider payment final (Tripay / Duitku / Midtrans / Xendit)    | H11 (Tahap 3, E1)    |
+| 1   | ~~Provider payment final~~ → Duitku (2026-11-14)                | ✅ selesai           |
 | 2   | Penanganan supplier gagal setelah dibayar & apakah refund masuk | H23 (Tahap 5)        |
 | 3   | Aturan akses invoice/kredensial akun (M1)                       | H23 (Tahap 5)        |
 | 4   | Aksi admin yang diizinkan pada pesanan (M3)                     | H5 (Tahap 2)         |
@@ -128,7 +128,7 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 - Label queue/retry diseragamkan: syarat idempotent & retry aman = [FINAL], mekanisme queue = [REKOMENDASI].
 - Hierarki referensi dipisah: kebutuhan → `PROJECT_SPEC.md`; fakta implementasi → kode. Saat konflik selalu berhenti dan lapor (`AGENTS.md` §3).
 - Perintah Pint di docs memakai `--dirty`.
-- Callback payment memakai route `POST /webhook/tripay`; cek `isFinal()` dilakukan di job, bukan di controller.
+- Callback payment memakai route `POST /webhook/duitku`; cek `isFinal()` dilakukan di job, bukan di controller.
 - Penandaan order `pending` → `expired` dijadikan [FINAL] sesuai kriteria keberhasilan.
 - Kelola pesanan (A6): ubah status hanya lewat aksi khusus.
 
@@ -144,10 +144,14 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 - Versi stack hanya bersumber dari `PROJECT_SPEC.md` §11.
 - Risiko `MELO_SANDBOX` tanpa default dicatat (M12).
 
+### 2026-11-14 — Penggantian payment gateway
+
+Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController`, `POST /webhook/duitku`, `services.duitku.*`, `DUITKU_*` di `.env`. `TripayService`, `TripayCallbackController`, route, config, dan test Tripay dihapus. Library `duitkupg/duitku-php` dievaluasi dan **tidak dipakai** (lihat `API_INTEGRATION.md` §3). Tidak ada migration baru; komentar di migration `api_logs` yang menyebut `tripay` tidak diedit (migration sudah di-commit). **Belum diuji ke API Duitku asli.** Pemrosesan callback (job) masih TODO.
+
 ## 7. Pekerjaan Berikutnya
 
 1. PO me-review dan merevisi dokumen `docs/`.
 2. Putuskan keputusan §5 yang dibutuhkan sebelum Tahap 1–2 (no. 4, 5, 10, 12, 13).
-3. Daftar akun sandbox payment gateway & Melo (risiko E1/E2).
+3. Daftar akun sandbox Duitku & Melo (risiko E1/E2), lalu verifikasi signature callback dan format body `transactionStatus` (lihat `API_INTEGRATION.md` §3.3–3.4).
 4. Uji `MeloService` ke sandbox Melo, termasuk format target per SKU (M9).
 5. Mulai Tahap 2: resource Pelanggan, batasi form pesanan.

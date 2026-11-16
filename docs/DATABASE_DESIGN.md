@@ -190,7 +190,7 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 
 | Kolom                 | Tipe          | Keterangan              |
 | --------------------- | ------------- | ----------------------- |
-| `provider`            | VARCHAR(30)   | `tripay` / `melo`       |
+| `provider`            | VARCHAR(30)   | `duitku` / `melo`       |
 | `direction`           | VARCHAR(10)   | `outgoing` / `callback` |
 | `reference`           | VARCHAR N IDX | Invoice                 |
 | `endpoint`            | VARCHAR N     |                         |

@@ -8,11 +8,10 @@
 `config/services.php` membaca dari `.env`:
 
 ```env
-# Payment gateway (kandidat: Tripay)
-TRIPAY_API_KEY=
-TRIPAY_PRIVATE_KEY=
-TRIPAY_MERCHANT_CODE=
-TRIPAY_SANDBOX=true
+# Payment gateway (Duitku)
+DUITKU_MERCHANT_CODE=
+DUITKU_API_KEY=
+DUITKU_SANDBOX=true
 
 # Supplier (Melo)
 MELO_BASE_URL=https://api.melostore.id/api/v1/h2h
@@ -24,7 +23,7 @@ MELO_SANDBOX=true
 
 | Key config             | Dipakai di                                   |
 | ---------------------- | -------------------------------------------- |
-| `services.tripay.*`    | `app/Services/Payment/TripayService.php`     |
+| `services.duitku.*`    | `app/Services/Payment/DuitkuService.php`     |
 | `services.melo.*`      | `app/Services/Supplier/MeloService.php`      |
 
 Kredensial sandbox/production didaftarkan oleh: [TBD] (developer atau klien). Status akses: **belum tersedia** (risiko, lihat `IMPLEMENTATION_PLAN.md`).
@@ -104,59 +103,68 @@ Respons:
 - Callback yang sama bisa diterima lebih dari sekali: simpan event dulu, jawab 2xx, dan dedup (`event_id` + `action.version`). Melo mencoba maksimal 3 kali (jeda 30 dan 120 detik) dan menunggu respons 2xx dalam 10 detik, jadi simpan event dulu dan jawab cepat.
 - Pemrosesan status: ➕ belum (TODO di controller), lihat `BUSINESS_FLOW.md` §7.
 
-## 3. Payment Gateway — Kandidat Tripay [TBD provider final]
+## 3. Payment Gateway — Duitku [FINAL provider, dipilih PO 2026-11-14]
 
-Base URL: sandbox `https://tripay.co.id/api-sandbox`, production `https://tripay.co.id/api` (`TRIPAY_SANDBOX`). Header `Authorization: Bearer {api_key}`.
+Memakai `Http` Laravel langsung (`DuitkuService`). Library `duitkupg/duitku-php` **tidak dipakai**: hanya `dev-master` tanpa rilis, curl dengan `CURLOPT_SSL_VERIFYPEER = false`, log ke file di `vendor/`, dan callback membaca `$_POST`.
+
+Base URL: sandbox `https://sandbox.duitku.com/webapi/api/merchant`, production `https://passport.duitku.com/webapi/api/merchant` (`DUITKU_SANDBOX`). Tidak ada header auth; keamanan lewat field `signature` di setiap request. Semua signature = **HMAC-SHA256(stringToSign, apiKey)** (`DuitkuService::sign()`); MD5 dan SHA256 biasa sudah usang menurut dokumentasi resmi (docs.duitku.com). Koleksi Postman `DuitkuPaymentGateway.postman_collection.json` (root) masih memakai SHA256/MD5 lama, jadi jangan dijadikan acuan signature.
 
 ### 3.1 Metode pembayaran
-- `GET /merchant/payment-channel` → `paymentChannels()`. ✅ ada.
-- Channel yang ditampilkan ke pembeli: [TBD] (rekomendasi: QRIS + beberapa VA + e-wallet populer).
-- Cache daftar channel agar tidak memanggil API setiap halaman dibuka. [REKOMENDASI]
+- `POST /paymentmethod/getpaymentmethod` → `paymentMethods($amount)`. ✅ ada. Body: `merchantcode`, `amount`, `datetime` (`Y-m-d H:i:s`), `signature` = `HMAC-SHA256(merchantCode + amount + datetime, apiKey)`. Respons: `paymentFee[].paymentMethod`.
+- Metode yang ditampilkan ke pembeli: [TBD] (rekomendasi: QRIS + beberapa VA + e-wallet populer).
+- Cache daftar metode agar tidak memanggil API setiap halaman dibuka. [REKOMENDASI]
 
 ### 3.2 Pembuatan invoice / transaksi
-`POST /transaction/create` → `createTransaction($order, $method)`. ✅ ada.
+`POST /v2/inquiry` → `createTransaction($order, $method)`. ✅ ada + dites.
 
-| Field                       | Nilai                           |
-| --------------------------- | ------------------------------- |
-| `method`                    | kode channel                    |
-| `merchant_ref`              | `orders.invoice`                |
-| `amount`                    | `orders.total` (integer Rupiah) |
-| `customer_name/email/phone` | dari order (1)                  |
-| `order_items`               | 1 item = `product_name`         |
-| `return_url`                | `route('invoice.show', $order)` |
-| `expired_time`              | `orders.expired_at` (timestamp) |
-| `signature`                 | HMAC-SHA256 (2)                 |
+| Field                         | Nilai                                  |
+| ----------------------------- | -------------------------------------- |
+| `merchantCode`                | `DUITKU_MERCHANT_CODE`                 |
+| `paymentMethod`               | kode metode (mis. `BK`)                |
+| `merchantOrderId`             | `orders.invoice`                       |
+| `paymentAmount`               | `orders.total` (integer Rupiah)        |
+| `productDetails`, `itemDetails` | `product_name`, 1 item, harga = total |
+| `email`, `phoneNumber`        | dari order (1)                         |
+| `customerVaName`              | `Customer` (tetap)                     |
+| `callbackUrl`                 | `route('webhook.duitku')`              |
+| `returnUrl`                   | `route('invoice.show', $order)`        |
+| `expiryPeriod`                | menit sampai `orders.expired_at` (min 1, default 15) |
+| `signature`                   | `HMAC-SHA256(merchantCode + merchantOrderId + paymentAmount, apiKey)` |
 
 1. Fallback email jika guest tidak mengisi email: [TBD].
-2. `HMAC-SHA256(merchant_code + merchant_ref + amount, private_key)`.
 
-Simpan dari respons: `reference` → `payment_reference`, `checkout_url` → `payment_url`, `pay_code` / `qr_string` → `payment_code`. [ASUMSI] nama field respons. Mapping ini belum diimplementasikan.
+Simpan dari respons: `reference` → `payment_reference`, `paymentUrl` → `payment_url`, `vaNumber` / `qrString` → `payment_code`. [ASUMSI] nama field respons. Mapping ini belum diimplementasikan (alur order belum ada).
 
-### 3.3 Callback pembayaran
-- Endpoint: `POST /webhook/tripay` → `TripayCallbackController`.
-- Signature: header `X-Callback-Signature` = `HMAC-SHA256(raw body, private_key)` → `isValidCallbackSignature()`. ✅ ada + dites.
-- Referensi order: `merchant_ref`.
+### 3.3 Cek status transaksi
+`POST /transactionStatus` (JSON) → `transactionStatus($invoice)`. ✅ ada + dites. Signature `HMAC-SHA256(merchantCode + merchantOrderId, apiKey)`. Dokumentasi Duitku tidak konsisten soal format body (tabel: form-urlencoded, contoh kode: JSON); dipakai JSON, konfirmasi di sandbox. `statusCode`: `00` sukses, `01` pending, `02` gagal/kedaluwarsa. [ASUMSI] arti `02`.
 
-| Status Tripay | Status order                                          | Aksi stok akun |
-| ------------- | ----------------------------------------------------- | -------------- |
-| `PAID`        | `paid`, lalu `processing` (top up) / `success` (akun) | `markSold()`   |
-| `EXPIRED`     | `expired`                                             | `release()`    |
-| `FAILED`      | `failed`                                              | `release()`    |
-| `REFUND`      | [TBD]                                                 | [TBD]          |
+### 3.4 Callback pembayaran
+- Endpoint: `POST /webhook/duitku` → `DuitkuCallbackController` (form-urlencoded).
+- Signature: field `signature` = `HMAC-SHA256(merchantCode + amount + merchantOrderId, apiKey)` → `isValidCallbackSignature()`. ✅ ada + dites. Ditolak (403) jika signature kosong/salah, `merchantCode` bukan milik kita, atau API key belum diisi. Field `signature` tidak disimpan di `api_logs`.
+- Referensi order: `merchantOrderId`.
+- Urutan field callback (`merchantCode + amount + merchantOrderId`) berbeda dari inquiry (`merchantCode + merchantOrderId + paymentAmount`). Wajib diverifikasi dengan callback nyata dari sandbox sebelum go-live.
+
+| Callback Duitku             | Status order                                          | Aksi stok akun |
+| --------------------------- | ----------------------------------------------------- | -------------- |
+| `resultCode` = `00`         | `paid`, lalu `processing` (top up) / `success` (akun) | `markSold()`   |
+| `resultCode` = `01`         | `failed`                                              | `release()`    |
+| kedaluwarsa (tanpa callback) | `expired`                                            | `release()`    |
+
+Duitku tidak mengirim callback kedaluwarsa: tandai dari `orders.expired_at` dan/atau `transactionStatus()`. Refund: [TBD].
 
 Pemrosesan status: ➕ belum (TODO di controller).
 
-Validasi tambahan [REKOMENDASI]: cocokkan `total_amount` callback dengan `orders.total` sebelum menandai lunas.
+Validasi tambahan [REKOMENDASI]: cocokkan `amount` callback dengan `orders.total` sebelum menandai lunas.
 
-### 3.4 Jika provider diganti
-Buat service setara di `app/Services/Payment/` dengan kemampuan: daftar channel, buat transaksi, verifikasi callback, mapping status. Mapping status order di §3.3 tetap sama.
+### 3.5 Jika provider diganti
+Buat service setara di `app/Services/Payment/` dengan kemampuan: daftar metode, buat transaksi, verifikasi callback, mapping status. Mapping status order di §3.4 tetap sama.
 
 ## 4. Timeout, Retry, Idempotency
 
 | Aturan                                             | Status               |
 | -------------------------------------------------- | -------------------- |
-| Timeout HTTP: Tripay 15 detik, Melo 30 detik      | ✅ di service        |
-| Retry Tripay 2x, jeda 500 ms (1)                   | ✅                   |
+| Timeout HTTP: Duitku 15 detik, Melo 30 detik     | ✅ di service        |
+| Retry Duitku 2x, jeda 500 ms (1)                   | ✅                   |
 | Retry Melo lewat job queue, `buyer_trx_id` sama (2) | [REKOMENDASI], belum |
 | Callback diproses di queue job (3)                 | [REKOMENDASI], belum |
 | Callback untuk order final diabaikan (4)           | [FINAL], belum       |
