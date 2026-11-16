@@ -1,0 +1,647 @@
+{
+	"info": {
+		"_postman_id": "9370fb5c-7b10-47a3-a0ef-74469c3ad8ce",
+		"name": "Duitku Payment Gateway",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get Payment",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);\r",
+							"pm.collectionVariables.set(\"paymentMethod\",jsonData.paymentFee[0].paymentMethod);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var moment = require('moment')\r",
+							"var jsonData=JSON.parse(pm.request.body); \r",
+							"var apiKey= pm.collectionVariables.get(\"apiKey\");\r",
+							"var merchantcode = pm.collectionVariables.get(\"merchantCode\");\r",
+							"var datetime = moment().format('yyyy-MM-DD HH:mm:ss')\r",
+							"var paymentAmount = jsonData[\"amount\"];\r",
+							"var hashText= merchantcode + paymentAmount + datetime + apiKey;\r",
+							"console.log(hashText)\r",
+							"var encryption = CryptoJS.SHA256(hashText).toString();\r",
+							"pm.collectionVariables.set(\"datetime\", datetime);\r",
+							"postman.setEnvironmentVariable(\"signature\",encryption);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"merchantcode\": \"{{merchantCode}}\",\r\n    \"amount\": \"10000\",\r\n    \"datetime\": \"{{datetime}}\",\r\n    \"signature\": \"{{signature}}\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/paymentmethod/getpaymentmethod",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"paymentmethod",
+						"getpaymentmethod"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Transaction Request",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var moment = require('moment')\r",
+							"var merchantOrderId = moment().format('x')\r",
+							"pm.collectionVariables.set(\"merchantOrderId\",merchantOrderId);\r",
+							"var jsonData = JSON.parse(pm.request.body); \r",
+							"var merchantCode = pm.collectionVariables.get(\"merchantCode\");\r",
+							"var paymentAmount = jsonData[\"paymentAmount\"];\r",
+							"var apiKey = pm.collectionVariables.get(\"apiKey\");\r",
+							"var hashText = merchantCode+merchantOrderId+paymentAmount+apiKey;\r",
+							"var encryption = CryptoJS.MD5(hashText).toString();\r",
+							"\r",
+							"postman.setEnvironmentVariable(\"signature\", encryption);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = JSON.parse(responseBody);\r",
+							"pm.collectionVariables.set(\"reference\",jsonData.reference);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"merchantCode\": \"{{merchantCode}}\",\r\n    \"paymentAmount\": \"20000\",\r\n    \"paymentMethod\": \"{{paymentMethod}}\",\r\n    \"merchantOrderId\": \"{{merchantOrderId}}\",\r\n    \"productDetails\": \"Pembayaran untuk Toko Contoh\",\r\n    \"additionalParam\": \"\",\r\n    \"merchantUserInfo\": \"\",\r\n    \"customerVaName\": \"John Doe\",\r\n    \"email\": \"pelanggan_anda@email.com\",\r\n    \"phoneNumber\": \"08123456789\",\r\n    \"itemDetails\": [\r\n        {\r\n            \"name\": \"Test Item 1\",\r\n            \"price\": 20000,\r\n            \"quantity\": 1\r\n        },\r\n        {\r\n            \"name\": \"Test Item 2\",\r\n            \"price\": 0,\r\n            \"quantity\": 1\r\n        }\r\n    ],\r\n    \"customerDetail\": {\r\n        \"firstName\": \"John\",\r\n        \"lastName\": \"Doe\",\r\n        \"email\": \"pelanggan_anda@email.com\",\r\n        \"phoneNumber\": \"085718159655\",\r\n        \"billingAddress\": {\r\n            \"firstName\": \"John\",\r\n            \"lastName\": \"Doe\",\r\n            \"address\": \"Jl. Kembangan Raya\",\r\n            \"city\": \"Jakarta\",\r\n            \"postalCode\": \"11530\",\r\n            \"phone\": \"085718159655\",\r\n            \"countryCode\": \"ID\"\r\n        },\r\n        \"shippingAddress\": {\r\n            \"firstName\": \"John\",\r\n            \"lastName\": \"Doe\",\r\n            \"address\": \"Jl. Kembangan Raya\",\r\n            \"city\": \"Jakarta\",\r\n            \"postalCode\": \"11530\",\r\n            \"phone\": \"085718159655\",\r\n            \"countryCode\": \"ID\"\r\n        }\r\n    },\r\n    \"callbackUrl\": \"{{mockUrl}}/callback\",\r\n    \"returnUrl\": \"{{mockUrl}}/return\",\r\n    \"signature\": \"{{signature}}\",\r\n    \"expiryPeriod\": 15\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/v2/inquiry",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"v2",
+						"inquiry"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Callback",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "merchantCode",
+							"value": "{{merchantCode}}",
+							"type": "text"
+						},
+						{
+							"key": "amount",
+							"value": "20000",
+							"type": "text"
+						},
+						{
+							"key": "merchantOrderId",
+							"value": "{{merchantOrderId}}",
+							"type": "text"
+						},
+						{
+							"key": "productDetail",
+							"value": "Pembayaran untuk Toko Contoh",
+							"type": "text"
+						},
+						{
+							"key": "additionalParam",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "paymentMethod",
+							"value": "{{paymentMethod}}",
+							"type": "text"
+						},
+						{
+							"key": "resultCode",
+							"value": "00",
+							"type": "text"
+						},
+						{
+							"key": "merchantUserId",
+							"value": "pelanggan_anda@email.com",
+							"type": "text"
+						},
+						{
+							"key": "reference",
+							"value": "{{reference}}",
+							"type": "text"
+						},
+						{
+							"key": "signature",
+							"value": "",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{mockUrl}}/callback",
+					"host": [
+						"{{mockUrl}}"
+					],
+					"path": [
+						"callback"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "Success",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "merchantCode",
+									"value": "D9099",
+									"type": "text"
+								},
+								{
+									"key": "amount",
+									"value": "20000",
+									"type": "text"
+								},
+								{
+									"key": "merchantOrderId",
+									"value": "1646108045695",
+									"type": "text"
+								},
+								{
+									"key": "productDetail",
+									"value": "Pembayaran untuk Toko Contoh",
+									"type": "text"
+								},
+								{
+									"key": "additionalParam",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "paymentMethod",
+									"value": "BK",
+									"type": "text"
+								},
+								{
+									"key": "resultCode",
+									"value": "00",
+									"type": "text"
+								},
+								{
+									"key": "merchantUserId",
+									"value": "pelanggan_anda@email.com",
+									"type": "text"
+								},
+								{
+									"key": "reference",
+									"value": "D909978PTO07DF10FGXS",
+									"type": "text"
+								},
+								{
+									"key": "signature",
+									"value": "258f3e54b772a9bdaef6d274381780c0fd2eb0a9836d294875b0cce4b0421a65",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{mockUrl}}/callback",
+							"host": [
+								"{{mockUrl}}"
+							],
+							"path": [
+								"callback"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": "Success"
+				},
+				{
+					"name": "Bad Parameter",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "merchantCode",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "amount",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "merchantOrderId",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "productDetail",
+									"value": "Pembayaran untuk Toko Contoh",
+									"type": "text"
+								},
+								{
+									"key": "additionalParam",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "paymentMethod",
+									"value": "BK",
+									"type": "text"
+								},
+								{
+									"key": "resultCode",
+									"value": "00",
+									"type": "text"
+								},
+								{
+									"key": "merchantUserId",
+									"value": "pelanggan_anda@email.com",
+									"type": "text"
+								},
+								{
+									"key": "reference",
+									"value": "D909978PTO07DF10FGXS",
+									"type": "text"
+								},
+								{
+									"key": "signature",
+									"value": "",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{mockUrl}}/callback",
+							"host": [
+								"{{mockUrl}}"
+							],
+							"path": [
+								"callback"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": "Bad Parameter"
+				},
+				{
+					"name": "Wrong Signature",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "merchantCode",
+									"value": "D9099",
+									"type": "text"
+								},
+								{
+									"key": "amount",
+									"value": "20000",
+									"type": "text"
+								},
+								{
+									"key": "merchantOrderId",
+									"value": "1646108045695",
+									"type": "text"
+								},
+								{
+									"key": "productDetail",
+									"value": "Pembayaran untuk Toko Contoh",
+									"type": "text"
+								},
+								{
+									"key": "additionalParam",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "paymentMethod",
+									"value": "BK",
+									"type": "text"
+								},
+								{
+									"key": "resultCode",
+									"value": "00",
+									"type": "text"
+								},
+								{
+									"key": "merchantUserId",
+									"value": "pelanggan_anda@email.com",
+									"type": "text"
+								},
+								{
+									"key": "reference",
+									"value": "D909978PTO07DF10FGXS",
+									"type": "text"
+								},
+								{
+									"key": "signature",
+									"value": "",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{mockUrl}}/callback",
+							"host": [
+								"{{mockUrl}}"
+							],
+							"path": [
+								"callback"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": "Wrong Signature"
+				}
+			]
+		},
+		{
+			"name": "Redirect",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{mockUrl}}/return?merchantOrderId=abcde12345&resultCode=00&reference=DXXXXCX80TXXX5Q70QCI",
+					"host": [
+						"{{mockUrl}}"
+					],
+					"path": [
+						"return"
+					],
+					"query": [
+						{
+							"key": "merchantOrderId",
+							"value": "abcde12345"
+						},
+						{
+							"key": "resultCode",
+							"value": "00"
+						},
+						{
+							"key": "reference",
+							"value": "DXXXXCX80TXXX5Q70QCI"
+						}
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "After Payment Process",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{mockUrl}}/return?merchantOrderId=abcde12345&resultCode=00&reference=DXXXXCX80TXXX5Q70QCI",
+							"host": [
+								"{{mockUrl}}"
+							],
+							"path": [
+								"return"
+							],
+							"query": [
+								{
+									"key": "merchantOrderId",
+									"value": "abcde12345"
+								},
+								{
+									"key": "resultCode",
+									"value": "00"
+								},
+								{
+									"key": "reference",
+									"value": "DXXXXCX80TXXX5Q70QCI"
+								}
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": "Page after payment (paid)"
+				},
+				{
+					"name": "Back From Payment Process",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{mockUrl}}/return?merchantOrderId=abcde12345&resultCode=01&reference=DXXXXCX80TXXX5Q70QCI",
+							"host": [
+								"{{mockUrl}}"
+							],
+							"path": [
+								"return"
+							],
+							"query": [
+								{
+									"key": "merchantOrderId",
+									"value": "abcde12345"
+								},
+								{
+									"key": "resultCode",
+									"value": "01"
+								},
+								{
+									"key": "reference",
+									"value": "DXXXXCX80TXXX5Q70QCI"
+								}
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": "Page when returned or back from payment (haven't paid)"
+				}
+			]
+		},
+		{
+			"name": "Transaction Check",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var merchantCode = pm.collectionVariables.get(\"merchantCode\");\r",
+							"var merchantOrderId = pm.collectionVariables.get(\"merchantOrderId\");\r",
+							"var apiKey = pm.collectionVariables.get(\"apiKey\");\r",
+							"var hashText = merchantCode+merchantOrderId+apiKey;\r",
+							"var encryption = CryptoJS.MD5(hashText).toString();\r",
+							"\r",
+							"postman.setEnvironmentVariable(\"signature\", encryption);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "merchantCode",
+							"value": "{{merchantCode}}",
+							"type": "text"
+						},
+						{
+							"key": "merchantOrderId",
+							"value": "{{merchantOrderId}}",
+							"type": "text"
+						},
+						{
+							"key": "signature",
+							"value": "{{signature}}",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://sandbox.duitku.com/webapi/api/merchant/transactionStatus",
+					"protocol": "https",
+					"host": [
+						"sandbox",
+						"duitku",
+						"com"
+					],
+					"path": [
+						"webapi",
+						"api",
+						"merchant",
+						"transactionStatus"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "url",
+			"value": "https://sandbox.duitku.com/webapi/api/merchant"
+		},
+		{
+			"key": "merchantCode",
+			"value": "YOUR_MERCHANT_CODE"
+		},
+		{
+			"key": "apiKey",
+			"value": "YOUR_API_KEY"
+		},
+		{
+			"key": "datetime",
+			"value": ""
+		},
+		{
+			"key": "signature",
+			"value": "",
+			"disabled": true
+		},
+		{
+			"key": "paymentMethod",
+			"value": ""
+		},
+		{
+			"key": "merchantOrderId",
+			"value": ""
+		},
+		{
+			"key": "mockUrl",
+			"value": "YOUR_MOCK_URL",
+			"type": "string"
+		},
+		{
+			"key": "reference",
+			"value": ""
+		}
+	]
+}
