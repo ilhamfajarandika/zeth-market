@@ -81,15 +81,15 @@ class DuitkuService
         $payload = [
             'merchantCode' => $this->merchantCode(),
             'merchantOrderId' => $invoice,
-            'signature' => md5($this->merchantCode().$invoice.$this->apiKey()),
+            'signature' => hash_hmac('sha256', $this->merchantCode().$invoice, $this->apiKey()),
         ];
 
-        return $this->send('/transactionStatus', $payload, $invoice, asForm: true);
+        return $this->send('/transactionStatus', $payload, $invoice);
     }
 
     public function transactionSignature(string $merchantOrderId, int $amount): string
     {
-        return hash_hmac($this->merchantCode().$merchantOrderId.$amount, $this->apiKey());
+        return hash_hmac('sha256', $this->merchantCode().$merchantOrderId.$amount, $this->apiKey());
     }
 
     /**
@@ -113,7 +113,7 @@ class DuitkuService
             return false;
         }
 
-        $expected = md5($merchantCode.($payload['amount'] ?? '').($payload['merchantOrderId'] ?? '').$this->apiKey());
+        $expected = hash_hmac('sha256', $merchantCode.($payload['amount'] ?? '').($payload['merchantOrderId'] ?? ''), $this->apiKey());
 
         return hash_equals($expected, strtolower($signature));
     }
@@ -130,13 +130,9 @@ class DuitkuService
     /**
      * @param  array<string, mixed>  $payload
      */
-    protected function send(string $endpoint, array $payload, ?string $reference, bool $asForm = false): Response
+    protected function send(string $endpoint, array $payload, ?string $reference): Response
     {
         $client = $this->client();
-
-        if ($asForm) {
-            $client = $client->asForm();
-        }
 
         $response = $client->post($endpoint, $payload);
 

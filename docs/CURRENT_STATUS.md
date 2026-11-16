@@ -80,6 +80,7 @@ Lokasi & detail:
 | M10 | `MeloService` punya method di luar scope             | Fitur terlarang terpakai       | Terbuka       |
 | M11 | Data lama `products.supplier = digiflazz` (jika ada) | Produk tidak terkirim          | Terbuka       |
 | M12 | `MELO_SANDBOX` tanpa default di config               | Saldo Melo terpotong sungguhan | Terbuka       |
+| M13 | `DuitkuService` di `HEAD` tidak sinkron dengan test/docs | Checkout crash, callback sah ditolak | Sebagian (2026-11-16) |
 
 Detail:
 - **M1:** `StorefrontController::invoice`. Termasuk kredensial akun setelah order sukses.
@@ -93,6 +94,7 @@ Detail:
 - **M9:** `MeloService::topup` mengirim `customer_target` dan `customer_target_zone` terpisah. Format per SKU game belum dicek dengan SKU nyata.
 - **M10:** `checkNickname()`, `nicknameGames()`, `nicknamePlan()`, `checkMobileLegendsPurchaseLimit()`, Smart, bulk, dan 2FA. Belum dipakai alur mana pun; memakainya butuh persetujuan PO (cek nickname di luar scope, dan memakai kuota/biaya).
 - **M11:** Default factory kini `melo`. Data `digiflazz` di database lama perlu diubah manual.
+- **M13:** di `HEAD`, `transactionSignature()` memanggil `hash_hmac` tanpa algoritma (crash), callback dan `transactionStatus()` memakai MD5, padahal test dan `API_INTEGRATION.md` §3 mengharapkan HMAC-SHA256. Perubahan working tree (belum commit) memperbaiki inquiry dan callback. Sisa: `transactionStatus()` masih `md5` + form; test `test_transaction_status_posts_json_with_hmac_signature` gagal (14 dari 15 test Duitku/webhook lulus pada 2026-11-16). Konfirmasi algoritma ke PO/dokumentasi resmi. Detail: [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §2. Dicatat saja, belum diperbaiki oleh review.
 - **M12:** `config/services.php`: `'sandbox' => env('MELO_SANDBOX')` tanpa default. Jika variabel tidak ada di `.env`, `MeloService::withSandboxMode()` mengirim `sandbox_mode = false` sehingga order menjadi transaksi nyata. Usulan: default `true`. Dicatat saja, belum diperbaiki.
 
 ## 5. Keputusan yang Menunggu (PO/Klien)
@@ -150,6 +152,7 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 
 ## 7. Pekerjaan Berikutnya
 
+0. Jawab pertanyaan di [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §5 (review core system 2026-11-16). Dokumen itu juga mencatat keputusan baru yang belum masuk `PROJECT_SPEC.md` §13: akun dijual manual via WhatsApp (K1), kolom uang jadi integer dengan pengecualian edit migration (K2), dan pengujian pembayaran tanpa tampilan (K3).
 1. PO me-review dan merevisi dokumen `docs/`.
 2. Putuskan keputusan §5 yang dibutuhkan sebelum Tahap 1–2 (no. 4, 5, 10, 12, 13).
 3. Daftar akun sandbox Duitku & Melo (risiko E1/E2), lalu verifikasi signature callback dan format body `transactionStatus` (lihat `API_INTEGRATION.md` §3.3–3.4).
