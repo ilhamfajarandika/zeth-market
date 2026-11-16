@@ -94,7 +94,7 @@ class DuitkuService
 
     /**
      * Callback Duitku (form-urlencoded) membawa field `signature` =
-     * MD5(merchantCode + amount + merchantOrderId + apiKey). Ditolak jika API key
+     * HMAC-SHA256(merchantCode + amount + merchantOrderId, apiKey). Ditolak jika API key
      * belum dikonfigurasi atau merchantCode callback bukan milik kita.
      *
      * @param  array<string, mixed>  $payload

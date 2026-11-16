@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-14, oleh AI agent (provider payment diganti dari Tripay ke Duitku).
+> **Terakhir diperbarui:** 2026-11-16, oleh AI agent (sinkronisasi dokumentasi pembayaran Duitku dengan kode). Sebelumnya: 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -80,7 +80,7 @@ Lokasi & detail:
 | M10 | `MeloService` punya method di luar scope             | Fitur terlarang terpakai       | Terbuka       |
 | M11 | Data lama `products.supplier = digiflazz` (jika ada) | Produk tidak terkirim          | Terbuka       |
 | M12 | `MELO_SANDBOX` tanpa default di config               | Saldo Melo terpotong sungguhan | Terbuka       |
-| M13 | `DuitkuService` di `HEAD` tidak sinkron dengan test/docs | Checkout crash, callback sah ditolak | Sebagian (2026-11-16) |
+| M13 | `DuitkuService` tidak sinkron dengan test/docs | Checkout crash, callback sah ditolak | Selesai (2026-11-16) |
 
 Detail:
 - **M1:** `StorefrontController::invoice`. Termasuk kredensial akun setelah order sukses.
@@ -94,7 +94,7 @@ Detail:
 - **M9:** `MeloService::topup` mengirim `customer_target` dan `customer_target_zone` terpisah. Format per SKU game belum dicek dengan SKU nyata.
 - **M10:** `checkNickname()`, `nicknameGames()`, `nicknamePlan()`, `checkMobileLegendsPurchaseLimit()`, Smart, bulk, dan 2FA. Belum dipakai alur mana pun; memakainya butuh persetujuan PO (cek nickname di luar scope, dan memakai kuota/biaya).
 - **M11:** Default factory kini `melo`. Data `digiflazz` di database lama perlu diubah manual.
-- **M13:** di `HEAD`, `transactionSignature()` memanggil `hash_hmac` tanpa algoritma (crash), callback dan `transactionStatus()` memakai MD5, padahal test dan `API_INTEGRATION.md` §3 mengharapkan HMAC-SHA256. Perubahan working tree (belum commit) memperbaiki inquiry dan callback. Sisa: `transactionStatus()` masih `md5` + form; test `test_transaction_status_posts_json_with_hmac_signature` gagal (14 dari 15 test Duitku/webhook lulus pada 2026-11-16). Konfirmasi algoritma ke PO/dokumentasi resmi. Detail: [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §2. Dicatat saja, belum diperbaiki oleh review.
+- **M13:** (selesai 2026-11-16, commit `5f7e2f3`) inquiry, callback, dan `transactionStatus()` kini HMAC-SHA256 dengan body JSON, sesuai test dan `API_INTEGRATION.md` §3. Dokumentasi resmi Duitku (docs.duitku.com) juga menyatakan MD5/SHA256 biasa usang. `php artisan test --compact --filter='Duitku|WebhookSignature'`: 15 lulus. Masih perlu verifikasi ke sandbox Duitku asli. Riwayat temuan: [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §2.
 - **M12:** `config/services.php`: `'sandbox' => env('MELO_SANDBOX')` tanpa default. Jika variabel tidak ada di `.env`, `MeloService::withSandboxMode()` mengirim `sandbox_mode = false` sehingga order menjadi transaksi nyata. Usulan: default `true`. Dicatat saja, belum diperbaiki.
 
 ## 5. Keputusan yang Menunggu (PO/Klien)

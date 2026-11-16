@@ -107,7 +107,28 @@ Respons:
 
 Memakai `Http` Laravel langsung (`DuitkuService`). Library `duitkupg/duitku-php` **tidak dipakai**: hanya `dev-master` tanpa rilis, curl dengan `CURLOPT_SSL_VERIFYPEER = false`, log ke file di `vendor/`, dan callback membaca `$_POST`.
 
-Base URL: sandbox `https://sandbox.duitku.com/webapi/api/merchant`, production `https://passport.duitku.com/webapi/api/merchant` (`DUITKU_SANDBOX`). Tidak ada header auth; keamanan lewat field `signature` di setiap request. Semua signature = **HMAC-SHA256(stringToSign, apiKey)** (`DuitkuService::sign()`); MD5 dan SHA256 biasa sudah usang menurut dokumentasi resmi (docs.duitku.com). Koleksi Postman `DuitkuPaymentGateway.postman_collection.json` (root) masih memakai SHA256/MD5 lama, jadi jangan dijadikan acuan signature.
+Base URL: sandbox `https://sandbox.duitku.com/webapi/api/merchant`, production `https://passport.duitku.com/webapi/api/merchant` (`DUITKU_SANDBOX`, `DuitkuService::baseUrl()`). Tidak ada header auth; keamanan lewat field `signature` di setiap request. Semua signature = **HMAC-SHA256(stringToSign, apiKey)**, ditulis langsung dengan `hash_hmac('sha256', …)` di `DuitkuService` (tidak ada helper `sign()`). MD5 dan SHA256 biasa sudah usang menurut dokumentasi resmi (docs.duitku.com, changelog v2.0). Koleksi Postman lama yang memakai SHA256/MD5 sudah dihapus dari repo; jangan memakai contoh signature dari sumber lama.
+
+Ringkasan signature (`apiKey` = `DUITKU_API_KEY`, `merchantCode` = `DUITKU_MERCHANT_CODE`):
+
+| Operasi                  | Endpoint                               | Metode di kode               | stringToSign                                | Format body | Status        |
+| ------------------------ | -------------------------------------- | ---------------------------- | ------------------------------------------- | ----------- | ------------- |
+| Daftar metode bayar      | `POST /paymentmethod/getpaymentmethod` | `paymentMethods($amount)`    | `merchantCode + amount + datetime`          | JSON        | ✅ ada + dites |
+| Buat transaksi (inquiry) | `POST /v2/inquiry`                     | `createTransaction($order, $method)` | `merchantCode + merchantOrderId + paymentAmount` | JSON | ✅ ada + dites |
+| Cek status               | `POST /transactionStatus`              | `transactionStatus($invoice)` | `merchantCode + merchantOrderId`           | JSON (1)    | ✅ ada + dites |
+| Callback masuk           | `POST /webhook/duitku` (dari Duitku)   | `isValidCallbackSignature()` | `merchantCode + amount + merchantOrderId`   | form-urlencoded | ✅ ada + dites |
+
+1. Dokumentasi Duitku tidak konsisten soal format body (lihat §3.3). Dipakai JSON, konfirmasi di sandbox.
+
+Semua request keluar memakai timeout 15 detik dan retry 2x (jeda 500 ms), dan dicatat di `api_logs` tanpa field `signature` (lihat §4 dan §5). Kode belum pernah dijalankan ke API Duitku asli.
+
+Alur singkat pembayaran (detail status order di [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) §4–5):
+
+```
+Checkout (belum ada) → createTransaction() → Duitku → simpan reference/payment_url/payment_code
+Pembeli bayar → Duitku POST /webhook/duitku → verifikasi signature → api_logs → (job HandlePaymentCallback: belum ada)
+Tidak ada callback sampai expired_at → tandai expired lewat scheduler / transactionStatus() (belum ada)
+```
 
 ### 3.1 Metode pembayaran
 - `POST /paymentmethod/getpaymentmethod` → `paymentMethods($amount)`. ✅ ada. Body: `merchantcode`, `amount`, `datetime` (`Y-m-d H:i:s`), `signature` = `HMAC-SHA256(merchantCode + amount + datetime, apiKey)`. Respons: `paymentFee[].paymentMethod`.
@@ -131,7 +152,12 @@ Base URL: sandbox `https://sandbox.duitku.com/webapi/api/merchant`, production `
 | `expiryPeriod`                | menit sampai `orders.expired_at` (min 1, default 15) |
 | `signature`                   | `HMAC-SHA256(merchantCode + merchantOrderId + paymentAmount, apiKey)` |
 
-1. Fallback email jika guest tidak mengisi email: [TBD].
+1. Fallback email jika guest tidak mengisi email: [TBD]. Sementara kode memakai `noreply@example.com`.
+
+Catatan perilaku `createTransaction()`:
+- `paymentAmount` selalu dari `orders.total` (dicast `(int)`), tidak dari input user.
+- `expiryPeriod` dihitung dari `orders.expired_at` (dibulatkan ke atas, minimal 1 menit; 15 jika `expired_at` kosong). Harus sama dengan masa reservasi/kedaluwarsa order.
+- Respons dikembalikan mentah (`Response`); pemanggil yang memeriksa `statusCode`/`statusMessage` dan menyimpan hasilnya.
 
 Simpan dari respons: `reference` → `payment_reference`, `paymentUrl` → `payment_url`, `vaNumber` / `qrString` → `payment_code`. [ASUMSI] nama field respons. Mapping ini belum diimplementasikan (alur order belum ada).
 

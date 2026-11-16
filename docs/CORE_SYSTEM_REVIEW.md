@@ -24,6 +24,8 @@ Syarat pengecualian K2:
 
 ## 2. Temuan paling mendesak: `DuitkuService` tidak sinkron dengan test dan docs 🔴
 
+> **Update 2026-11-16 (setelah commit `5f7e2f3`): sudah diperbaiki.** Semua signature HMAC-SHA256 dan `transactionStatus()` mengirim JSON; 15 test Duitku/webhook lulus. Isi di bawah adalah kondisi saat review dibuat dan dipertahankan sebagai riwayat. Pertanyaan 24 (algoritma) terjawab oleh dokumentasi resmi Duitku: HMAC-SHA256; MD5 sudah usang.
+
 Status verifikasi: kode dibaca, lalu test dijalankan pada working tree saat ini (`php artisan test --compact --filter='Duitku|WebhookSignature'`, 2026-11-16, MySQL lokal hidup): **15 test, 14 lulus, 1 gagal**, yaitu `DuitkuServiceTest::test_transaction_status_posts_json_with_hmac_signature` (request yang diharapkan tidak terekam, karena kode masih `md5` + form). Pada `HEAD` (tanpa perubahan working tree) hasilnya tidak dijalankan; kesimpulan untuk `HEAD` berasal dari baca kode. Klaim "58 test lulus" di `CURRENT_STATUS.md` (2026-11-14) belum diverifikasi ulang untuk seluruh suite.
 
 Pada commit terakhir (`HEAD`, branch `lury/be/inisialisasi-duitku`) kode berbeda dari test dan `API_INTEGRATION.md`. Working tree saat ini punya perubahan **belum di-commit** di `app/Services/Payment/DuitkuService.php` yang memperbaiki sebagian:
