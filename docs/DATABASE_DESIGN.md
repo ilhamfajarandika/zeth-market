@@ -20,6 +20,7 @@
 Catatan:
 1. Nama lengkap file: `database/migrations/2026_11_11_<nomor>_*.php`. Kolom `role`, `whatsapp`, dan `balance` di `users` ditambahkan oleh `2026_11_11_000100_add_role_to_users_table.php`.
 - Tabel bawaan Laravel (`0001_01_01_*`): `sessions`, `password_reset_tokens`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`.
+2. Tabel `notifications` (migration `2026_11_16_202857_create_notifications_table.php`, standar Laravel via `make:notifications-table`): menyimpan notifikasi lonceng panel admin (Filament database notifications), saat ini untuk peringatan saldo Melo. Bukan tabel domain.
 
 ## 2. ERD
 

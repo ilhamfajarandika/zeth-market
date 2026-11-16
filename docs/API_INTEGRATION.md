@@ -19,6 +19,7 @@ MELO_API_KEY=
 MELO_SECRET_KEY=
 MELO_WEBHOOK_SECRET=
 MELO_SANDBOX=true
+MELO_LOW_BALANCE_THRESHOLD=500000
 ```
 
 | Key config             | Dipakai di                                   |
@@ -66,6 +67,11 @@ Semua endpoint di bawah `MELO_BASE_URL`. Sumber: `melostore-h2h.json` (OpenAPI r
 Method bertanda "—" sudah tersedia di service tetapi **belum dipakai** oleh alur apa pun. Spec proyek (`PROJECT_SPEC.md`) menyatakan **tanpa cek nickname** dan tanpa Smart/bulk/2FA, jadi memanggil method itu dari fitur baru memerlukan persetujuan PO. Cek nickname memakai kuota atau biaya meski hasilnya "tidak ditemukan".
 
 Rate limit: katalog (reguler, Smart, kategori) berbagi 20 request/menit. Jika 429, tunggu sesuai header `Retry-After`.
+
+### 2.1a Saldo H2H & peringatan saldo menipis
+- `MeloBalanceService` memanggil `balance()` (`GET /profile/balance`, field `h2h_balance`, `is_sandbox_mode`), di-cache 60 detik. Ditampilkan di widget dashboard admin (`MeloBalanceOverview`), polling 60 detik.
+- Tingkat: `ok` > `MELO_LOW_BALANCE_THRESHOLD` (default Rp 500.000) · `low` ≤ batas · `critical` ≤ setengah batas.
+- Command terjadwal `melo:check-balance` (tiap 10 menit, `routes/console.php`) mengirim notifikasi lonceng ke semua admin sekali per tingkat (ulang tiap 6 jam; `low` → `critical` langsung dikirim; kembali `ok` mereset). Tidak mengirim saat `is_sandbox_mode = true` atau saat Melo tidak bisa dihubungi (command gagal, error di log). Belum ada kanal email/WhatsApp (keputusan #6 masih terbuka). Belum diuji ke API asli.
 
 ### 2.2 Daftar produk & harga
 - `priceList()` mengambil katalog reguler (default `limit=500`, paginasi `cursor`). Item berisi `sku_code`, `name`, `price`, `status` (`active` / `out_of_stock`, hanya `active` yang bisa dipesan).
