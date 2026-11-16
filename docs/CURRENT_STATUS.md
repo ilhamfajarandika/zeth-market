@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-16, oleh AI agent (sinkronisasi dokumentasi pembayaran Duitku dengan kode). Sebelumnya: 2026-11-14 (Tripay diganti Duitku).
+> **Terakhir diperbarui:** 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -10,11 +10,11 @@
 | Fase          | Skeleton selesai, supplier Melo terpasang, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat `IMPLEMENTATION_PLAN.md`                                |
 | Tanggal H1    | [TBD]                                                                          |
-| Test          | **58 lulus, 0 gagal** (1)                                                      |
+| Test          | **92 lulus, 0 gagal** (1)                                                      |
 | Versi         | Laravel 13, Filament 5, PHP 8.4, MySQL 8.0.30 (2)                              |
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
-1. `php artisan test --compact`, 114 assertion, MySQL `topup_game_test` (MAMP, port 8889), 2026-11-14. Perlu `npm run build` dulu agar `ExampleTest` lulus.
+1. `php artisan test --compact`, 288 assertion, MySQL `topup_game_test`, 2026-11-16. Perlu `npm run build` dulu agar `ExampleTest` lulus.
 2. Ditambah Tailwind 4 dan Vite 8. MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
@@ -22,13 +22,14 @@
 
 | Area                | Ringkasan                                     | Test                      |
 | ------------------- | --------------------------------------------- | ------------------------- |
-| Skema DB            | 8 tabel aplikasi + bawaan Laravel             | —                         |
+| Skema DB            | 8 tabel aplikasi + bawaan Laravel; kolom uang integer; `games.melo_brand_id` | — |
 | Model & enum        | 8 model, 4 enum                               | —                         |
 | Factory & seeder    | Admin contoh, 3 game, 10 produk, 7 stok akun  | —                         |
 | Stok akun           | reserve / markSold / release / releaseExpired | `AccountStockServiceTest` |
 | Scheduler           | `accounts:release-expired` tiap menit         | `AccountStockServiceTest` |
 | Enkripsi kredensial | cast `encrypted` + hidden                     | `AccountStockServiceTest` |
-| Admin panel         | 5 resource + widget, hanya admin              | `AdminPanelAccessTest`    |
+| Admin panel         | 6 resource + widget, hanya admin              | `AdminPanelAccessTest`, `AdminCatalogResourceTest`, `AdminCustomerResourceTest` |
+| Sync katalog Melo   | Tautan game↔brand, sync item, atur harga massal (**belum ke API asli**) | `MeloCatalogServiceTest`, `AdminCatalogResourceTest` |
 | Storefront dasar    | Home, halaman game, invoice                   | `StorefrontTest`          |
 | Webhook             | Verifikasi signature Duitku & Melo            | `WebhookSignatureTest`    |
 | Service integrasi   | Duitku & Melo (**belum ke API asli**)         | `DuitkuServiceTest`, `MeloServiceTest` |
@@ -42,7 +43,8 @@ Lokasi & detail:
 - **Stok akun:** `app/Services/AccountStockService.php`, memakai transaksi + lock.
 - **Scheduler:** `routes/console.php`.
 - **Enkripsi:** model `GameAccount`, test `test_credentials_are_encrypted_at_rest`.
-- **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok), Stok Akun, dan Pesanan (tanpa halaman create), plus widget dashboard.
+- **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok, harga jual bisa diedit inline, aksi massal "Atur harga jual"), Stok Akun (status Dipesan/Terjual tidak bisa diubah manual), Pesanan (tanpa halaman create), dan Pelanggan (hanya lihat, tanpa admin), plus widget dashboard. Form Kategori/Game/Produk punya slug otomatis + unik, validasi regex, zone wajib bila `requires_zone_id`, supplier+SKU wajib untuk top up.
+- **Sync katalog Melo:** `app/Services/Supplier/MeloCatalogService.php` + `app/Filament/Resources/Games/Actions/SyncMeloProductsAction.php`. Detail di `API_INTEGRATION.md` §2.2.
 - **Storefront:** `StorefrontController`, `resources/views/storefront`. Input ID di halaman game masih statis. Kredensial di invoice hanya tampil jika order sukses.
 - **Webhook:** `app/Http/Controllers/Webhook` (`DuitkuCallbackController`, `MeloCallbackController`). Hasilnya dicatat di `api_logs`, signature salah → 403 (Duitku) / 401 (Melo), CSRF dikecualikan, ada throttle.
 - **Service integrasi:**
@@ -55,7 +57,7 @@ Lokasi & detail:
 
 - Checkout Livewire (input ID tervalidasi, pilih produk, metode bayar, pembuatan order).
 - Registrasi/login pelanggan dan riwayat transaksi.
-- Resource admin Pelanggan.
+- Aksi admin pada Pelanggan (blokir dll., keputusan #10) dan batasan form Pesanan (M3).
 - Pemrosesan callback payment & supplier (masih TODO di controller); queue jobs.
 - Pemanggilan `createTransaction` dari alur order; tampilan instruksi bayar.
 - Cek status supplier terjadwal; penandaan order `pending` kedaluwarsa menjadi `expired`.
@@ -150,6 +152,14 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 
 Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController`, `POST /webhook/duitku`, `services.duitku.*`, `DUITKU_*` di `.env`. `TripayService`, `TripayCallbackController`, route, config, dan test Tripay dihapus. Library `duitkupg/duitku-php` dievaluasi dan **tidak dipakai** (lihat `API_INTEGRATION.md` §3). Tidak ada migration baru; komentar di migration `api_logs` yang menyebut `tripay` tidak diedit (migration sudah di-commit). **Belum diuji ke API Duitku asli.** Pemrosesan callback (job) masih TODO.
 
+### 2026-11-16 — Master data admin + kolom uang integer
+
+- **Pengecualian aturan migration (atas persetujuan PO/user):** `2026_11_11_000400_create_products_table.php` (`base_price`, `price`, `strike_price`) dan `2026_11_11_000500_create_orders_table.php` (`price`, `fee`, `total`) diedit langsung dari `decimal(15,2)` menjadi `unsignedBigInteger` (Rupiah penuh). Berlaku hanya untuk perubahan ini. **Setiap developer (termasuk pemilik `branch-ilham`) wajib menjalankan `php artisan migrate:fresh --seed` di database LOKAL masing-masing**; jangan dijalankan di database bersama/staging. `reseller_price` dan `users.balance` tetap decimal (M4, out of scope).
+- Migration baru `2026_11_16_200655_add_melo_brand_id_to_games_table.php` (`games.melo_brand_id`, nullable, unik).
+- Resource Pelanggan baru (`/admin/users`), hanya List + View. Kategori/Game/Produk/Stok Akun diperkuat (lihat §2). Toggle `is_active`/`is_popular` tidak lagi `required()` (di Filament, toggle wajib berarti harus aktif, sehingga item tidak bisa disimpan nonaktif).
+- Sync katalog Melo (A9 sebagian): hanya lewat `Http::fake()`, **belum diuji ke API Melo asli**. Format target per SKU masih M9.
+- Tidak dikerjakan: aturan markup tersimpan (A10), import CSV akun (A5), pembatasan form Pesanan (M3), core system (checkout/callback/job).
+
 ## 7. Pekerjaan Berikutnya
 
 0. Jawab pertanyaan di [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §5 (review core system 2026-11-16). Dokumen itu juga mencatat keputusan baru yang belum masuk `PROJECT_SPEC.md` §13: akun dijual manual via WhatsApp (K1), kolom uang jadi integer dengan pengecualian edit migration (K2), dan pengujian pembayaran tanpa tampilan (K3).
@@ -157,4 +167,5 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 2. Putuskan keputusan §5 yang dibutuhkan sebelum Tahap 1–2 (no. 4, 5, 10, 12, 13).
 3. Daftar akun sandbox Duitku & Melo (risiko E1/E2), lalu verifikasi signature callback dan format body `transactionStatus` (lihat `API_INTEGRATION.md` §3.3–3.4).
 4. Uji `MeloService` ke sandbox Melo, termasuk format target per SKU (M9).
-5. Mulai Tahap 2: resource Pelanggan, batasi form pesanan.
+5. Lanjutkan Tahap 2: batasi form pesanan (M3), mask kredensial akun, import CSV akun; lalu core system sesuai `CORE_SYSTEM_REVIEW.md` §4.
+6. Semua developer: `php artisan migrate:fresh --seed` di DB lokal setelah menarik perubahan ini.

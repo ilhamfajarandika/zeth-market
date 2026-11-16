@@ -12,11 +12,14 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 use UnitEnum;
 
 class CategoryResource extends Resource
@@ -40,15 +43,25 @@ class CategoryResource extends Resource
         return $schema
             ->components([
                 TextInput::make('name')
-                    ->required(),
+                    ->required()
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function (?string $state, Get $get, Set $set, string $operation): void {
+                        if ($operation === 'create' && blank($get('slug'))) {
+                            $set('slug', Str::slug((string) $state));
+                        }
+                    }),
                 TextInput::make('slug')
-                    ->required(),
+                    ->required()
+                    ->alphaDash()
+                    ->unique(ignoreRecord: true),
                 TextInput::make('sort')
                     ->required()
-                    ->numeric()
+                    ->integer()
+                    ->minValue(0)
                     ->default(0),
                 Toggle::make('is_active')
-                    ->required(),
+                    ->label('Aktif')
+                    ->default(true),
             ]);
     }
 

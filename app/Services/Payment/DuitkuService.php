@@ -45,7 +45,7 @@ class DuitkuService
      */
     public function createTransaction(Order $order, string $method): Response
     {
-        $amount = (int) $order->total;
+        $amount = $order->total;
         $email = $order->email ?? 'noreply@example.com';
 
         $payload = [

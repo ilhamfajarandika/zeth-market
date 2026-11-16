@@ -43,9 +43,9 @@ Semua endpoint di bawah `MELO_BASE_URL`. Sumber: `melostore-h2h.json` (OpenAPI r
 |---|---|---|---|
 | Cek akses akun | `GET /profile` | `profile()` | — |
 | Saldo dan kurs | `GET /profile/balance` | `balance()` | alert saldo (rencana) |
-| Katalog reguler | `GET /pricelists` | `priceList()` | sync harga (rencana) |
+| Katalog reguler | `GET /pricelists` | `priceList()` | sync item per brand (`MeloCatalogService::syncProducts()`) |
 | Katalog reguler per brand | `GET /pricelists/{category_slug}` | `priceListByBrand()` | — |
-| Brand reguler | `GET /pricelists/categories` | `brands()` | — |
+| Brand reguler | `GET /pricelists/categories` | `brands()` | pilihan brand di form Game (`MeloCatalogService::brands()`) |
 | Katalog Smart | `GET /smart-pricelists` | `smartPriceList()` | — |
 | Katalog Smart per brand | `GET /smart-pricelists/{category_slug}` | `smartPriceListByBrand()` | — |
 | Brand Smart | `GET /smart-pricelists/categories` | `smartBrands()` | — |
@@ -69,7 +69,8 @@ Rate limit: katalog (reguler, Smart, kategori) berbagi 20 request/menit. Jika 42
 
 ### 2.2 Daftar produk & harga
 - `priceList()` mengambil katalog reguler (default `limit=500`, paginasi `cursor`). Item berisi `sku_code`, `name`, `price`, `status` (`active` / `out_of_stock`, hanya `active` yang bisa dipesan).
-- Rencana: command/aksi admin untuk memperbarui `products.base_price` berdasarkan `supplier_sku`. Harga jual (`price`) **tidak** diubah otomatis; aturan markup = [TBD].
+- **Sync katalog (sudah ada, belum diuji ke API asli):** `App\Services\Supplier\MeloCatalogService`. Admin menautkan game ke brand Melo (`games.melo_brand_id`, Select dari `brands()`), lalu aksi "Sync item dari Melo" memanggil `priceList(['brand_id' => …, 'format' => 'compact'])` mengikuti `next_cursor`. Upsert `products` dengan kunci (`supplier = melo`, `supplier_sku = sku_code`): `name`, `group` (= `type_name`), `base_price` (= `ceil(price)`), `sort` diperbarui; produk baru dibuat nonaktif dengan `price = 0`; `price`, `strike_price`, `image`, `description`, dan status aktif item lama **tidak** ditimpa; item `out_of_stock` atau hilang dari katalog dinonaktifkan (tidak diaktifkan kembali otomatis). Penulisan DB satu transaksi; gagal HTTP/429 berarti tidak ada perubahan. Label/zone game diisi dari `meta.inquiry_forms` (`customer_target_zone`). Mapping field berasal dari `melostore-h2h.json`, bukan respons nyata.
+- Harga jual **tidak** diubah otomatis. Admin mengatur lewat edit inline atau aksi massal "Atur harga jual" (markup % / Rupiah tetap + pembulatan); aturan markup tersimpan = [TBD] (A10).
 
 ### 2.3 Pengiriman transaksi
 Payload (`MeloService::topup`):

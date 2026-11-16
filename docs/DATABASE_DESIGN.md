@@ -43,19 +43,20 @@ erDiagram
     games { bigint id PK
         bigint category_id FK
         string slug UK
+        int melo_brand_id UK
         bool requires_zone_id }
     products { bigint id PK
         bigint game_id FK
         string type
         string supplier_sku
-        decimal price }
+        bigint price }
     orders { bigint id PK
         string invoice UK
         bigint user_id FK
         bigint game_id FK
         bigint product_id FK
         string status
-        decimal total }
+        bigint total }
     game_accounts { bigint id PK
         bigint product_id FK
         bigint order_id FK
@@ -102,6 +103,7 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | `category_id`                    | FK N         | → `categories.id`, set null (1)   |
 | `name`, `publisher`              | VARCHAR      |                                   |
 | `slug`                           | VARCHAR UQ   | Dipakai di URL `/game/{slug}`     |
+| `melo_brand_id`                  | INT UNSIGNED UQ N | Tautan opsional ke brand Melo untuk sync item (3). Migration `2026_11_16_200655` |
 | `thumbnail`, `banner`            | VARCHAR N    | Path file di storage              |
 | `description`, `instruction`     | TEXT N       | `instruction` = cara cari User ID |
 | `requires_zone_id`               | BOOLEAN      | Mis. MLBB = true                  |
@@ -113,6 +115,7 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 
 1. `ON DELETE SET NULL`.
 2. Pengganti cek nickname.
+3. NULL = game dibuat manual tanpa sync. Diisi lewat Select "Brand Melo" di form Game (`MeloCatalogService::brands()`).
 
 ### `products`
 
@@ -127,15 +130,16 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | `description`    | TEXT N          |                                        |
 | `supplier`       | VARCHAR N       | `melo` (khusus `topup`)                |
 | `supplier_sku`   | VARCHAR N IDX   | `sku_code` Melo                        |
-| `base_price`     | DECIMAL(15,2)   | Harga modal                            |
-| `price`          | DECIMAL(15,2)   | Harga jual                             |
+| `base_price`     | BIGINT UNSIGNED | Harga modal, Rupiah penuh (2)          |
+| `price`          | BIGINT UNSIGNED | Harga jual, Rupiah penuh. `0` = belum diatur (2) |
 | `reseller_price` | DECIMAL(15,2) N | **Ditinjau, out of scope**             |
-| `strike_price`   | DECIMAL(15,2) N | Harga coret                            |
+| `strike_price`   | BIGINT UNSIGNED N | Harga coret, Rupiah penuh            |
 | `is_active`      | BOOLEAN         |                                        |
 | `sort`           | INT UNSIGNED    |                                        |
 
 1. `ON DELETE CASCADE`.
-- Index tambahan: UQ(`supplier`, `supplier_sku`) untuk mencegah SKU ganda.
+2. Sejak 2026-11-16 kolom uang `products` dan `orders` berupa integer (Rupiah penuh, tanpa sen); lihat `CURRENT_STATUS.md` §6. `reseller_price` dibiarkan DECIMAL (out of scope).
+- Index tambahan: UQ(`supplier`, `supplier_sku`) untuk mencegah SKU ganda. Dipakai sebagai kunci upsert sync Melo.
 
 ### `orders`
 
@@ -148,7 +152,7 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | `product_type`, `product_name`     | VARCHAR         | **Snapshot** saat order              |
 | `target_user_id`, `target_zone_id` | VARCHAR N       | Kosong untuk pembelian akun          |
 | `email`, `whatsapp`                | VARCHAR N       | Kontak pembeli                       |
-| `price`, `fee`, `total`            | DECIMAL(15,2)   | **Snapshot** (3)                     |
+| `price`, `fee`, `total`            | BIGINT UNSIGNED | **Snapshot**, Rupiah penuh (3)       |
 | `status`                           | VARCHAR(20) IDX | Default `pending` (4)                |
 | `payment_method`                   | VARCHAR N       |                                      |
 | `payment_reference`                | VARCHAR N IDX   |                                      |

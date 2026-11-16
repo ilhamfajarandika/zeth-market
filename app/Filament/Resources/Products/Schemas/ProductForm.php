@@ -8,7 +8,9 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Validation\Rules\Unique;
 
 class ProductForm
 {
@@ -21,7 +23,8 @@ class ProductForm
                     ->required(),
                 Select::make('type')
                     ->options(ProductType::class)
-                    ->default('topup')
+                    ->default(ProductType::Topup)
+                    ->live()
                     ->required(),
                 TextInput::make('name')
                     ->required(),
@@ -30,30 +33,63 @@ class ProductForm
                     ->image(),
                 Textarea::make('description')
                     ->columnSpanFull(),
-                TextInput::make('supplier'),
-                TextInput::make('supplier_sku'),
+                Select::make('supplier')
+                    ->options(['melo' => 'Melo'])
+                    ->live()
+                    ->required(fn (Get $get): bool => self::isTopup($get))
+                    ->visible(fn (Get $get): bool => self::isTopup($get)),
+                TextInput::make('supplier_sku')
+                    ->label('SKU supplier')
+                    ->required(fn (Get $get): bool => self::isTopup($get))
+                    ->visible(fn (Get $get): bool => self::isTopup($get))
+                    ->unique(
+                        ignoreRecord: true,
+                        modifyRuleUsing: fn (Unique $rule, Get $get): Unique => $rule->where('supplier', $get('supplier')),
+                    ),
                 TextInput::make('base_price')
+                    ->label('Harga modal')
+                    ->helperText('Item Melo diperbarui otomatis saat sync.')
                     ->required()
-                    ->numeric()
+                    ->integer()
+                    ->minValue(0)
                     ->default(0)
+                    ->live(onBlur: true)
                     ->prefix('Rp'),
                 TextInput::make('price')
+                    ->label('Harga jual')
                     ->required()
-                    ->numeric()
+                    ->integer()
+                    ->minValue(0)
                     ->default(0)
-                    ->prefix('Rp'),
+                    ->live(onBlur: true)
+                    ->prefix('Rp')
+                    ->helperText(fn (Get $get): ?string => filled($get('price')) && (int) $get('price') < (int) $get('base_price')
+                        ? 'Peringatan: harga jual di bawah harga modal.'
+                        : null),
                 TextInput::make('reseller_price')
-                    ->numeric()
+                    ->integer()
+                    ->minValue(0)
                     ->prefix('Rp'),
                 TextInput::make('strike_price')
-                    ->numeric()
+                    ->label('Harga coret')
+                    ->integer()
+                    ->minValue(0)
                     ->prefix('Rp'),
                 Toggle::make('is_active')
-                    ->required(),
+                    ->label('Aktif')
+                    ->default(true),
                 TextInput::make('sort')
                     ->required()
-                    ->numeric()
+                    ->integer()
+                    ->minValue(0)
                     ->default(0),
             ]);
+    }
+
+    private static function isTopup(Get $get): bool
+    {
+        $type = $get('type');
+
+        return ($type instanceof ProductType ? $type : ProductType::tryFrom((string) $type)) === ProductType::Topup;
     }
 }

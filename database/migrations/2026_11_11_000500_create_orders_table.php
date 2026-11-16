@@ -25,9 +25,9 @@ return new class extends Migration
             $table->string('email')->nullable();
             $table->string('whatsapp', 20)->nullable();
 
-            $table->decimal('price', 15, 2);
-            $table->decimal('fee', 15, 2)->default(0);
-            $table->decimal('total', 15, 2);
+            $table->unsignedBigInteger('price'); // Rupiah penuh
+            $table->unsignedBigInteger('fee')->default(0);
+            $table->unsignedBigInteger('total');
 
             $table->string('status', 20)->default('pending')->index();
 

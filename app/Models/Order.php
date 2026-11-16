@@ -36,9 +36,9 @@ class Order extends Model
         return [
             'product_type' => ProductType::class,
             'status' => OrderStatus::class,
-            'price' => 'decimal:2',
-            'fee' => 'decimal:2',
-            'total' => 'decimal:2',
+            'price' => 'integer',
+            'fee' => 'integer',
+            'total' => 'integer',
             'paid_at' => 'datetime',
             'expired_at' => 'datetime',
             'completed_at' => 'datetime',

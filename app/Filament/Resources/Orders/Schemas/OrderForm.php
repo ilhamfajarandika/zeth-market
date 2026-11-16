@@ -39,15 +39,15 @@ class OrderForm
                 TextInput::make('whatsapp'),
                 TextInput::make('price')
                     ->required()
-                    ->numeric()
+                    ->integer()->minValue(0)
                     ->prefix('Rp'),
                 TextInput::make('fee')
                     ->required()
-                    ->numeric()
+                    ->integer()->minValue(0)
                     ->default(0),
                 TextInput::make('total')
                     ->required()
-                    ->numeric(),
+                    ->integer()->minValue(0),
                 Select::make('status')
                     ->options(OrderStatus::class)
                     ->default('pending')

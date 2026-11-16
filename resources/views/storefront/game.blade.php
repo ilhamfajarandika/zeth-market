@@ -27,7 +27,7 @@
                         'border-white/5 bg-white/[0.02] opacity-50' => $outOfStock,
                     ])>
                         <p class="font-medium">{{ $product->name }}</p>
-                        <p class="mt-1 text-violet-300">{{ Number::currency($product->price, 'IDR', 'id') }}</p>
+                        <p class="mt-1 text-violet-300">{{ Number::currency($product->price, 'IDR', 'id', precision: 0) }}</p>
 
                         @if ($product->isAccount())
                             <p @class([

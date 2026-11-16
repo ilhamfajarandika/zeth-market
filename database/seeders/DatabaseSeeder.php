@@ -40,14 +40,14 @@ class DatabaseSeeder extends Seeder
         foreach ([[86, 19000], [172, 38000], [257, 57000], [706, 152000]] as $sort => [$amount, $basePrice]) {
             Product::factory()->for($mlbb)->create([
                 'name' => "{$amount} Diamonds", 'supplier_sku' => "ML{$amount}",
-                'base_price' => $basePrice, 'price' => $basePrice * 1.05, 'reseller_price' => $basePrice * 1.02, 'sort' => $sort,
+                'base_price' => $basePrice, 'price' => (int) round($basePrice * 1.05), 'reseller_price' => (int) round($basePrice * 1.02), 'sort' => $sort,
             ]);
         }
 
         foreach ([[70, 9500], [140, 19000], [355, 47000]] as $sort => [$amount, $basePrice]) {
             Product::factory()->for($freeFire)->create([
                 'name' => "{$amount} Diamonds", 'supplier_sku' => "FF{$amount}",
-                'base_price' => $basePrice, 'price' => $basePrice * 1.05, 'reseller_price' => $basePrice * 1.02, 'sort' => $sort,
+                'base_price' => $basePrice, 'price' => (int) round($basePrice * 1.05), 'reseller_price' => (int) round($basePrice * 1.02), 'sort' => $sort,
             ]);
         }
 

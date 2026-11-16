@@ -26,7 +26,7 @@ class AdminPanelAccessTest extends TestCase
     {
         $this->actingAs(User::factory()->admin()->create());
 
-        foreach (['/admin', '/admin/orders', '/admin/products', '/admin/game-accounts', '/admin/games', '/admin/categories'] as $url) {
+        foreach (['/admin', '/admin/orders', '/admin/products', '/admin/game-accounts', '/admin/games', '/admin/categories', '/admin/users'] as $url) {
             $this->get($url)->assertOk();
         }
     }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Games\Tables;
 
+use App\Filament\Resources\Games\Actions\SyncMeloProductsAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -21,6 +22,10 @@ class GamesTable
                     ->searchable(),
                 TextColumn::make('slug')
                     ->searchable(),
+                TextColumn::make('melo_brand_id')
+                    ->label('Brand Melo')
+                    ->placeholder('-')
+                    ->toggleable(),
                 TextColumn::make('publisher')
                     ->searchable(),
                 TextColumn::make('thumbnail')
@@ -57,6 +62,7 @@ class GamesTable
                 //
             ])
             ->recordActions([
+                SyncMeloProductsAction::make(),
                 EditAction::make(),
             ])
             ->toolbarActions([

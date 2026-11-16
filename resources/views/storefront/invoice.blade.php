@@ -9,7 +9,7 @@
             @if ($order->target_user_id)
                 <div class="flex justify-between"><dt class="text-slate-400">ID Tujuan</dt><dd>{{ $order->target_user_id }}{{ $order->target_zone_id ? ' ('.$order->target_zone_id.')' : '' }}</dd></div>
             @endif
-            <div class="flex justify-between"><dt class="text-slate-400">Total</dt><dd>{{ Number::currency($order->total, 'IDR', 'id') }}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-400">Total</dt><dd>{{ Number::currency($order->total, 'IDR', 'id', precision: 0) }}</dd></div>
             <div class="flex justify-between"><dt class="text-slate-400">Status</dt><dd>{{ $order->status->getLabel() }}</dd></div>
         </dl>
 

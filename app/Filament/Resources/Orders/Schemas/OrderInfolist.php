@@ -32,11 +32,11 @@ class OrderInfolist
                 TextEntry::make('whatsapp')
                     ->placeholder('-'),
                 TextEntry::make('price')
-                    ->money('IDR'),
+                    ->money('IDR', locale: 'id', decimalPlaces: 0),
                 TextEntry::make('fee')
-                    ->numeric(),
+                    ->money('IDR', locale: 'id', decimalPlaces: 0),
                 TextEntry::make('total')
-                    ->numeric(),
+                    ->money('IDR', locale: 'id', decimalPlaces: 0),
                 TextEntry::make('status')
                     ->badge(),
                 TextEntry::make('payment_method')
