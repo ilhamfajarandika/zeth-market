@@ -35,11 +35,10 @@ return [
         ],
     ],
 
-    'tripay' => [
-        'api_key' => env('TRIPAY_API_KEY'),
-        'private_key' => env('TRIPAY_PRIVATE_KEY'),
-        'merchant_code' => env('TRIPAY_MERCHANT_CODE'),
-        'sandbox' => env('TRIPAY_SANDBOX', true),
+    'duitku' => [
+        'merchant_code' => env('DUITKU_MERCHANT_CODE'),
+        'api_key' => env('DUITKU_API_KEY'),
+        'sandbox' => env('DUITKU_SANDBOX', true),
     ],
 
     'melo' => [

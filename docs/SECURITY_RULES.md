@@ -70,12 +70,12 @@
 
 | Provider  | Header                 | Algoritma                             | Status   |
 | --------- | ---------------------- | ------------------------------------- | -------- |
-| Tripay    | `X-Callback-Signature` | HMAC-SHA256(raw body, private key)    | ✅ dites |
+| Duitku    | field `signature`      | HMAC-SHA256(merchantCode + amount + merchantOrderId, API key) | ✅ dites |
 | Melo      | `X-H2H-Signature`      | hex HMAC-SHA256(raw body, secret)     | ✅ dites |
 
 - Signature dibandingkan dengan `hash_equals`. ✅
-- Signature salah/kosong → Tripay 403, Melo 401; keduanya dicatat di `api_logs`. Melo juga ditolak jika webhook secret belum diisi. ✅
-- Test: `WebhookSignatureTest` (Tripay valid/salah; Melo valid/salah/tanpa signature/secret kosong) dan `MeloServiceTest::test_webhook_signature_is_case_insensitive_hex_hmac_sha256`.
+- Signature salah/kosong → Duitku 403, Melo 401; keduanya dicatat di `api_logs`. Melo juga ditolak jika webhook secret belum diisi. ✅
+- Test: `WebhookSignatureTest` (Duitku valid/salah/tanpa signature/nominal diubah/merchant lain/API key kosong; Melo valid/salah/tanpa signature/secret kosong) dan `MeloServiceTest::test_webhook_signature_is_case_insensitive_hex_hmac_sha256`.
 - Nominal callback dicocokkan dengan `orders.total`. ⏳
 
 ## 7. Idempotency
@@ -95,7 +95,7 @@
 
 - Harga, fee, dan total dihitung di server dari data produk. Nilai harga dari request diabaikan. ⏳
 - Snapshot harga disimpan di order saat dibuat. ✅ (skema)
-- Nominal yang dikirim ke payment gateway = `orders.total`. ✅ (`TripayService`)
+- Nominal yang dikirim ke payment gateway = `orders.total`. ✅ (`DuitkuService`)
 - ⚠️ **Form edit order di admin** (`app/Filament/Resources/Orders/Schemas/OrderForm.php`) mengizinkan semua kolom diedit, termasuk `total`, `status`, dan data payment. Perlu dibatasi (read-only + aksi khusus). Keputusan aksi admin yang diizinkan = [TBD].
 
 ## 10. Perlindungan Informasi Akun Game

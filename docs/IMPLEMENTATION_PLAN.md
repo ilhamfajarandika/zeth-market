@@ -16,7 +16,7 @@
 | E6  | VPS + domain + akses Cloudflare         | H27           | ❌ belum ada |
 | E7  | Keputusan TBD di `PROJECT_SPEC.md` (4)  | sesuai tahap  | ❌           |
 
-1. Tripay atau pengganti, sekaligus keputusan provider final.
+1. Akun sandbox Duitku (provider final: Duitku).
 2. Verifikasi merchant bisa memakan beberapa hari.
 3. Logo, warna brand, daftar game & produk, harga jual/markup.
 4. Refund, notifikasi, akses invoice, dll.
