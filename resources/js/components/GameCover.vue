@@ -6,11 +6,11 @@ const { game } = defineProps({
 });
 
 const gradients = [
-    'from-violet-500 to-fuchsia-600',
-    'from-sky-500 to-indigo-600',
-    'from-amber-500 to-rose-600',
-    'from-emerald-500 to-teal-700',
-    'from-pink-500 to-orange-500',
+    'from-emerald-500 to-teal-800',
+    'from-sky-500 to-blue-800',
+    'from-amber-500 to-orange-800',
+    'from-rose-500 to-red-800',
+    'from-zinc-600 to-zinc-900',
 ];
 
 const gradient = computed(() => {

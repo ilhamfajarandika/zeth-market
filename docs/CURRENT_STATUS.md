@@ -171,6 +171,14 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 
 Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController`, `POST /webhook/duitku`, `services.duitku.*`, `DUITKU_*` di `.env`. `TripayService`, `TripayCallbackController`, route, config, dan test Tripay dihapus. Library `duitkupg/duitku-php` dievaluasi dan **tidak dipakai** (lihat `API_INTEGRATION.md` §3). Tidak ada migration baru; komentar di migration `api_logs` yang menyebut `tripay` tidak diedit (migration sudah di-commit). **Belum diuji ke API Duitku asli.** Pemrosesan callback (job) masih TODO.
 
+### 2026-11-19 — Landing page v2 (Acid Arcade)
+
+- `resources/js/pages/Home.vue` ditulis ulang: hero satu layar dengan indeks katalog, marquee, katalog + pencarian/kategori, cara top up, band fakta, FAQ, cek pesanan (pesan inline tanpa redirect), CTA akhir. Tanpa `Link` ke halaman lain.
+- Layout baru `resources/js/layouts/LandingLayout.vue` (header/footer/menu mobile). `Game.vue` dan `Invoice.vue` tetap memakai `AppLayout`.
+- Token baru di `resources/css/app.css` (`ink`, `surface`, `paper`, `acid`, `electric`, `signal`, `line`, `font-display`, `animate-marquee`, `animate-enter`, `bg-dotgrid`) dan font Space Grotesk lewat `vite.config.js`.
+- `GameCover.vue`: gradien violet diganti palet non-violet.
+- `docs/FRONTEND_PLAN.md` §7.6 mencatat arah desain. Build sukses (584 modul); `php artisan test --compact` 60 lulus. **Menunggu review desain PO sebelum merge dan sebelum Game/Invoice dimigrasikan.**
+
 ## 7. Pekerjaan Berikutnya
 
 0. Jawab pertanyaan di [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §5 (review core system 2026-11-16). Dokumen itu juga mencatat keputusan baru yang belum masuk `PROJECT_SPEC.md` §13: akun dijual manual via WhatsApp (K1), kolom uang jadi integer dengan pengecualian edit migration (K2), dan pengujian pembayaran tanpa tampilan (K3).
