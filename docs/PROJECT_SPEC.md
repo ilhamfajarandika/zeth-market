@@ -24,10 +24,10 @@ Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** 
 | --------- | --------------------------------------------- | ------- |
 | Guest     | Melihat katalog & stok, **boleh membeli** (1) | [FINAL] |
 | Pelanggan | Registrasi, login, membeli, riwayat transaksi | [FINAL] |
-| Admin     | Mengelola seluruh data lewat `/admin`         | [FINAL] |
+| Admin     | Mengelola seluruh data lewat panel admin (1)  | [FINAL] |
 
 Catatan:
-1. Login opsional (keputusan PO 2026-11-12). Guest membeli dengan mengisi email/WhatsApp.
+1. Login opsional (keputusan PO 2026-11-12). Guest membeli dengan mengisi email/WhatsApp. Path panel admin diambil dari `ADMIN_PATH` (lihat `SECURITY_RULES.md` §2).
 - Guest dapat melihat game, produk, harga, stok akun, dan informasi website.
 - Admin mengelola game, produk, harga, stok akun, pesanan, pelanggan, dan transaksi.
 
@@ -140,7 +140,7 @@ Bagian ini satu-satunya sumber resmi stack dan versinya. Dokumen lain cukup meru
 | Bahasa        | PHP 8.4                                           | [FINAL]             |
 | Framework     | Laravel 13                                        | [FINAL]             |
 | Admin panel   | Filament 5                                        | [FINAL]             |
-| Frontend      | Blade + Livewire + Alpine.js                      | [FINAL]             |
+| Frontend      | Vue 3 + Inertia.js (JavaScript)                   | [FINAL]             |
 | Styling       | Tailwind CSS 4                                    | [FINAL]             |
 | Build         | Vite 8                                            | [FINAL]             |
 | Database      | MySQL 8                                           | [FINAL]             |
@@ -176,3 +176,5 @@ Catatan:
 | 2026-11-12 | Reseller di luar scope                          | PO     |
 | 2026-11-12 | Supplier diganti dari Digiflazz ke Melo H2H     | PO     |
 | 2026-11-12 | Timeline diubah menjadi 1 bulan; nilai kontrak tidak dicantumkan di dokumen | PO |
+| 2026-11-13 | Frontend storefront diganti dari Blade/Livewire/Alpine ke Vue 3 + Inertia.js (JavaScript), tetap monolith | PO |
+| 2026-11-13 | Path panel admin diambil dari `ADMIN_PATH` (bukan `/admin` tetap) | PO |

@@ -7,7 +7,8 @@
 | Aturan                                            | Status             |
 | ------------------------------------------------- | ------------------ |
 | Password di-hash otomatis (cast `hashed`, bcrypt) | ✅                 |
-| Login admin lewat Filament `/admin/login`         | ✅                 |
+| Login admin lewat Filament `/{ADMIN_PATH}/login`  | ✅                 |
+| Login admin dibatasi 5 percobaan/menit (Filament) | ✅                 |
 | Login/registrasi pelanggan, terpisah dari admin   | ⏳                 |
 | Rate limit login & registrasi pelanggan           | ⏳                 |
 | Session di-regenerate setelah login               | ⏳ (1)             |
@@ -21,7 +22,7 @@
 
 | Role                 | Akses                                   | Status       |
 | -------------------- | --------------------------------------- | ------------ |
-| `admin`              | Panel `/admin` (1)                      | ✅ dites (2) |
+| `admin`              | Panel admin (1)                         | ✅ dites (2) |
 | `member` (pelanggan) | Storefront + riwayat order **miliknya** | ⏳           |
 | guest                | Storefront, checkout, invoice           | ✅ / ⏳      |
 | `reseller`           | **Out of scope**, jangan dipakai (3)    | ⚠️ ditinjau  |
@@ -30,12 +31,14 @@
 2. `AdminPanelAccessTest`.
 3. Nilainya masih ada di enum `UserRole`.
 
+- Path panel admin diambil dari `ADMIN_PATH` (`config('app.admin_path')`). Jika diganti, `/admin` mengembalikan 404. ✅ dites (`test_default_admin_path_is_not_reachable_when_a_custom_path_is_configured`)
+- Production **wajib** memakai `ADMIN_PATH` acak (bukan `admin`) dan tidak menuliskannya di dokumen, README, atau commit. Path rahasia hanya mengurangi bot/scanner; pengaman utama tetap role admin, rate limit, dan password kuat. ⚠️ saat deploy
 - Riwayat transaksi wajib difilter `orders.user_id = auth()->id()`. ⏳
 - Kolom `role` tidak boleh diisi dari input registrasi (mass assignment). Default `member`. ⏳
 
 ## 3. Validasi Input
 
-- Semua input storefront divalidasi di server (Form Request atau aturan validasi Livewire). ⏳
+- Semua input storefront divalidasi di server (Form Request). Validasi di Vue hanya untuk kenyamanan, bukan pengaman. ⏳
 - User ID / Zone ID divalidasi dengan `games.user_id_regex` / `zone_id_regex` jika diisi, plus batas panjang. ⏳
 - Produk yang dipilih harus `is_active`, milik game yang sama, dan (untuk akun) stoknya tersedia. ⏳
 - Email/WhatsApp divalidasi formatnya. ⏳
@@ -109,6 +112,7 @@
 ## 11. Pencegahan Kebocoran Data
 
 - Jangan tampilkan email/WA pembeli lain di halaman publik. ✅
+- Props Inertia tercetak sebagai JSON di sumber halaman. Controller wajib mengirim array eksplisit, **bukan model utuh**, supaya `base_price`, `reseller_price`, `supplier_sku`, dan kredensial tidak bocor. ✅ dites (`test_game_page_props_never_expose_internal_product_columns`)
 - Log (`api_logs`, `storage/logs`) tidak boleh berisi secret atau `credentials`. ✅ untuk kode saat ini
 - Respons error production generik (tanpa stack trace) → `APP_DEBUG=false`. ⚠️ saat deploy
 - Riwayat order pelanggan hanya menampilkan order miliknya. ⏳

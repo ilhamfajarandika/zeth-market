@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-12, oleh AI agent (sinkron dengan `origin/main` (Melo), perapian konflik, dan hardening dokumen; tidak ada perubahan kode).
+> **Terakhir diperbarui:** 2026-11-13 (storefront pindah ke Vue 3 + Inertia, path admin dari `ADMIN_PATH`); sebelumnya pembagian tugas FE/BE; sebelumnya 2026-11-12, oleh AI agent (sinkron dengan `origin/main` (Melo), perapian konflik, dan hardening dokumen; tidak ada perubahan kode).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -10,12 +10,12 @@
 | Fase          | Skeleton selesai, supplier Melo terpasang, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat `IMPLEMENTATION_PLAN.md`                                |
 | Tanggal H1    | [TBD]                                                                          |
-| Test          | **49 lulus, 0 gagal** (1)                                                      |
+| Test          | **51 lulus, 0 gagal** (1)                                                      |
 | Versi         | Laravel 13, Filament 5, PHP 8.4, MySQL 8.0.30 (2)                              |
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
-1. `php artisan test --compact`, 98 assertion, MySQL `topup_game_test`, 2026-11-12.
-2. Ditambah Tailwind 4 dan Vite 8. MySQL dari Laragon.
+1. `php artisan test --compact`, 170 assertion, MySQL `topup_game_test`, 2026-11-13.
+2. Ditambah Tailwind 4, Vite 8, Vue 3.5, Inertia 3 (`inertiajs/inertia-laravel`, `@inertiajs/vue3`). MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
 ## 2. Sudah Ada (terverifikasi di kode)
@@ -28,8 +28,8 @@
 | Stok akun           | reserve / markSold / release / releaseExpired | `AccountStockServiceTest` |
 | Scheduler           | `accounts:release-expired` tiap menit         | `AccountStockServiceTest` |
 | Enkripsi kredensial | cast `encrypted` + hidden                     | `AccountStockServiceTest` |
-| Admin panel         | 5 resource + widget, hanya admin              | `AdminPanelAccessTest`    |
-| Storefront dasar    | Home, halaman game, invoice                   | `StorefrontTest`          |
+| Admin panel         | 5 resource + widget, hanya admin, path `ADMIN_PATH` | `AdminPanelAccessTest` |
+| Storefront (Vue)    | Home, halaman game, invoice (Inertia)         | `StorefrontTest`          |
 | Webhook             | Verifikasi signature Tripay & Melo            | `WebhookSignatureTest`    |
 | Service integrasi   | Tripay & Melo (**belum ke API asli**)         | `MeloServiceTest`         |
 | Konfigurasi         | MySQL, Asia/Jakarta, locale `id`, key `.env`  | —                         |
@@ -43,7 +43,8 @@ Lokasi & detail:
 - **Scheduler:** `routes/console.php`.
 - **Enkripsi:** model `GameAccount`, test `test_credentials_are_encrypted_at_rest`.
 - **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok), Stok Akun, dan Pesanan (tanpa halaman create), plus widget dashboard.
-- **Storefront:** `StorefrontController`, `resources/views/storefront`. Input ID di halaman game masih statis. Kredensial di invoice hanya tampil jika order sukses.
+- **Storefront:** Vue 3 + Inertia. `StorefrontController` me-render `Home`, `Game`, `Invoice` (`resources/js/pages`) dengan props array eksplisit; layout `resources/js/layouts/AppLayout.vue`; root view `resources/views/app.blade.php`; shared props di `HandleInertiaRequests`. Tampilan v1: beranda (hero, game populer, pencarian + tab kategori, cara top up, cek pesanan via nomor invoice), halaman game (4 langkah + ringkasan), invoice (status, progres, rincian, instruksi bayar, SN, detail akun + salin). Form masih **pratinjau**: tombol Beli nonaktif sampai checkout dibuat; metode bayar masih contoh. Kredensial hanya dikirim di props jika order sukses.
+- **Admin path:** `config('app.admin_path')` dari `ADMIN_PATH` (default `admin` untuk lokal). Test memakai `kelola-test` dan memastikan `/admin` 404.
 - **Webhook:** `app/Http/Controllers/Webhook` (`TripayCallbackController`, `MeloCallbackController`). Hasilnya dicatat di `api_logs`, signature salah → 403 (Tripay) / 401 (Melo), CSRF dikecualikan, ada throttle.
 - **Service integrasi:**
   - Tripay (`app/Services/Payment`): channel, createTransaction, signature.
@@ -53,7 +54,7 @@ Lokasi & detail:
 
 ## 3. Belum Dikerjakan
 
-- Checkout Livewire (input ID tervalidasi, pilih produk, metode bayar, pembuatan order).
+- Checkout Inertia → `CheckoutController` (input ID tervalidasi, pilih produk, metode bayar, pembuatan order).
 - Registrasi/login pelanggan dan riwayat transaksi.
 - Resource admin Pelanggan.
 - Pemrosesan callback payment & supplier (masih TODO di controller); queue jobs.
@@ -143,6 +144,26 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 - Budget dihapus dari dokumen; timeline diubah menjadi 1 bulan (keputusan PO).
 - Versi stack hanya bersumber dari `PROJECT_SPEC.md` §11.
 - Risiko `MELO_SANDBOX` tanpa default dicatat (M12).
+
+### 2026-11-13 — Pembagian tugas
+
+- Ditambah `docs/TASK_DIVISION.md`: Frontend = Ilham Fajar Andika, Backend = Mochammad Lury Choirul Rizky, batas wilayah file, kontrak FE ↔ BE, dan tugas per tahap.
+
+### 2026-11-13 — Tampilan storefront v1
+
+- Desain ulang layout, beranda, halaman game, dan invoice (tema gelap, mobile-first, navigasi bawah di HP). Tanpa perubahan PHP di luar view; menunggu review/revisi PO.
+
+### 2026-11-13 — Storefront Vue 3 + Inertia & path admin
+
+- Keputusan PO: storefront memakai Vue 3 + Inertia.js (JavaScript), tetap monolith. Dependency baru disetujui: `inertiajs/inertia-laravel`, `vue`, `@inertiajs/vue3`, `@vitejs/plugin-vue`.
+- View Blade storefront dihapus, diganti `resources/js/pages/*.vue`. Props dibuat eksplisit (tidak ada kolom internal di HTML).
+- Panel admin memakai `ADMIN_PATH`; `/admin` 404 jika diganti. Production wajib nilai acak.
+
+### 2026-11-13 — Skill agent & review Vue
+
+- 37 skill di `.agents/skills/` (mis. `vue-best-practices`, `design-taste-frontend`, `antislop-*`) dihubungkan ke `.claude/skills/` lewat directory junction supaya dimuat Claude Code. Daftar junction ada di `.claude/skills/.gitignore` (isi ganda tidak di-commit; sumber asli tetap `.agents/skills/`).
+- Membuat ulang di mesin lain (PowerShell, dari root proyek): `Get-ChildItem .agents\skills -Directory | ? { -not (Test-Path ".claude\skills\$($_.Name)") } | % { New-Item -ItemType Junction -Path ".claude\skills\$($_.Name)" -Target $_.FullName }`
+- Kode Vue storefront direview dengan `vue-best-practices` (tetap JavaScript): `shallowRef` untuk primitif, reactive props destructure, turunan data dipindah ke `computed`/fungsi, item terpilih disimpan sebagai `id`, `CopyButton` membersihkan timer dan menangani clipboard gagal, `aria-pressed`/`aria-hidden`/`aria-live` ditambahkan.
 
 ## 7. Pekerjaan Berikutnya
 
