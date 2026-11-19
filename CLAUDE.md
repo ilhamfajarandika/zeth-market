@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Indonesian game top-up storefront: a single Laravel 13 monolith (PHP 8.4) with a Filament 5 admin panel at a configurable path (`ADMIN_PATH`, default `admin`), a Vue 3 + Inertia.js (JavaScript) + Tailwind 4 storefront, MySQL, and PHPUnit. Two product types: `topup` (fulfilled via the Melo supplier API) and `account` (sold from internal stock in `game_accounts`). Payment goes through Tripay. There is no nickname/ID lookup by design (only regex format validation per game).
+
+Indonesian game top-up storefront: a single Laravel 13 monolith (PHP 8.4) with a Filament 5 admin panel at `/admin`, Blade + Tailwind 4 storefront, MySQL, and PHPUnit. Two product types: `topup` (fulfilled via the Melo supplier API) and `account` (sold from internal stock in `game_accounts`). Payment goes through Duitku. There is no nickname/ID lookup by design (only regex format validation per game).
+ 
 
 Project docs are in Indonesian. `docs/` holds the spec and rules. For what must be built, `docs/PROJECT_SPEC.md` is the source of truth, then `docs/AGENTS.md`, then other docs. For what already exists (schema, routes, class names), the code and migrations are the truth (see `docs/AGENTS.md` §3). `docs/CURRENT_STATUS.md` lists what is built, known issues and open decisions. `docs/AGENTS.md` is imported below and always applies. Read `docs/CURRENT_STATUS.md` before non-trivial work. If sources conflict, stop the affected work and report it instead of choosing. Features outside the spec (reseller pricing, nickname checks, MLBB calculator) need approval. Root `TECH_STACK.md` is a short summary that points to `docs/`; `docs/` wins if they differ.
 
@@ -26,7 +28,7 @@ php artisan test --compact --filter=test_name                # one test
 vendor/bin/pint --dirty --format agent                       # format changed PHP files only
 ```
 
-Tests need a running MySQL with two databases, `topup_game` (app) and `topup_game_test` (used by `phpunit.xml`, wiped per test). `vendor/` is not committed, so run `composer install` first. In tests, fake all Tripay/Melo HTTP with `Http::fake()`.
+Tests need a running MySQL with two databases, `topup_game` (app) and `topup_game_test` (used by `phpunit.xml`, wiped per test). `vendor/` is not committed, so run `composer install` first. In tests, fake all Duitku/Melo HTTP with `Http::fake()`.
 
 ## Architecture
 
@@ -34,9 +36,11 @@ Tests need a running MySQL with two databases, `topup_game` (app) and `topup_gam
 
 **Account stock** (`App\Services\AccountStockService`) is the only place `game_accounts` change state: `available → reserved → sold`, with `reserved → available` on release or expiry. Every mutation uses `DB::transaction` + `lockForUpdate()` so an account can't be sold twice. A reservation lasts 15 minutes (`RESERVATION_MINUTES`) and should match the payment invoice expiry. `accounts:release-expired` (scheduled in `routes/console.php`) calls `releaseExpired()`, which currently checks only time, not order status (known issue M2). Displayed stock is `Product::withStock()` (`available_accounts_count`). `game_accounts.credentials` uses the `encrypted` cast and is shown only on the invoice page after the order succeeds.
 
-**External integrations** live in `App\Services\Payment\TripayService` and `App\Services\Supplier\MeloService`. They log requests to `api_logs` and are configured in `config/services.php` from `.env` (`TRIPAY_*`, `MELO_*`). Neither has been tested against the real APIs. Melo authenticates with `X-API-Key`/`X-Secret-Key` headers, uses the invoice as `buyer_trx_id` (retry-safe, no double debit), and replaced Digiflazz; `MELO_SANDBOX=true` simulates orders without debit.
+**External integrations** live in `App\Services\Payment\DuitkuService` (plain `Http` client, no Duitku SDK) and `App\Services\Supplier\MeloService`. They log requests to `api_logs` and are configured in `config/services.php` from `.env` (`DUITKU_*`, `MELO_*`). Neither has been tested against the real APIs. Melo authenticates with `X-API-Key`/`X-Secret-Key` headers, uses the invoice as `buyer_trx_id` (retry-safe, no double debit), and replaced Digiflazz; `MELO_SANDBOX=true` simulates orders without debit.
 
-**Webhooks** (`POST /webhook/tripay`, `/webhook/melo`, `app/Http/Controllers/Webhook/`) are excluded from CSRF in `bootstrap/app.php` (`preventRequestForgery(except: ['webhook/*'])`) and throttled. They verify the signature (Tripay: HMAC-SHA256 `X-Callback-Signature`; Melo: hex HMAC-SHA256 `X-H2H-Signature`), write an `ApiLog` row with `signature_valid`, and return 403 (Tripay) or 401 (Melo) on a bad signature. The step after that is still a TODO in the controllers: dispatching the payment and supplier callback jobs. Checkout (Inertia form posting to a controller), the order-creation flow and those jobs are not built yet, so check `docs/CURRENT_STATUS.md` before assuming a feature exists.
+
+**Webhooks** (`POST /webhook/duitku`, `/webhook/melo`, `app/Http/Controllers/Webhook/`) are excluded from CSRF in `bootstrap/app.php` (`preventRequestForgery(except: ['webhook/*'])`) and throttled. They verify the signature (Duitku: HMAC-SHA256 `signature` field in the form body; Melo: hex HMAC-SHA256 `X-H2H-Signature`), write an `ApiLog` row with `signature_valid`, and return 403 (Duitku) or 401 (Melo) on a bad signature. The step after that is still a TODO in the controllers: dispatching the payment and supplier callback jobs. Checkout (Livewire), the order-creation flow and those jobs are not built yet, so check `docs/CURRENT_STATUS.md` before assuming a feature exists.
+
 
 **Admin.** Filament resources under `app/Filament/Resources/<Name>/` are split into `Schemas/`, `Tables/` and `Pages/`. `User::canAccessPanel()` allows only `UserRole::Admin`. Enums in `app/Enums` implement Filament's `HasLabel`/`HasColor`, so the same enum drives admin UI and domain logic.
 

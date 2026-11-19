@@ -30,7 +30,7 @@ Sumber resmi versi stack: [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) §11.
 | Database        | MySQL                                             | 8.0    | Dev & production. Transaksi + row locking untuk stok akun.      |
 | Cache & Queue   | Redis (production), database driver (dev)         | —      | Callback payment, order ke supplier, retry.                     |
 | Supplier top up | **Melo H2H API**                                  | v1     | Menggantikan Digiflazz (2026-11-12).                            |
-| Payment gateway | 1 provider, kandidat **Tripay**                   | —      | [TBD] provider final. Alternatif: Duitku / Midtrans / Xendit.   |
+| Payment gateway | **Duitku** (API langsung, tanpa SDK)              | —      | Dipilih PO 2026-11-14, menggantikan Tripay.                     |
 | Notifikasi      | Email (mailer Laravel)                            | —      | [TBD]. WhatsApp gateway (Fonnte/Wablas) butuh persetujuan PO.   |
 | Testing         | PHPUnit + Postman CLI                             | —      | Feature test + uji callback API.                                |
 | Code style      | Laravel Pint                                      | —      | `vendor/bin/pint --dirty --format agent`.                       |
@@ -76,11 +76,11 @@ app/
 ├── Models/                    Category, Game, Product, GameAccount, Order, ApiLog, Setting, User
 ├── Services/
 │   ├── AccountStockService.php      reserve / markSold / release / releaseExpired
-│   ├── Payment/TripayService.php    channel, create transaction, verifikasi signature callback
+│   ├── Payment/DuitkuService.php    metode bayar, create transaction, cek status, verifikasi signature callback
 │   └── Supplier/MeloService.php     profil, saldo, katalog, topup, cek status, verifikasi signature webhook
 ├── Http/Controllers/
 │   ├── StorefrontController.php     home, halaman game, invoice
-│   └── Webhook/                     TripayCallbackController, MeloCallbackController
+│   └── Webhook/                     DuitkuCallbackController, MeloCallbackController
 ├── Console/Commands/ReleaseExpiredAccounts.php   (accounts:release-expired)
 ├── Exceptions/OutOfStockException.php
 └── Filament/
@@ -124,7 +124,7 @@ Detail kolom: [`docs/DATABASE_DESIGN.md`](docs/DATABASE_DESIGN.md).
 | GET    | `/`                | `home`             | Home: daftar game per kategori                 |
 | GET    | `/game/{game}`     | `game.show`        | Daftar produk + stok akun (binding `slug`)     |
 | GET    | `/invoice/{order}` | `invoice.show`     | Status order + detail akun (binding `invoice`) |
-| POST   | `/webhook/tripay`  | `webhook.tripay`   | Callback Tripay (tanpa CSRF, signature wajib)  |
+| POST   | `/webhook/duitku`  | `webhook.duitku`   | Callback Duitku (tanpa CSRF, signature wajib)  |
 | POST   | `/webhook/melo`    | `webhook.melo`     | Webhook Melo (tanpa CSRF, signature wajib)     |
 | —      | `/{ADMIN_PATH}`    | `filament.admin.*` | Filament admin panel (hanya `role = admin`)    |
 
@@ -144,7 +144,7 @@ CREATE DATABASE topup_game_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 ```bash
 composer install
 npm install
-cp .env.example .env        # DB_DATABASE=topup_game; isi TRIPAY_* dan MELO_* sandbox (jangan commit)
+cp .env.example .env        # DB_DATABASE=topup_game; isi DUITKU_* dan MELO_* sandbox (jangan commit)
 php artisan key:generate
 php artisan migrate --seed  # admin contoh: admin@example.com / password (khusus lokal)
 npm run build               # atau: composer run dev
@@ -204,7 +204,7 @@ Daftar lengkap dan statusnya: [`docs/SECURITY_RULES.md`](docs/SECURITY_RULES.md)
 
 ### Selesai
 
-- [x] Verifikasi signature callback Tripay (`X-Callback-Signature`, HMAC-SHA256).
+- [x] Verifikasi signature callback Duitku (field `signature`, HMAC-SHA256, `hash_equals`).
 - [x] Verifikasi signature webhook Melo (`X-H2H-Signature`, hex HMAC-SHA256).
 - [x] Kredensial akun dienkripsi di database.
 - [x] Row lock saat reserve stok akun.

@@ -1,6 +1,7 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-13 (storefront pindah ke Vue 3 + Inertia, path admin dari `ADMIN_PATH`); sebelumnya pembagian tugas FE/BE; sebelumnya 2026-11-12, oleh AI agent (sinkron dengan `origin/main` (Melo), perapian konflik, dan hardening dokumen; tidak ada perubahan kode).
+
+> **Terakhir diperbarui:** 2026-11-16, oleh AI agent (sinkronisasi dokumentasi pembayaran Duitku dengan kode). Sebelumnya: 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -10,12 +11,12 @@
 | Fase          | Skeleton selesai, supplier Melo terpasang, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat `IMPLEMENTATION_PLAN.md`                                |
 | Tanggal H1    | [TBD]                                                                          |
-| Test          | **51 lulus, 0 gagal** (1)                                                      |
+| Test          | **58 lulus, 0 gagal** (1)                                                      |
 | Versi         | Laravel 13, Filament 5, PHP 8.4, MySQL 8.0.30 (2)                              |
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
-1. `php artisan test --compact`, 170 assertion, MySQL `topup_game_test`, 2026-11-13.
-2. Ditambah Tailwind 4, Vite 8, Vue 3.5, Inertia 3 (`inertiajs/inertia-laravel`, `@inertiajs/vue3`). MySQL dari Laragon.
+1. `php artisan test --compact`, 114 assertion, MySQL `topup_game_test` (MAMP, port 8889), 2026-11-14. Perlu `npm run build` dulu agar `ExampleTest` lulus.
+2. Ditambah Tailwind 4 dan Vite 8, Vue 3.5 Inertia 3 (`inertiajs/inertia-laravel`, `@inertiajs/vue3`), MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
 ## 2. Sudah Ada (terverifikasi di kode)
@@ -28,10 +29,10 @@
 | Stok akun           | reserve / markSold / release / releaseExpired | `AccountStockServiceTest` |
 | Scheduler           | `accounts:release-expired` tiap menit         | `AccountStockServiceTest` |
 | Enkripsi kredensial | cast `encrypted` + hidden                     | `AccountStockServiceTest` |
-| Admin panel         | 5 resource + widget, hanya admin, path `ADMIN_PATH` | `AdminPanelAccessTest` |
-| Storefront (Vue)    | Home, halaman game, invoice (Inertia)         | `StorefrontTest`          |
-| Webhook             | Verifikasi signature Tripay & Melo            | `WebhookSignatureTest`    |
-| Service integrasi   | Tripay & Melo (**belum ke API asli**)         | `MeloServiceTest`         |
+| Admin panel         | 5 resource + widget, hanya admin              | `AdminPanelAccessTest`    |
+| Storefront dasar    | Home, halaman game, invoice                   | `StorefrontTest`          |
+| Webhook             | Verifikasi signature Duitku & Melo            | `WebhookSignatureTest`    |
+| Service integrasi   | Duitku & Melo (**belum ke API asli**)         | `DuitkuServiceTest`, `MeloServiceTest` |
 | Konfigurasi         | MySQL, Asia/Jakarta, locale `id`, key `.env`  | —                         |
 
 Lokasi & detail:
@@ -43,14 +44,13 @@ Lokasi & detail:
 - **Scheduler:** `routes/console.php`.
 - **Enkripsi:** model `GameAccount`, test `test_credentials_are_encrypted_at_rest`.
 - **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok), Stok Akun, dan Pesanan (tanpa halaman create), plus widget dashboard.
-- **Storefront:** Vue 3 + Inertia. `StorefrontController` me-render `Home`, `Game`, `Invoice` (`resources/js/pages`) dengan props array eksplisit; layout `resources/js/layouts/AppLayout.vue`; root view `resources/views/app.blade.php`; shared props di `HandleInertiaRequests`. Tampilan v1: beranda (hero, game populer, pencarian + tab kategori, cara top up, cek pesanan via nomor invoice), halaman game (4 langkah + ringkasan), invoice (status, progres, rincian, instruksi bayar, SN, detail akun + salin). Form masih **pratinjau**: tombol Beli nonaktif sampai checkout dibuat; metode bayar masih contoh. Kredensial hanya dikirim di props jika order sukses.
-- **Admin path:** `config('app.admin_path')` dari `ADMIN_PATH` (default `admin` untuk lokal). Test memakai `kelola-test` dan memastikan `/admin` 404.
-- **Webhook:** `app/Http/Controllers/Webhook` (`TripayCallbackController`, `MeloCallbackController`). Hasilnya dicatat di `api_logs`, signature salah → 403 (Tripay) / 401 (Melo), CSRF dikecualikan, ada throttle.
+- **Storefront:** `StorefrontController`, `resources/views/storefront`. Input ID di halaman game masih statis. Kredensial di invoice hanya tampil jika order sukses.
+- **Webhook:** `app/Http/Controllers/Webhook` (`DuitkuCallbackController`, `MeloCallbackController`). Hasilnya dicatat di `api_logs`, signature salah → 403 (Duitku) / 401 (Melo), CSRF dikecualikan, ada throttle.
 - **Service integrasi:**
-  - Tripay (`app/Services/Payment`): channel, createTransaction, signature.
+  - Duitku (`app/Services/Payment/DuitkuService.php`): paymentMethods, createTransaction, transactionStatus, verifikasi signature callback. Tanpa SDK. Dites dengan `Http::fake()`.
   - Melo (`app/Services/Supplier/MeloService.php`): profil, saldo, katalog, topup, cek status, signature webhook. Juga ada method di luar scope (lihat M10). Dites dengan `Http::fake()`.
   - Spesifikasi OpenAPI resmi Melo: `melostore-h2h.json` (root).
-- **Konfigurasi:** `.env.example`, `config/app.php`, `config/services.php` (`services.tripay.*`, `services.melo.*`). Key Tripay/Melo masih kosong.
+- **Konfigurasi:** `.env.example`, `config/app.php`, `config/services.php` (`services.duitku.*`, `services.melo.*`). Key Duitku/Melo masih kosong.
 
 ## 3. Belum Dikerjakan
 
@@ -81,6 +81,7 @@ Lokasi & detail:
 | M10 | `MeloService` punya method di luar scope             | Fitur terlarang terpakai       | Terbuka       |
 | M11 | Data lama `products.supplier = digiflazz` (jika ada) | Produk tidak terkirim          | Terbuka       |
 | M12 | `MELO_SANDBOX` tanpa default di config               | Saldo Melo terpotong sungguhan | Terbuka       |
+| M13 | `DuitkuService` tidak sinkron dengan test/docs | Checkout crash, callback sah ditolak | Selesai (2026-11-16) |
 
 Detail:
 - **M1:** `StorefrontController::invoice`. Termasuk kredensial akun setelah order sukses.
@@ -94,6 +95,7 @@ Detail:
 - **M9:** `MeloService::topup` mengirim `customer_target` dan `customer_target_zone` terpisah. Format per SKU game belum dicek dengan SKU nyata.
 - **M10:** `checkNickname()`, `nicknameGames()`, `nicknamePlan()`, `checkMobileLegendsPurchaseLimit()`, Smart, bulk, dan 2FA. Belum dipakai alur mana pun; memakainya butuh persetujuan PO (cek nickname di luar scope, dan memakai kuota/biaya).
 - **M11:** Default factory kini `melo`. Data `digiflazz` di database lama perlu diubah manual.
+- **M13:** (selesai 2026-11-16, commit `5f7e2f3`) inquiry, callback, dan `transactionStatus()` kini HMAC-SHA256 dengan body JSON, sesuai test dan `API_INTEGRATION.md` §3. Dokumentasi resmi Duitku (docs.duitku.com) juga menyatakan MD5/SHA256 biasa usang. `php artisan test --compact --filter='Duitku|WebhookSignature'`: 15 lulus. Masih perlu verifikasi ke sandbox Duitku asli. Riwayat temuan: [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §2.
 - **M12:** `config/services.php`: `'sandbox' => env('MELO_SANDBOX')` tanpa default. Jika variabel tidak ada di `.env`, `MeloService::withSandboxMode()` mengirim `sandbox_mode = false` sehingga order menjadi transaksi nyata. Usulan: default `true`. Dicatat saja, belum diperbaiki.
 
 ## 5. Keputusan yang Menunggu (PO/Klien)
@@ -102,7 +104,7 @@ Semua diputuskan oleh PO. Kolom "Dibutuhkan sebelum" diturunkan dari `IMPLEMENTA
 
 | #   | Keputusan                                                       | Dibutuhkan sebelum   |
 | --- | --------------------------------------------------------------- | -------------------- |
-| 1   | Provider payment final (Tripay / Duitku / Midtrans / Xendit)    | H11 (Tahap 3, E1)    |
+| 1   | ~~Provider payment final~~ → Duitku (2026-11-14)                | ✅ selesai           |
 | 2   | Penanganan supplier gagal setelah dibayar & apakah refund masuk | H23 (Tahap 5)        |
 | 3   | Aturan akses invoice/kredensial akun (M1)                       | H23 (Tahap 5)        |
 | 4   | Aksi admin yang diizinkan pada pesanan (M3)                     | H5 (Tahap 2)         |
@@ -129,7 +131,7 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 - Label queue/retry diseragamkan: syarat idempotent & retry aman = [FINAL], mekanisme queue = [REKOMENDASI].
 - Hierarki referensi dipisah: kebutuhan → `PROJECT_SPEC.md`; fakta implementasi → kode. Saat konflik selalu berhenti dan lapor (`AGENTS.md` §3).
 - Perintah Pint di docs memakai `--dirty`.
-- Callback payment memakai route `POST /webhook/tripay`; cek `isFinal()` dilakukan di job, bukan di controller.
+- Callback payment memakai route `POST /webhook/duitku`; cek `isFinal()` dilakukan di job, bukan di controller.
 - Penandaan order `pending` → `expired` dijadikan [FINAL] sesuai kriteria keberhasilan.
 - Kelola pesanan (A6): ubah status hanya lewat aksi khusus.
 
@@ -144,6 +146,7 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 - Budget dihapus dari dokumen; timeline diubah menjadi 1 bulan (keputusan PO).
 - Versi stack hanya bersumber dari `PROJECT_SPEC.md` §11.
 - Risiko `MELO_SANDBOX` tanpa default dicatat (M12).
+
 
 ### 2026-11-13 — Pembagian tugas
 
@@ -164,11 +167,15 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 - 37 skill di `.agents/skills/` (mis. `vue-best-practices`, `design-taste-frontend`, `antislop-*`) dihubungkan ke `.claude/skills/` lewat directory junction supaya dimuat Claude Code. Daftar junction ada di `.claude/skills/.gitignore` (isi ganda tidak di-commit; sumber asli tetap `.agents/skills/`).
 - Membuat ulang di mesin lain (PowerShell, dari root proyek): `Get-ChildItem .agents\skills -Directory | ? { -not (Test-Path ".claude\skills\$($_.Name)") } | % { New-Item -ItemType Junction -Path ".claude\skills\$($_.Name)" -Target $_.FullName }`
 - Kode Vue storefront direview dengan `vue-best-practices` (tetap JavaScript): `shallowRef` untuk primitif, reactive props destructure, turunan data dipindah ke `computed`/fungsi, item terpilih disimpan sebagai `id`, `CopyButton` membersihkan timer dan menangani clipboard gagal, `aria-pressed`/`aria-hidden`/`aria-live` ditambahkan.
+### 2026-11-14 — Penggantian payment gateway
+
+Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController`, `POST /webhook/duitku`, `services.duitku.*`, `DUITKU_*` di `.env`. `TripayService`, `TripayCallbackController`, route, config, dan test Tripay dihapus. Library `duitkupg/duitku-php` dievaluasi dan **tidak dipakai** (lihat `API_INTEGRATION.md` §3). Tidak ada migration baru; komentar di migration `api_logs` yang menyebut `tripay` tidak diedit (migration sudah di-commit). **Belum diuji ke API Duitku asli.** Pemrosesan callback (job) masih TODO.
 
 ## 7. Pekerjaan Berikutnya
 
+0. Jawab pertanyaan di [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §5 (review core system 2026-11-16). Dokumen itu juga mencatat keputusan baru yang belum masuk `PROJECT_SPEC.md` §13: akun dijual manual via WhatsApp (K1), kolom uang jadi integer dengan pengecualian edit migration (K2), dan pengujian pembayaran tanpa tampilan (K3).
 1. PO me-review dan merevisi dokumen `docs/`.
 2. Putuskan keputusan §5 yang dibutuhkan sebelum Tahap 1–2 (no. 4, 5, 10, 12, 13).
-3. Daftar akun sandbox payment gateway & Melo (risiko E1/E2).
+3. Daftar akun sandbox Duitku & Melo (risiko E1/E2), lalu verifikasi signature callback dan format body `transactionStatus` (lihat `API_INTEGRATION.md` §3.3–3.4).
 4. Uji `MeloService` ke sandbox Melo, termasuk format target per SKU (M9).
 5. Mulai Tahap 2: resource Pelanggan, batasi form pesanan.

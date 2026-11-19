@@ -13,14 +13,14 @@ flowchart TB
     subgraph Laravel["Aplikasi Laravel 13"]
         R[Routes + Controllers + Inertia]
         F[Filament Resources]
-        SV[Services<br/>AccountStockService<br/>TripayService<br/>MeloService]
+        SV[Services<br/>AccountStockService<br/>DuitkuService<br/>MeloService]
         J[Queue Jobs]
         SC[Scheduler]
         M[Eloquent Models]
     end
     DB[(MySQL 8)]
     RD[(Redis — production<br/>cache + queue)]
-    PG[Payment Gateway<br/>kandidat: Tripay]
+    PG[Payment Gateway<br/>Duitku]
     DF[Melo H2H API]
 
     U --> R
@@ -35,7 +35,7 @@ flowchart TB
     J -. queue .- RD
     SV -->|HTTPS| PG
     SV -->|HTTPS| DF
-    PG -->|callback /webhook/tripay| R
+    PG -->|callback /webhook/duitku| R
     DF -->|webhook /webhook/melo| R
 ```
 
@@ -68,6 +68,9 @@ flowchart TB
 - Storefront memakai Inertia: kunjungan pertama mengembalikan HTML berisi data halaman (JSON), navigasi berikutnya lewat request Inertia ke route yang sama. Tidak ada REST API publik dan tidak ada SPA terpisah. [FINAL]
 - Admin sepenuhnya lewat Filament (Livewire bawaan Filament), di path `ADMIN_PATH`. [FINAL]
 - Endpoint non-HTML hanya webhook: `POST /webhook/tripay`, `POST /webhook/melo`. Keduanya dikecualikan dari CSRF (`bootstrap/app.php`) dan diberi throttle. [FINAL]
+- Storefront dirender di server (Blade). Interaksi checkout lewat Livewire, tanpa REST API publik. [FINAL]
+- Admin sepenuhnya lewat Filament (Livewire). [FINAL]
+- Endpoint non-HTML hanya webhook: `POST /webhook/duitku`, `POST /webhook/melo`. Keduanya dikecualikan dari CSRF (`bootstrap/app.php`) dan diberi throttle. [FINAL]
 
 ## 4. Database, Cache, Queue
 
@@ -84,9 +87,9 @@ flowchart TB
 
 ## 5. Integrasi Eksternal
 
-- **Payment gateway:** `app/Services/Payment/TripayService.php` (kandidat). Jika provider berubah, buat service baru dengan metode yang setara (buat transaksi, verifikasi callback). Controller dan job tidak boleh bergantung pada detail Tripay. [REKOMENDASI]
+- **Payment gateway:** `app/Services/Payment/DuitkuService.php`. Jika provider berubah, buat service baru dengan metode yang setara (buat transaksi, verifikasi callback). Controller dan job tidak boleh bergantung pada detail Duitku. [REKOMENDASI]
 - **Melo:** `app/Services/Supplier/MeloService.php`.
-- Konfigurasi di `config/services.php` (`services.tripay.*`, `services.melo.*`), nilai dari `.env`.
+- Konfigurasi di `config/services.php` (`services.duitku.*`, `services.melo.*`), nilai dari `.env`.
 - Detail ada di [`API_INTEGRATION.md`](API_INTEGRATION.md).
 
 ## 6. Struktur Direktori
@@ -107,6 +110,8 @@ app/
 │   ├── Controllers/CheckoutController.php          ➕ terima form checkout Inertia
 │   ├── Middleware/HandleInertiaRequests.php        ✅ shared props
 │   ├── Controllers/Webhook/                        ✅ TripayCallbackController, MeloCallbackController
+│   ├── Controllers/StorefrontController.php        ✅ home, game, invoice
+│   ├── Controllers/Webhook/                        ✅ DuitkuCallbackController, MeloCallbackController
 │   ├── Controllers/Auth/ (login/register pelanggan) ➕
 │   └── Requests/                                   ➕ Form Request validasi
 ├── Jobs/                                           ➕ HandlePaymentCallback, SendTopupToSupplier, HandleSupplierCallback
@@ -115,7 +120,7 @@ app/
 ├── Providers/Filament/AdminPanelProvider.php       ✅
 └── Services/
     ├── AccountStockService.php                     ✅
-    ├── Payment/TripayService.php                   ✅
+    ├── Payment/DuitkuService.php                   ✅
     └── Supplier/MeloService.php                    ✅
 database/
 ├── migrations/2026_11_11_*                         ✅ lihat DATABASE_DESIGN.md
@@ -142,7 +147,7 @@ Aturan: jangan membuat folder dasar baru di luar daftar ini tanpa persetujuan.
 | GET    | `/`                  | `home`              | `StorefrontController@home`    |
 | GET    | `/game/{game}`       | `game.show`         | `StorefrontController@game`    |
 | GET    | `/invoice/{order}`   | `invoice.show`      | `StorefrontController@invoice` |
-| POST   | `/webhook/tripay`    | `webhook.tripay`    | `TripayCallbackController`     |
+| POST   | `/webhook/duitku`    | `webhook.duitku`    | `DuitkuCallbackController`     |
 | POST   | `/webhook/melo` | `webhook.melo` | `MeloCallbackController`  |
 | —      | `/{ADMIN_PATH}/*`    | `filament.admin.*`  | Filament                       |
 

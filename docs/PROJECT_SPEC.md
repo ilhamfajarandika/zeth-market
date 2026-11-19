@@ -146,13 +146,13 @@ Bagian ini satu-satunya sumber resmi stack dan versinya. Dokumen lain cukup meru
 | Database      | MySQL 8                                           | [FINAL]             |
 | Cache & queue | Redis (production), database driver (dev)         | [FINAL]             |
 | Supplier      | Melo H2H API                                      | [FINAL]             |
-| Payment       | 1 provider, kandidat **Tripay** (1)               | [TBD] provider      |
+| Payment       | **Duitku** (API langsung, tanpa SDK) (1)          | [FINAL]             |
 | Testing       | PHPUnit + Postman CLI                             | [FINAL]             |
 | Deploy        | VPS + Coolify **atau** Laravel Forge + Cloudflare | [TBD] Coolify/Forge |
 | Notifikasi    | Email (mailer Laravel) (2)                        | [TBD]               |
 
 Catatan:
-1. Alternatif: Duitku / Midtrans / Xendit.
+1. Dipilih PO 2026-11-14, menggantikan Tripay. Library `duitkupg/duitku-php` tidak dipakai (lihat `API_INTEGRATION.md` §3).
 2. WhatsApp gateway (Fonnte/Wablas) = teknologi baru, butuh persetujuan.
 
 ## 12. Kriteria Keberhasilan

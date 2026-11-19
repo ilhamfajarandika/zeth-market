@@ -15,35 +15,84 @@ class WebhookSignatureTest extends TestCase
         parent::setUp();
 
         config([
-            'services.tripay.private_key' => 'tripay-secret',
+            'services.duitku.merchant_code' => 'D1234',
+            'services.duitku.api_key' => 'duitku-key',
             'services.melo.webhook_secret' => 'melo-secret',
         ]);
     }
 
-    public function test_tripay_callback_with_valid_signature_is_accepted_and_logged(): void
+    /**
+     * @param  array<string, string>  $overrides
+     * @return array<string, string>
+     */
+    private function duitkuPayload(array $overrides = []): array
     {
-        $body = json_encode(['merchant_ref' => 'INV123', 'status' => 'PAID']);
+        $payload = array_merge([
+            'merchantCode' => 'D1234',
+            'amount' => '20000',
+            'merchantOrderId' => 'INV123',
+            'productDetail' => 'Diamond',
+            'additionalParam' => '',
+            'paymentCode' => 'BK',
+            'resultCode' => '00',
+            'merchantUserId' => 'buyer@example.test',
+            'reference' => 'D1234REF',
+        ], $overrides);
 
-        $response = $this->call('POST', route('webhook.tripay'), [], [], [], [
-            'CONTENT_TYPE' => 'application/json',
-            'HTTP_X_CALLBACK_SIGNATURE' => hash_hmac('sha256', $body, 'tripay-secret'),
-        ], $body);
+        $payload['signature'] ??= hash_hmac('sha256', $payload['merchantCode'].$payload['amount'].$payload['merchantOrderId'], 'duitku-key');
 
-        $response->assertOk()->assertJson(['success' => true]);
-        $this->assertTrue(ApiLog::where('reference', 'INV123')->sole()->signature_valid);
+        return $payload;
     }
 
-    public function test_tripay_callback_with_invalid_signature_is_rejected(): void
+    public function test_duitku_callback_with_valid_signature_is_accepted_and_logged(): void
     {
-        $body = json_encode(['merchant_ref' => 'INV123', 'status' => 'PAID']);
+        $payload = $this->duitkuPayload(['signature' => hash_hmac('sha256', 'D1234'.'20000'.'INV123', 'duitku-key')]);
 
-        $response = $this->call('POST', route('webhook.tripay'), [], [], [], [
-            'CONTENT_TYPE' => 'application/json',
-            'HTTP_X_CALLBACK_SIGNATURE' => 'forged',
-        ], $body);
+        $response = $this->post(route('webhook.duitku'), $payload);
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $log = ApiLog::where('reference', 'INV123')->sole();
+        $this->assertTrue($log->signature_valid);
+        $this->assertArrayNotHasKey('signature', $log->request);
+    }
+
+    public function test_duitku_callback_with_invalid_signature_is_rejected_and_logged(): void
+    {
+        $response = $this->post(route('webhook.duitku'), $this->duitkuPayload(['signature' => 'forged']));
 
         $response->assertForbidden();
         $this->assertFalse(ApiLog::where('reference', 'INV123')->sole()->signature_valid);
+    }
+
+    public function test_duitku_callback_without_signature_is_rejected(): void
+    {
+        $payload = $this->duitkuPayload(['signature' => '']);
+
+        $this->post(route('webhook.duitku'), $payload)->assertForbidden();
+    }
+
+    public function test_duitku_callback_with_tampered_amount_is_rejected(): void
+    {
+        $payload = $this->duitkuPayload(['signature' => hash_hmac('sha256', 'D1234'.'20000'.'INV123', 'duitku-key')]);
+        $payload['amount'] = '1000';
+
+        $this->post(route('webhook.duitku'), $payload)->assertForbidden();
+    }
+
+    public function test_duitku_callback_for_other_merchant_is_rejected(): void
+    {
+        $payload = $this->duitkuPayload(['merchantCode' => 'D9999', 'signature' => hash_hmac('sha256', 'D9999'.'20000'.'INV123', 'duitku-key')]);
+
+        $this->post(route('webhook.duitku'), $payload)->assertForbidden();
+    }
+
+    public function test_duitku_callback_is_rejected_when_api_key_is_not_configured(): void
+    {
+        config(['services.duitku.api_key' => null]);
+
+        $payload = $this->duitkuPayload(['signature' => hash_hmac('sha256', 'D1234'.'20000'.'INV123', '')]);
+
+        $this->post(route('webhook.duitku'), $payload)->assertForbidden();
     }
 
     public function test_melo_webhook_with_valid_signature_is_accepted(): void
