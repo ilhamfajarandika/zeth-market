@@ -32,6 +32,7 @@ Detail lengkap ada di [`docs/PROJECT_SPEC.md`](PROJECT_SPEC.md).
 | Duitku / Melo / webhook                  | [`API_INTEGRATION.md`](API_INTEGRATION.md)         |
 | Auth, validasi, data sensitif            | [`SECURITY_RULES.md`](SECURITY_RULES.md)           |
 | Penjadwalan pekerjaan                    | [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) |
+| Siapa mengerjakan apa, kontrak FE ↔ BE   | [`TASK_DIVISION.md`](TASK_DIVISION.md)             |
 
 Panduan Laravel Boost di `AGENTS.md`/`CLAUDE.md` root (blok `<laravel-boost-guidelines>`) **tetap berlaku** untuk konvensi Laravel, Pint, dan PHPUnit, kecuali hal yang diatur berbeda di file ini (deploy, perintah Pint).
 

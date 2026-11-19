@@ -64,7 +64,7 @@ Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tand
 - **Pekerjaan:**
   - ✅ Halaman home, halaman game (stok akun), invoice dasar.
   - ⏳ Desain storefront sesuai brand.
-  - ⏳ Komponen Livewire checkout: input ID + validasi regex, pilih produk, kontak, metode bayar, total dihitung server.
+  - ⏳ Checkout Inertia: form di `Game.vue` → `CheckoutController` (Form Request: input ID + validasi regex, pilih produk, kontak, metode bayar, total dihitung server).
   - ⏳ Pembuatan order + `reserve()` untuk akun.
   - ⏳ Registrasi/login pelanggan (opsional saat checkout) + riwayat transaksi.
   - ⏳ Halaman cek status order [REKOMENDASI].
@@ -109,7 +109,7 @@ Jika E1/E2 belum ada saat tahap terkait, kerjakan dengan `Http::fake()` dan tand
 - **Pekerjaan:**
   - ⏳ Seluruh test lulus.
   - ⏳ Uji manual checklist (`SECURITY_RULES.md`).
-  - ⏳ Setup VPS (Coolify/Forge [TBD]), Redis, queue worker, cron scheduler, HTTPS Cloudflare, `APP_DEBUG=false`, backup DB, ganti akun admin contoh.
+  - ⏳ Setup VPS (Coolify/Forge [TBD]), Redis, queue worker, cron scheduler, HTTPS Cloudflare, `APP_DEBUG=false`, backup DB, ganti akun admin contoh, isi `ADMIN_PATH` acak.
   - ⏳ Daftarkan URL webhook production.
   - ⏳ Transaksi nyata nominal kecil; serah terima ke klien.
 - **Dependensi:** E3, E4, E6.

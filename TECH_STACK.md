@@ -24,7 +24,7 @@ Sumber resmi versi stack: [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) §11.
 | Bahasa          | PHP                                               | 8.4    | Tersedia di Laragon dan mayoritas VPS.                          |
 | Framework       | Laravel                                           | 13.x   | Auth, queue, scheduler, validasi, enkripsi, HTTP client bawaan. |
 | Admin panel     | Filament                                          | 5.x    | CRUD katalog, stok akun, pesanan.                               |
-| Frontend user   | Blade + Livewire + Alpine.js                      | bawaan | Interaktif tanpa SPA.                                           |
+| Frontend user   | Vue 3 + Inertia.js (JavaScript)                   | 3.x    | Halaman storefront = komponen Vue; tetap monolith, tanpa API.   |
 | Styling         | Tailwind CSS                                      | 4.x    | Storefront.                                                     |
 | Build tool      | Vite                                              | 8.x    | Bawaan Laravel.                                                 |
 | Database        | MySQL                                             | 8.0    | Dev & production. Transaksi + row locking untuk stok akun.      |
@@ -87,9 +87,12 @@ app/
     ├── Resources/             Orders, Categories, Games, Products, GameAccounts
     └── Widgets/StoreOverview.php
 
-resources/views/
-├── components/layouts/app.blade.php
-└── storefront/                home, game, invoice
+resources/js/
+├── app.js                     createInertiaApp
+├── pages/                     Home.vue, Game.vue, Invoice.vue
+├── layouts/AppLayout.vue
+└── components/                GameCover, StatusBadge, CopyButton
+resources/views/app.blade.php  root view Inertia
 
 tests/Feature/                 AccountStockService, WebhookSignature, Storefront, AdminPanelAccess, MeloService
 melostore-h2h.json             OpenAPI resmi Melo
@@ -123,7 +126,7 @@ Detail kolom: [`docs/DATABASE_DESIGN.md`](docs/DATABASE_DESIGN.md).
 | GET    | `/invoice/{order}` | `invoice.show`     | Status order + detail akun (binding `invoice`) |
 | POST   | `/webhook/duitku`  | `webhook.duitku`   | Callback Duitku (tanpa CSRF, signature wajib)  |
 | POST   | `/webhook/melo`    | `webhook.melo`     | Webhook Melo (tanpa CSRF, signature wajib)     |
-| —      | `/admin`           | `filament.admin.*` | Filament admin panel (hanya `role = admin`)    |
+| —      | `/{ADMIN_PATH}`    | `filament.admin.*` | Filament admin panel (hanya `role = admin`)    |
 
 ---
 
@@ -205,7 +208,8 @@ Daftar lengkap dan statusnya: [`docs/SECURITY_RULES.md`](docs/SECURITY_RULES.md)
 - [x] Verifikasi signature webhook Melo (`X-H2H-Signature`, hex HMAC-SHA256).
 - [x] Kredensial akun dienkripsi di database.
 - [x] Row lock saat reserve stok akun.
-- [x] Akses `/admin` terbatas `role = admin`.
+- [x] Akses panel admin terbatas `role = admin`.
+- [x] Path admin dari `ADMIN_PATH` (`/admin` jadi 404 jika diganti). Production wajib nilai acak.
 - [x] Rate limit endpoint webhook (`throttle:120,1`).
 
 ### Belum
@@ -222,5 +226,5 @@ Daftar lengkap dan statusnya: [`docs/SECURITY_RULES.md`](docs/SECURITY_RULES.md)
 
 ## 7. Catatan Kustomisasi Desain
 
-- **Storefront (pembeli):** Blade + Tailwind, desain bebas sesuai brand klien.
+- **Storefront (pembeli):** Vue 3 + Inertia + Tailwind, desain bebas sesuai brand klien.
 - **Admin (Filament):** branding via `app/Providers/Filament/AdminPanelProvider.php` (warna, font, logo); custom theme via `php artisan make:filament-theme` bila perlu. Struktur dasar panel tetap. Batasan ini perlu dicantumkan dalam kontrak.

@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Admin Panel Path
+    |--------------------------------------------------------------------------
+    |
+    | Path panel admin Filament. Di production wajib diisi nilai acak lewat
+    | ADMIN_PATH (mis. "kelola-7f3k9q") supaya halaman login admin tidak mudah
+    | ditebak. Jika diganti, /admin otomatis mengembalikan 404.
+    |
+    */
+
+    'admin_path' => trim((string) env('ADMIN_PATH', 'admin'), '/'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
