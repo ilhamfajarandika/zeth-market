@@ -4,7 +4,6 @@ namespace App\Filament\Resources\GameAccounts\Schemas;
 
 use App\Enums\AccountStatus;
 use App\Enums\ProductType;
-use App\Models\GameAccount;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -28,14 +27,8 @@ class GameAccountForm
                     ->preload()
                     ->required(),
                 Select::make('status')
-                    ->helperText('Status Dipesan/Terjual diatur sistem lewat alur order, bukan manual.')
-                    ->options(fn (?GameAccount $record): array => self::isManagedBySystem($record)
-                        ? [$record->status->value => $record->status->getLabel()]
-                        : [
-                            AccountStatus::Available->value => AccountStatus::Available->getLabel(),
-                            AccountStatus::Disabled->value => AccountStatus::Disabled->getLabel(),
-                        ])
-                    ->disabled(fn (?GameAccount $record): bool => self::isManagedBySystem($record))
+                    ->helperText('Akun dijual manual di luar sistem: ubah ke Terjual setelah akun diserahkan ke pembeli.')
+                    ->options(AccountStatus::class)
                     ->default(AccountStatus::Available->value)
                     ->required(),
                 Textarea::make('credentials')
@@ -59,10 +52,5 @@ class GameAccountForm
                     ->label('Terjual pada')
                     ->disabled(),
             ]);
-    }
-
-    private static function isManagedBySystem(?GameAccount $record): bool
-    {
-        return in_array($record?->status, [AccountStatus::Reserved, AccountStatus::Sold], true);
     }
 }

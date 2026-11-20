@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
+> **Terakhir diperbarui:** 2026-11-17, oleh AI agent (pemrosesan callback Duitku & Melo). Sebelumnya: 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -33,6 +33,7 @@
 | Sync katalog Melo   | Tautan game↔brand, sync item, atur harga massal (**belum ke API asli**) | `MeloCatalogServiceTest`, `AdminCatalogResourceTest` |
 | Storefront dasar    | Home, halaman game, invoice                   | `StorefrontTest`          |
 | Webhook             | Verifikasi signature Duitku & Melo            | `WebhookSignatureTest`    |
+| Pemrosesan callback | Job `HandlePaymentCallback`, `SendTopupToMelo`, `HandleSupplierCallback` (**test belum dijalankan, lihat §6 2026-11-17**) | `PaymentCallbackTest`, `SupplierCallbackTest` |
 | Service integrasi   | Duitku & Melo (**belum ke API asli**)         | `DuitkuServiceTest`, `MeloServiceTest` |
 | Konfigurasi         | MySQL, Asia/Jakarta, locale `id`, key `.env`  | —                         |
 
@@ -44,7 +45,7 @@ Lokasi & detail:
 - **Stok akun:** `app/Services/AccountStockService.php`, memakai transaksi + lock.
 - **Scheduler:** `routes/console.php`.
 - **Enkripsi:** model `GameAccount`, test `test_credentials_are_encrypted_at_rest`.
-- **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok, harga jual bisa diedit inline, aksi massal "Atur harga jual"), Stok Akun (status Dipesan/Terjual tidak bisa diubah manual), Pesanan (tanpa halaman create), dan Pelanggan (hanya lihat, tanpa admin), plus widget dashboard. Form Kategori/Game/Produk punya slug otomatis + unik, validasi regex, zone wajib bila `requires_zone_id`, supplier+SKU wajib untuk top up.
+- **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok, harga jual bisa diedit inline, aksi massal "Atur harga jual"), Stok Akun (semua status diatur manual oleh admin; `sold_at` terisi otomatis saat Terjual, K1), Pesanan (tanpa halaman create), dan Pelanggan (hanya lihat, tanpa admin), plus widget dashboard. Form Kategori/Game/Produk punya slug otomatis + unik, validasi regex, zone wajib bila `requires_zone_id`, supplier+SKU wajib untuk top up.
 - **Dashboard & peringatan saldo:** widget `MeloBalanceOverview` dan `PaymentOverview` (`app/Filament/Widgets`), `MeloBalanceService`, command `melo:check-balance` (dijadwalkan tiap 10 menit; butuh `php artisan schedule:work`). Ambang: `MELO_LOW_BALANCE_THRESHOLD`. Detail di `API_INTEGRATION.md` §2.1a.
 - **Sync katalog Melo:** `app/Services/Supplier/MeloCatalogService.php` + `app/Filament/Resources/Games/Actions/SyncMeloProductsAction.php`. Detail di `API_INTEGRATION.md` §2.2.
 - **Storefront:** `StorefrontController`, `resources/views/storefront`. Input ID di halaman game masih statis. Kredensial di invoice hanya tampil jika order sukses.
@@ -60,9 +61,8 @@ Lokasi & detail:
 - Checkout Livewire (input ID tervalidasi, pilih produk, metode bayar, pembuatan order).
 - Registrasi/login pelanggan dan riwayat transaksi.
 - Aksi admin pada Pelanggan (blokir dll., keputusan #10) dan batasan form Pesanan (M3).
-- Pemrosesan callback payment & supplier (masih TODO di controller); queue jobs.
 - Pemanggilan `createTransaction` dari alur order; tampilan instruksi bayar.
-- Cek status supplier terjadwal; penandaan order `pending` kedaluwarsa menjadi `expired`.
+- Cek status supplier terjadwal / reconcile `transactionStatus()`; penandaan order `pending` kedaluwarsa menjadi `expired`.
 - Sinkron harga Melo, import CSV stok akun.
 - Notifikasi.
 - Desain storefront final dan branding admin.
@@ -162,6 +162,17 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - Sync katalog Melo (A9 sebagian): hanya lewat `Http::fake()`, **belum diuji ke API Melo asli**. Format target per SKU masih M9.
 - Dashboard saldo Melo + notifikasi lonceng admin ditambahkan. Migration baru `2026_11_16_202857_create_notifications_table.php` (tabel `notifications` standar Laravel). `tests/TestCase.php` kini memanggil `Http::preventStrayRequests()` agar test tak pernah menembak API asli.
 - Tidak dikerjakan: aturan markup tersimpan (A10), import CSV akun (A5), pembatasan form Pesanan (M3), core system (checkout/callback/job).
+
+### 2026-11-17 — Pemrosesan callback Duitku & Melo
+
+- Job baru di `app/Jobs/`: `HandlePaymentCallback` (Duitku), `SendTopupToMelo` (kirim top up), `HandleSupplierCallback` (Melo). Controller webhook kini dispatch job (TODO dihapus). Detail perilaku di `API_INTEGRATION.md` §2.5, §3.4, §4.
+- Keputusan user: hanya order top up yang diproses (K1); kasus tepi (lunas setelah `expired`/`failed`, nominal beda, Melo `refunded`, Melo menolak 4xx, retry habis) tidak mengubah status, hanya `Log::warning` + notifikasi lonceng admin.
+- Signature Duitku tetap HMAC-SHA256 (dikonfirmasi PO); `duitku-collection.json` hanya acuan nama field. Menjawab pertanyaan 24 `CORE_SYSTEM_REVIEW.md`.
+- **K1 diputuskan PO (2026-11-17):** akun game hanya display, dijual manual; admin mengubah status akun di admin panel. Dicatat di `PROJECT_SPEC.md` §4 + §13 dan `BUSINESS_FLOW.md` §3 (ditandai diganti). §7 no. 2/4 dan §12 no. 2–3 diberi catatan.
+- Form Stok Akun (`GameAccountForm`) kini mengizinkan semua status; `GameAccount` mengisi `sold_at` saat status jadi Terjual dan mengosongkannya bila diubah lagi. Test lama penguncian status diganti (`AdminCatalogResourceTest`), belum dijalankan (MySQL mati).
+- **Risiko:** M12 (`MELO_SANDBOX` tanpa default) kini berdampak langsung: `SendTopupToMelo` bisa memotong saldo nyata jika variabel kosong. Perbaiki sebelum queue worker dijalankan di luar test.
+- Tidak dikerjakan: scheduler `pending → expired`, reconcile terjadwal (B3), snapshot `supplier_sku` (O3).
+- Test: `PaymentCallbackTest` (5) dan `SupplierCallbackTest` (10) ditulis tetapi **belum lulus terverifikasi**: MySQL test (`127.0.0.1:8889`) tidak berjalan saat dikerjakan.
 
 ## 7. Pekerjaan Berikutnya
 

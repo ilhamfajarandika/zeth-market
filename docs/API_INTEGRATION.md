@@ -108,13 +108,14 @@ Respons:
 - Callback final tidak punya field `event`; `status` = `success` atau `failed` (gagal menambah `error_code` dan `message`).
 - Event `transaction.action_change` (tindakan pelanggan/2FA) tidak boleh menyelesaikan order, mengubah saldo, atau me-refund.
 - Callback yang sama bisa diterima lebih dari sekali: simpan event dulu, jawab 2xx, dan dedup (`event_id` + `action.version`). Melo mencoba maksimal 3 kali (jeda 30 dan 120 detik) dan menunggu respons 2xx dalam 10 detik, jadi simpan event dulu dan jawab cepat.
-- Pemrosesan status: ➕ belum (TODO di controller), lihat `BUSINESS_FLOW.md` §7.
+- Pemrosesan status: ✅ job `App\Jobs\HandleSupplierCallback` (dispatch dari controller), lihat `BUSINESS_FLOW.md` §7. Event (`transaction.action_change`) diabaikan setelah tersimpan di `api_logs` (tanpa dedup `event_id`, karena tidak memicu aksi). Order final tidak diubah. `success` → `success` + `serial_number` + `completed_at`; `failed` → `failed` + `supplier_message` + lonceng admin; `refunded` → status tetap + lonceng admin (O6 belum diputuskan); `pending`/`processing` → hanya `supplier_status`.
+- Pengiriman: job `App\Jobs\SendTopupToMelo` (unik per order, 3 percobaan, backoff 30/120 detik). Hanya order `paid`. 200/201 → `processing` lalu `data` diteruskan ke `HandleSupplierCallback`. 5xx/timeout → `status(invoice)` dulu; jika belum ada → retry. 4xx → order tetap `paid`, `supplier_message` diisi, lonceng admin. Retry habis → lonceng admin.
 
 ## 3. Payment Gateway — Duitku [FINAL provider, dipilih PO 2026-11-14]
 
 Memakai `Http` Laravel langsung (`DuitkuService`). Library `duitkupg/duitku-php` **tidak dipakai**: hanya `dev-master` tanpa rilis, curl dengan `CURLOPT_SSL_VERIFYPEER = false`, log ke file di `vendor/`, dan callback membaca `$_POST`.
 
-Base URL: sandbox `https://sandbox.duitku.com/webapi/api/merchant`, production `https://passport.duitku.com/webapi/api/merchant` (`DUITKU_SANDBOX`, `DuitkuService::baseUrl()`). Tidak ada header auth; keamanan lewat field `signature` di setiap request. Semua signature = **HMAC-SHA256(stringToSign, apiKey)**, ditulis langsung dengan `hash_hmac('sha256', …)` di `DuitkuService` (tidak ada helper `sign()`). MD5 dan SHA256 biasa sudah usang menurut dokumentasi resmi (docs.duitku.com, changelog v2.0). Koleksi Postman lama yang memakai SHA256/MD5 sudah dihapus dari repo; jangan memakai contoh signature dari sumber lama.
+Base URL: sandbox `https://sandbox.duitku.com/webapi/api/merchant`, production `https://passport.duitku.com/webapi/api/merchant` (`DUITKU_SANDBOX`, `DuitkuService::baseUrl()`). Tidak ada header auth; keamanan lewat field `signature` di setiap request. Semua signature = **HMAC-SHA256(stringToSign, apiKey)**, ditulis langsung dengan `hash_hmac('sha256', …)` di `DuitkuService` (tidak ada helper `sign()`). MD5 dan SHA256 biasa sudah usang menurut dokumentasi resmi (docs.duitku.com, changelog v2.0). Koleksi Postman `duitku-collection.json` (root) hanya dipakai sebagai acuan **nama field** (mis. payload callback); script signature-nya (MD5 / SHA256 biasa) usang dan tidak dipakai. Signature tetap HMAC-SHA256 (dikonfirmasi PO 2026-11-17).
 
 Ringkasan signature (`apiKey` = `DUITKU_API_KEY`, `merchantCode` = `DUITKU_MERCHANT_CODE`):
 
@@ -133,7 +134,7 @@ Alur singkat pembayaran (detail status order di [`BUSINESS_FLOW.md`](BUSINESS_FL
 
 ```
 Checkout (belum ada) → createTransaction() → Duitku → simpan reference/payment_url/payment_code
-Pembeli bayar → Duitku POST /webhook/duitku → verifikasi signature → api_logs → (job HandlePaymentCallback: belum ada)
+Pembeli bayar → Duitku POST /webhook/duitku → verifikasi signature → api_logs → job HandlePaymentCallback
 Tidak ada callback sampai expired_at → tandai expired lewat scheduler / transactionStatus() (belum ada)
 ```
 
@@ -185,7 +186,7 @@ Simpan dari respons: `reference` → `payment_reference`, `paymentUrl` → `paym
 
 Duitku tidak mengirim callback kedaluwarsa: tandai dari `orders.expired_at` dan/atau `transactionStatus()`. Refund: [TBD].
 
-Pemrosesan status: ➕ belum (TODO di controller).
+Pemrosesan status: ✅ job `App\Jobs\HandlePaymentCallback`. Field callback (sesuai `duitku-collection.json`): `merchantCode`, `amount`, `merchantOrderId`, `productDetail`, `additionalParam`, `paymentMethod`, `resultCode`, `merchantUserId`, `reference`, `signature`. Hanya order top up `pending` yang berubah (order `account` dilewati, K1). `00` + nominal = `total` → `paid`, `paid_at`, `payment_reference`, dispatch `SendTopupToMelo`; `01` → `failed`. Nominal beda, atau lunas untuk order `expired`/`failed` → status tidak diubah + lonceng admin. Callback ulang tidak mengirim top up dua kali.
 
 Validasi tambahan [REKOMENDASI]: cocokkan `amount` callback dengan `orders.total` sebelum menandai lunas.
 
@@ -198,15 +199,15 @@ Buat service setara di `app/Services/Payment/` dengan kemampuan: daftar metode, 
 | -------------------------------------------------- | -------------------- |
 | Timeout HTTP: Duitku 15 detik, Melo 30 detik     | ✅ di service        |
 | Retry Duitku 2x, jeda 500 ms (1)                   | ✅                   |
-| Retry Melo lewat job queue, `buyer_trx_id` sama (2) | [REKOMENDASI], belum |
-| Callback diproses di queue job (3)                 | [REKOMENDASI], belum |
-| Callback untuk order final diabaikan (4)           | [FINAL], belum       |
+| Retry Melo lewat job queue, `buyer_trx_id` sama (2) | ✅ `SendTopupToMelo` |
+| Callback diproses di queue job (3)                 | ✅                   |
+| Callback untuk order final diabaikan (4)           | ✅                   |
 | 1 invoice = 1 `buyer_trx_id` = 1 transaksi supplier | [FINAL]              |
 
 1. `retry(2, 500, throw: false)`.
-2. HTTP client Melo **tidak** retry otomatis. Retry aman karena `buyer_trx_id` sama (tanpa debit ganda); setelah respons 500, cek `status()` dulu. Job-nya belum ada.
+2. HTTP client Melo **tidak** retry otomatis. Retry aman karena `buyer_trx_id` sama (tanpa debit ganda); setelah respons 500, cek `status()` dulu. Diterapkan di `SendTopupToMelo`.
 3. Controller hanya verifikasi, log, dispatch, lalu langsung membalas. Lock order, cek `isFinal()`, dan perubahan status dilakukan di job. Syarat idempotent = [FINAL]; mekanisme queue = [REKOMENDASI].
-4. Memakai `OrderStatus::isFinal()`. Belum diterapkan.
+4. Memakai `OrderStatus::isFinal()` (Melo) dan hanya-dari-`pending` (Duitku).
 
 ## 5. Logging
 

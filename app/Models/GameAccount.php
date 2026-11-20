@@ -18,6 +18,18 @@ class GameAccount extends Model
     use HasFactory;
 
     /**
+     * Status akun diubah manual oleh admin, jadi sold_at mengikuti status: terisi saat Terjual, kosong selain itu.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (GameAccount $account): void {
+            if ($account->isDirty('status')) {
+                $account->sold_at = $account->status === AccountStatus::Sold ? ($account->sold_at ?? now()) : null;
+            }
+        });
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

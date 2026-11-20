@@ -295,28 +295,37 @@ class AdminCatalogResourceTest extends TestCase
         $this->assertSame(1000, Product::priceFromBase(1000, 'fixed', 0, 0));
     }
 
-    public function test_game_account_status_options_exclude_system_managed_states(): void
+    public function test_admin_can_create_game_account_with_any_status(): void
     {
         $product = Product::factory()->account()->create();
-
-        Livewire::test(CreateGameAccount::class)
-            ->fillForm(['product_id' => $product->id, 'credentials' => 'user:pass', 'status' => AccountStatus::Sold->value])
-            ->call('create')
-            ->assertHasFormErrors(['status']);
 
         Livewire::test(CreateGameAccount::class)
             ->fillForm(['product_id' => $product->id, 'credentials' => 'user:pass', 'status' => AccountStatus::Disabled->value])
             ->call('create')
             ->assertHasNoFormErrors();
 
-        $this->assertDatabaseHas('game_accounts', ['product_id' => $product->id, 'status' => 'disabled']);
+        $this->assertDatabaseHas('game_accounts', ['product_id' => $product->id, 'status' => 'disabled', 'sold_at' => null]);
     }
 
-    public function test_sold_game_account_status_cannot_be_changed_manually(): void
+    public function test_admin_marking_account_sold_fills_sold_at_and_reverting_clears_it(): void
     {
-        $account = GameAccount::factory()->create(['status' => AccountStatus::Sold]);
+        $account = GameAccount::factory()->create(['status' => AccountStatus::Available]);
 
         Livewire::test(EditGameAccount::class, ['record' => $account->getKey()])
-            ->assertFormFieldDisabled('status');
+            ->assertFormFieldEnabled('status')
+            ->fillForm(['status' => AccountStatus::Sold->value])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(AccountStatus::Sold, $account->refresh()->status);
+        $this->assertNotNull($account->sold_at);
+
+        Livewire::test(EditGameAccount::class, ['record' => $account->getKey()])
+            ->fillForm(['status' => AccountStatus::Available->value])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(AccountStatus::Available, $account->refresh()->status);
+        $this->assertNull($account->sold_at);
     }
 }
