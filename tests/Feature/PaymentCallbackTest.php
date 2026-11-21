@@ -70,9 +70,19 @@ class PaymentCallbackTest extends TestCase
     {
         $order = Order::factory()->create();
 
-        $this->sendCallback($order, '01')->assertOk();
+        $this->sendCallback($order, '02')->assertOk();
 
         $this->assertSame(OrderStatus::Failed, $order->fresh()->status);
+        Bus::assertNotDispatched(SendTopupToMelo::class);
+    }
+
+    public function test_redirect_only_process_code_keeps_order_pending(): void
+    {
+        $order = Order::factory()->create();
+
+        $this->sendCallback($order, '01')->assertOk();
+
+        $this->assertSame(OrderStatus::Pending, $order->fresh()->status);
         Bus::assertNotDispatched(SendTopupToMelo::class);
     }
 

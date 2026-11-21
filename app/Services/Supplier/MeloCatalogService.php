@@ -37,7 +37,8 @@ class MeloCatalogService
      */
     public function brands(): Collection
     {
-        return Cache::remember(self::BRANDS_CACHE_KEY, self::BRANDS_CACHE_SECONDS, function (): Collection {
+        // Yang disimpan di cache berupa array: config cache `serializable_classes` = false menolak objek Collection.
+        return collect(Cache::remember(self::BRANDS_CACHE_KEY, self::BRANDS_CACHE_SECONDS, function (): array {
             $body = $this->parse($this->melo->brands());
 
             return collect($body['data'] ?? [])
@@ -49,8 +50,9 @@ class MeloCatalogService
                     'types' => collect($brand['type'] ?? [])->pluck('name')->filter()->values()->all(),
                 ])
                 ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
-                ->values();
-        });
+                ->values()
+                ->all();
+        }));
     }
 
     /**

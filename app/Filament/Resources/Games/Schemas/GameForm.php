@@ -34,8 +34,8 @@ class GameForm
                 TextInput::make('name')
                     ->required()
                     ->live(onBlur: true)
-                    ->afterStateUpdated(function (?string $state, Get $get, Set $set, string $operation): void {
-                        if ($operation === 'create' && blank($get('slug'))) {
+                    ->afterStateUpdated(function (?string $state, Set $set, string $operation): void {
+                        if ($operation === 'create') {
                             $set('slug', Str::slug((string) $state));
                         }
                     }),

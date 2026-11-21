@@ -13,6 +13,21 @@
             <div class="flex justify-between"><dt class="text-slate-400">Status</dt><dd>{{ $order->status->getLabel() }}</dd></div>
         </dl>
 
+        @if ($order->status === \App\Enums\OrderStatus::Pending)
+            {{-- Kode QRIS Duitku: SP (ShopeePay), NQ (Nobu), SQ (Nusapay). --}}
+            @if ($order->payment_code && in_array($order->payment_method, ['SP', 'NQ', 'SQ'], true))
+                <div class="mt-6 rounded-lg bg-white p-4 text-center text-slate-900">
+                    <img src="{{ (new \chillerlan\QRCode\QRCode)->render($order->payment_code) }}" alt="QRIS {{ $order->invoice }}" class="mx-auto w-64">
+                    <p class="mt-2 text-sm">Scan dengan aplikasi bank atau e-wallet yang mendukung QRIS.</p>
+                    @if ($order->expired_at)
+                        <p class="text-sm">Bayar sebelum {{ $order->expired_at->timezone('Asia/Jakarta')->format('d M Y H:i') }} WIB</p>
+                    @endif
+                </div>
+            @elseif ($order->payment_url)
+                <a href="{{ $order->payment_url }}" class="mt-6 block rounded-lg bg-violet-600 px-4 py-2 text-center font-semibold">Bayar sekarang</a>
+            @endif
+        @endif
+
         @if ($order->status === \App\Enums\OrderStatus::Success && $order->gameAccount)
             <div class="mt-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
                 <p class="mb-2 font-semibold text-emerald-300">Detail akun</p>

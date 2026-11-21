@@ -76,6 +76,37 @@ class DuitkuServiceTest extends TestCase
         $this->assertArrayNotHasKey('signature', $log->request);
     }
 
+    public function test_store_payment_details_saves_qr_string_as_payment_code(): void
+    {
+        Http::fake([
+            self::SANDBOX_URL.'/v2/inquiry' => Http::response([
+                'reference' => 'D1234REF',
+                'paymentUrl' => 'https://sandbox.duitku.com/topup/pay',
+                'qrString' => '00020101021226610016ID.CO.SHOPEE.WWW',
+                'statusCode' => '00',
+            ]),
+        ]);
+        $order = Order::factory()->create(['payment_method' => 'SP']);
+        $duitku = app(DuitkuService::class);
+
+        $this->assertTrue($duitku->storePaymentDetails($order, $duitku->createTransaction($order, 'SP')));
+
+        $order->refresh();
+        $this->assertSame('D1234REF', $order->payment_reference);
+        $this->assertSame('https://sandbox.duitku.com/topup/pay', $order->payment_url);
+        $this->assertSame('00020101021226610016ID.CO.SHOPEE.WWW', $order->payment_code);
+    }
+
+    public function test_store_payment_details_ignores_rejected_transaction(): void
+    {
+        Http::fake([self::SANDBOX_URL.'/v2/inquiry' => Http::response(['Message' => 'Invalid Signature.'], 401)]);
+        $order = Order::factory()->create();
+        $duitku = app(DuitkuService::class);
+
+        $this->assertFalse($duitku->storePaymentDetails($order, $duitku->createTransaction($order, 'SP')));
+        $this->assertNull($order->refresh()->payment_code);
+    }
+
     public function test_payment_methods_uses_hmac_signature_over_amount_and_datetime(): void
     {
         Http::fake([

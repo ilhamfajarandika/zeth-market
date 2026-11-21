@@ -28,7 +28,7 @@ class ProductsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('game')->withStock())
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('game'))
             ->defaultSort('sort')
             ->columns([
                 ImageColumn::make('image')
@@ -43,16 +43,6 @@ class ProductsTable
                     ->badge(),
                 TextColumn::make('group')
                     ->toggleable(),
-                TextColumn::make('available_accounts_count')
-                    ->label('Stok akun')
-                    ->badge()
-                    ->color(fn (int $state): string => match (true) {
-                        $state === 0 => 'danger',
-                        $state <= 3 => 'warning',
-                        default => 'success',
-                    })
-                    ->formatStateUsing(fn (int $state, Product $record): string => $record->isAccount() ? (string) $state : '—')
-                    ->sortable(),
                 TextColumn::make('supplier_sku')
                     ->label('SKU')
                     ->searchable()
@@ -72,7 +62,8 @@ class ProductsTable
                     ->sortable()
                     ->toggleable(),
                 ToggleColumn::make('is_active')
-                    ->label('Aktif'),
+                    ->label('Aktif')
+                    ->sortable(),
                 TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
@@ -81,6 +72,10 @@ class ProductsTable
             ->filters([
                 SelectFilter::make('type')
                     ->options(ProductType::class),
+                Filter::make('active_only')
+                    ->label('Aktif saja')
+                    ->query(fn (Builder $query): Builder => $query->where('is_active', true))
+                    ->toggle(),
                 Filter::make('unpriced')
                     ->label('Belum ada harga jual')
                     ->query(fn (Builder $query): Builder => $query->where('price', 0))

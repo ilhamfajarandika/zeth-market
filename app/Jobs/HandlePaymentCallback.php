@@ -63,8 +63,11 @@ class HandlePaymentCallback implements ShouldQueue
                 ]);
 
                 SendTopupToMelo::dispatch($order)->afterCommit();
-            } elseif (($this->payload['resultCode'] ?? null) === '01') {
+            } elseif (($this->payload['resultCode'] ?? null) === '02') {
                 $order->update(['status' => OrderStatus::Failed]);
+            } else {
+                // Callback Duitku hanya mengenal 00 (sukses) dan 02 (gagal); 01 hanya muncul di redirect.
+                Log::warning('Callback Duitku dengan resultCode tidak dikenal, order tidak diubah.', ['invoice' => $invoice, 'resultCode' => $this->payload['resultCode'] ?? null]);
             }
         });
     }

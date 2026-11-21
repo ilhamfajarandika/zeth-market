@@ -7,12 +7,14 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "chillerlan/php-qrcode": "^5.0",
         "filament/filament": "^5.11",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
+        "fruitcake/laravel-debugbar": "^4.4",
         "laravel/boost": "^2.10",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",

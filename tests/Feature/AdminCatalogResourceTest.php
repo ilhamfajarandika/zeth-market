@@ -271,6 +271,17 @@ class AdminCatalogResourceTest extends TestCase
         $this->assertSame(12500, $unpriced->refresh()->price);
     }
 
+    public function test_active_only_filter_hides_inactive_products(): void
+    {
+        $active = Product::factory()->create(['is_active' => true]);
+        $inactive = Product::factory()->create(['is_active' => false]);
+
+        Livewire::test(ListProducts::class)
+            ->filterTable('active_only', true)
+            ->assertCanSeeTableRecords([$active])
+            ->assertCanNotSeeTableRecords([$inactive]);
+    }
+
     public function test_bulk_set_price_applies_percent_markup_with_rounding_to_unpriced_products_only(): void
     {
         $unpriced = Product::factory()->create(['base_price' => 19000, 'price' => 0]);

@@ -12,7 +12,6 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -45,8 +44,8 @@ class CategoryResource extends Resource
                 TextInput::make('name')
                     ->required()
                     ->live(onBlur: true)
-                    ->afterStateUpdated(function (?string $state, Get $get, Set $set, string $operation): void {
-                        if ($operation === 'create' && blank($get('slug'))) {
+                    ->afterStateUpdated(function (?string $state, Set $set, string $operation): void {
+                        if ($operation === 'create') {
                             $set('slug', Str::slug((string) $state));
                         }
                     }),

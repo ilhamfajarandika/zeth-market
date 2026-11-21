@@ -48,6 +48,18 @@ class AdminCustomerResourceTest extends TestCase
             ->assertTableColumnStateSet('orders_count', 2, $budi);
     }
 
+    public function test_customer_detail_shows_payment_method_and_fee_per_order(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $customer = User::factory()->create(['role' => 'member']);
+        Order::factory()->create(['user_id' => $customer->id, 'payment_method' => 'QRIS', 'fee' => 1234]);
+
+        $this->get("/admin/users/{$customer->id}")
+            ->assertOk()
+            ->assertSee('QRIS')
+            ->assertSee('1.234');
+    }
+
     public function test_admin_record_cannot_be_viewed_and_customers_are_read_only(): void
     {
         $admin = User::factory()->admin()->create();

@@ -107,7 +107,7 @@ sequenceDiagram
 | Status gateway (Duitku)       | Status order | Tindakan lanjut               |
 | ----------------------------- | ------------ | ----------------------------- |
 | callback `resultCode` = `00`  | `paid`       | Isi `paid_at`, lalu lihat (1) |
-| callback `resultCode` = `01`  | `failed`     | Akun → `release()`            |
+| callback `resultCode` = `02`  | `failed`     | Akun → `release()`            |
 | kedaluwarsa (tanpa callback) (2) | `expired` | Akun → `release()`            |
 
 1. Top up → kirim ke Melo (§6). Akun → `markSold()`, lalu order `success`.
