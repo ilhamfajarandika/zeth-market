@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
+use App\Models\Banner;
 use App\Models\Game;
 use App\Models\GameAccount;
 use App\Models\Order;
@@ -35,6 +36,47 @@ class StorefrontTest extends TestCase
                 ->has('categories.0.games', 1)
                 ->where('categories.0.games.0.name', 'Visible Game')
                 ->where('categories.0.games.0.url', route('game.show', $visible)));
+    }
+
+    public function test_home_exposes_game_thumbnail_url_from_public_disk(): void
+    {
+        Game::factory()->create([
+            'name' => 'Mobile Legends',
+            'thumbnail' => 'icon-games/mobile-legends-bang-bang.webp',
+        ]);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Home')
+                ->where('categories.0.games.0.thumbnailUrl', url('storage/icon-games/mobile-legends-bang-bang.webp')));
+    }
+
+    public function test_home_lists_only_active_banners_in_order(): void
+    {
+        $second = Banner::factory()->create(['title' => 'Second', 'sort' => 2]);
+        $first = Banner::factory()->create(['title' => 'First', 'sort' => 1]);
+        Banner::factory()->inactive()->create(['title' => 'Hidden', 'sort' => 0]);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Home')
+                ->has('banners', 2)
+                ->where('banners.0.id', $first->id)
+                ->where('banners.1.id', $second->id));
+    }
+
+    public function test_banner_without_alt_falls_back_to_title(): void
+    {
+        $banner = Banner::factory()->create(['title' => 'Promo Mingguan', 'alt' => null]);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('banners.0.id', $banner->id)
+                ->where('banners.0.alt', 'Promo Mingguan')
+                ->where('banners.0.linkUrl', null));
     }
 
     public function test_inactive_game_page_returns_not_found(): void

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OrderStatus;
+use App\Models\Banner;
 use App\Models\Category;
 use App\Models\Game;
 use App\Models\Order;
@@ -26,7 +27,19 @@ class StorefrontController extends Controller
             ->with(['games' => fn ($query) => $query->active()])
             ->get();
 
+        $banners = Banner::query()
+            ->active()
+            ->get()
+            ->map(fn (Banner $banner): array => [
+                'id' => $banner->id,
+                'imageUrl' => Storage::disk('public')->url($banner->image),
+                'alt' => $banner->alt ?? $banner->title ?? 'Banner promo',
+                'linkUrl' => $banner->link_url,
+            ])
+            ->values();
+
         return Inertia::render('Home', [
+            'banners' => $banners,
             'categories' => $categories->map(fn (Category $category): array => [
                 'slug' => $category->slug,
                 'name' => $category->name,
@@ -53,7 +66,7 @@ class StorefrontController extends Controller
         return Inertia::render('Game', [
             'game' => [
                 ...$this->gameSummary($game),
-                'bannerUrl' => $game->banner ? Storage::url($game->banner) : null,
+                'bannerUrl' => $game->banner ? Storage::disk('public')->url($game->banner) : null,
                 'instruction' => $game->instruction,
                 'requiresZoneId' => $game->requires_zone_id,
                 'userIdLabel' => $game->user_id_label,
@@ -107,7 +120,7 @@ class StorefrontController extends Controller
             'name' => $game->name,
             'publisher' => $game->publisher,
             'url' => route('game.show', $game),
-            'thumbnailUrl' => $game->thumbnail ? Storage::url($game->thumbnail) : null,
+            'thumbnailUrl' => $game->thumbnail ? Storage::disk('public')->url($game->thumbnail) : null,
             'isPopular' => $game->is_popular,
         ];
     }

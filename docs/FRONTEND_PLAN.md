@@ -51,8 +51,6 @@ Menyiapkan dan membangun storefront Vue 3 + Inertia (Home, Game, Invoice, Checko
 ## 7. Ketentuan Desain Storefront (Anti-Slop, Tanpa Ungu & Khusus Top Up Game)
 
 > **Prinsip Utama:** Website top up game adalah platform **e-commerce utilitarian berkecepatan tinggi**, bukan landing page portofolio atau demo AI generic. Pengguna datang dengan tujuan spesifik: memilih nominal, membayar, dan menerima voucher/diamond dalam waktu kurang dari 1 menit. Setiap elemen visual harus mendukung alur belanja yang cepat, jelas, dan dapat dipercaya.
->
-> **Catatan revisi 2026-11-19:** §7.1–§7.5 adalah aturan anti-slop yang tetap berlaku. Untuk **landing page (Home)**, arah visual yang dipakai adalah §7.6 (Acid Arcade), bukan palet amber di §7.2. Game/Invoice menyusul setelah arah ini disetujui.
 
 ### 7.1 Larangan Keras Elemen "AI-Slop" Generic
 - 🚫 **Dilarang Skema Warna Ungu/Violet/Fuchsia:** Hindari palet default model AI (`violet-500`, `fuchsia-500`, `purple glow`) yang sering menjadi tanda instan template AI buatan mesin tanpa identitas brand.
@@ -127,37 +125,12 @@ Mengadopsi alur terstruktur standar industri gaming Indonesia yang terbukti memi
 - **Serial Number (Top Up Sukses):** Kotak bukti serial number (SN) dari supplier yang rapi dan mudah dicatat untuk klaim ke customer service game jika diperlukan.
 
 ### 7.5 Mikro-Interaksi & Copywriting Storefront
-
 - **Copywriting Lugas & Ramah Gamer:** Gunakan istilah yang natural bagi komunitas gaming lokal: *"Masukkan User ID"*, *"Pilih Nominal"*, *"Metode Pembayaran"*, *"Total Bayar"*, *"Salin Kode"*, *"Proses Otomatis"*. Hindari bahasa korporat kaku atau terjemahan mesin yang janggal.
 - **Interaksi Taktil (Hover & Press Feedback):**
   - Tombol aksi merespons tekanan (`active:scale-[0.98]` atau step down 1px) saat ditekan di mobile.
   - Kartu produk terangkat halus 1–2px saat di-hover pada desktop.
   - Feedback salin (copy) yang responsif: ikon berubah centang hijau selama 1.5 detik dengan teks *"Tersalin!"*.
 - **Motion Restraint:** Dilarang menggunakan animasi berlebihan (no continuous bounce, no parallax scrolling pada teks). Semua transisi state (opacity, background) berdurasi 150ms–200ms dengan timing curve yang responsif.
-
-### 7.6 Arah Desain Landing v2 — Acid Arcade (2026-11-19)
-
-Landing v1 dinilai terlalu mainstream. Arah v2 mengganti palet amber dan bentuk bulat dengan sistem yang lebih tegas, tetap tanpa ungu.
-
-**Palet & token (`resources/css/app.css`)**
-
-| Token | Nilai | Peran |
-|---|---|---|
-| `--color-ink` | `#0b0b0c` | Latar utama, header, footer |
-| `--color-surface` | `#141416` | Panel, kartu, form |
-| `--color-paper` | `#f2f0e9` | Teks utama, tombol hover |
-| `--color-acid` | `#d7ff3f` | Satu aksen utama: CTA, label aktif, marquee |
-| `--color-electric` | `#4de1ff` | Aksen sekunder terbatas (data/label) |
-| `--color-signal` | `#ff5c35` | Penanda peringatan/status |
-| `--color-line` | `rgba(242,240,233,0.14)` | Border 1px |
-
-**Tipografi:** Space Grotesk untuk display/judul, Instrument Sans untuk body, monospace untuk label dan meta. Dimuat lewat `bunny()` di `vite.config.js`.
-
-**Geometri & gerak:** sudut tajam (tanpa `rounded-full` pada kartu/input), border 1px, offset shadow keras (`shadow-[10px_10px_0_0_#d7ff3f]`), marquee tipis satu baris, hero masuk sekali (`animate-enter`), kartu naik 2px + cover zoom 1.03 saat hover, hormati `prefers-reduced-motion`.
-
-**Struktur Home:** hero satu layar (katalog indeks 2x2 dari data asli), marquee, katalog + pencarian + tab kategori, cara top up, band fakta acid, FAQ, cek pesanan (pesan inline, tanpa redirect), CTA akhir. Layout khusus `resources/js/layouts/LandingLayout.vue`; `Game.vue`/`Invoice.vue` tetap memakai `AppLayout` sampai arah ini disetujui.
-
-**Larangan yang tetap berlaku:** tanpa violet/lavender, tanpa blur orb, tanpa teks bergradien, tanpa emoji dekoratif, tanpa pulsing dot palsu, tanpa klaim yang tidak ada di `docs/`.
 
 ---
 

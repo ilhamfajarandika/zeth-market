@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -38,6 +39,9 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'appName' => config('app.name'),
+            'logoUrl' => Storage::disk('public')->exists('logo/logo.webp')
+                ? Storage::disk('public')->url('logo/logo.webp')
+                : null,
             'links' => [
                 'home' => route('home'),
                 'invoiceBase' => url('invoice'),
