@@ -90,7 +90,12 @@ const details = computed(() =>
                     Bayar sebelum <strong class="text-text">{{ order.expiresAt }}</strong>.
                 </p>
 
-                <div v-if="order.payment.code" class="mt-4 flex items-center justify-between gap-3 rounded-md border border-border bg-ground p-4">
+                <div v-if="order.payment.qrImage" class="mt-4 flex flex-col items-center gap-2">
+                    <img :src="order.payment.qrImage" alt="Kode QRIS" class="size-64 rounded-md bg-white p-3" />
+                    <p class="text-sm text-muted">Scan dengan aplikasi e-wallet atau m-banking yang mendukung QRIS.</p>
+                </div>
+
+                <div v-else-if="order.payment.code" class="mt-4 flex items-center justify-between gap-3 rounded-md border border-border bg-ground p-4">
                     <code class="font-mono text-lg break-all text-text">{{ order.payment.code }}</code>
                     <CopyButton :text="order.payment.code" />
                 </div>

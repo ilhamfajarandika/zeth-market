@@ -162,7 +162,7 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-> `phpunit.xml` memakai `topup_game_test`, sehingga data `topup_game` tidak terpengaruh saat test.
+> `phpunit.xml` memakai SQLite in-memory, sehingga data `topup_game` tidak terpengaruh saat test (selama config tidak di-cache).
 
 4. Proses background:
 

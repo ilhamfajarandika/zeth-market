@@ -86,6 +86,7 @@ Lokasi & detail:
 | M13 | `DuitkuService` tidak sinkron dengan test/docs | Checkout crash, callback sah ditolak | Selesai (2026-11-16) |
 | M14 | Thumbnail game dari Melo (URL absolut) jadi gambar rusak | Gambar game tidak tampil | Selesai (2026-11-21), data lama perlu upload ulang |
 | M15 | 17 test gagal saat dev server (`public/hot`) aktif / admin 404 | Hasil test tidak bisa dipercaya | Terbuka |
+| M16 | `php artisan test` memakai DB dev jika config di-cache | Data `topup_game` terhapus | Terbuka |
 
 Detail:
 - **M1:** `StorefrontController::invoice`. Termasuk kredensial akun setelah order sukses.
@@ -102,7 +103,8 @@ Detail:
 - **M13:** (selesai 2026-11-16, commit `5f7e2f3`) inquiry, callback, dan `transactionStatus()` kini HMAC-SHA256 dengan body JSON, sesuai test dan `API_INTEGRATION.md` §3. Dokumentasi resmi Duitku (docs.duitku.com) juga menyatakan MD5/SHA256 biasa usang. `php artisan test --compact --filter='Duitku|WebhookSignature'`: 15 lulus. Masih perlu verifikasi ke sandbox Duitku asli. Riwayat temuan: [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §2.
 - **M12:** `config/services.php`: `'sandbox' => env('MELO_SANDBOX')` tanpa default. Jika variabel tidak ada di `.env`, `MeloService::withSandboxMode()` mengirim `sandbox_mode = false` sehingga order menjadi transaksi nyata. Usulan: default `true`. Dicatat saja, belum diperbaiki.
 - **M14:** Ditemukan saat uji manual di browser (2026-11-21). `GameForm` mengisi `games.thumbnail` dengan URL CDN Melo (`https://cdn.melostore.id/...`), lalu `StorefrontController::gameSummary()` (`thumbnailUrl`) membungkusnya dengan `Storage::disk('public')->url()` sehingga menjadi `/storage/https://...`. Gambar rusak di beranda dan halaman game. Selesai 2026-11-21: field thumbnail diganti upload file (lihat Riwayat), isi otomatis thumbnail dari Melo dihapus. Game yang sudah tersimpan dengan URL CDN tetap rusak sampai admin meng-upload ulang thumbnail-nya.
-- **M15:** Ditemukan 2026-11-21, gagal juga tanpa perubahan hari itu (130 test, 113 lulus). (a) 11 test storefront/`ExampleTest` error 500 `StrayRequestException` ke `http://[::1]:5173/__inertia_ssr`: saat `composer run dev` jalan, `public/hot` ada sehingga Inertia mencoba SSR ke Vite. Terkonfirmasi 2026-11-21: dengan `INERTIA_SSR_ENABLED=false php artisan test --compact` semua test storefront lulus kecuali (e). (b) Halaman admin (`AdminCatalogResourceTest`, `AdminCustomerResourceTest`, `AdminPanelAccessTest`, `MeloBalanceDashboardTest`) mengembalikan 404, bukan 200/403; penyebab belum diselidiki. (c) `test_admin_marking_account_sold_...` gagal karena `credentials` wajib di form edit. (d) `MeloBalanceDashboardTest::test_command_notifies_admins_once_per_level_and_escalates` flaky (2 dari 3 run lulus): notifikasi `menipis` dan `hampir habis` kemungkinan dibuat di detik yang sama sehingga urutan `notifications` tidak pasti. (e) `StorefrontTest::test_invoice_shows_own_qris_image_only_while_pending` mencari `data:image/svg+xml;base64,` di HTML, padahal invoice kini halaman Inertia (QR dirender di Vue); gagal juga tanpa perubahan. Dicatat saja, belum diperbaiki.
+- **M15:** Ditemukan 2026-11-21, gagal juga tanpa perubahan hari itu (130 test, 113 lulus). (a) 11 test storefront/`ExampleTest` error 500 `StrayRequestException` ke `http://[::1]:5173/__inertia_ssr`: saat `composer run dev` jalan, `public/hot` ada sehingga Inertia mencoba SSR ke Vite. Terkonfirmasi 2026-11-21: dengan `INERTIA_SSR_ENABLED=false php artisan test --compact` semua test storefront lulus kecuali (e). (b) Halaman admin (`AdminCatalogResourceTest`, `AdminCustomerResourceTest`, `AdminPanelAccessTest`, `MeloBalanceDashboardTest`) mengembalikan 404, bukan 200/403; penyebab belum diselidiki. (c) `test_admin_marking_account_sold_...` gagal karena `credentials` wajib di form edit. (d) `MeloBalanceDashboardTest::test_command_notifies_admins_once_per_level_and_escalates` flaky (2 dari 3 run lulus): notifikasi `menipis` dan `hampir habis` kemungkinan dibuat di detik yang sama sehingga urutan `notifications` tidak pasti. (e) ~~`StorefrontTest::test_invoice_shows_own_qris_image_only_while_pending` mencari data URI di HTML~~ diperbaiki 2026-11-21 (QR QRIS di invoice).
+- **M16:** Ditemukan 2026-11-21. Jika `bootstrap/cache/config.php` ada (`php artisan optimize`/`config:cache`), env dari `phpunit.xml` diabaikan sehingga test berjalan di `topup_game` dan `RefreshDatabase` mengosongkannya (terjadi 2026-11-21, data dev hilang). Jalankan `php artisan optimize:clear` sebelum test. Usulan pengaman (belum dibuat): cek nama database di `TestCase::setUp()`.
 
 ## 5. Keputusan yang Menunggu (PO/Klien)
 
@@ -216,6 +218,24 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - Test baru: `CheckoutTest` (7), `StorefrontTest` (+3), `DuitkuServiceTest` (+2), semua lulus. Suite penuh: 149 test; dengan dev server jalan 129 lulus/20 gagal (M15 + 3 test storefront baru yang kena SSR); dengan `INERTIA_SSR_ENABLED=false` 140 lulus/9 gagal (semua M15).
 - Belum: nama metode di invoice masih kode; penanda `pending` → `expired`; fee asli production belum terverifikasi; peta kode grup belum dicocokkan dokumentasi resmi Duitku.
 - Test baru: `AdminCatalogResourceTest` (upload tersimpan di disk `public`, file non-gambar ditolak, pilih brand Melo menyimpan thumbnail unduhan) dan `MeloCatalogServiceTest` (unduh sukses; tolak isi bukan gambar, 404, dan http). Semua lulus. Suite penuh: 134 test, 116 lulus, 18 gagal; semua kegagalan ada di M15 (17 sudah ada sebelum perubahan + 1 test flaky).
+
+### 2026-11-21 — Trust proxy (ngrok/Cloudflare)
+
+- `bootstrap/app.php`: `$middleware->trustProxies(at: '*')`. Tanpa ini, di balik proxy HTTPS (ngrok, nanti Cloudflare) URL asset/route dibuat `http://` dan diblokir browser (mixed content), halaman kosong. Catatan production: `'*'` membuat `X-Forwarded-For` bisa dipalsukan jika server bisa diakses langsung tanpa Cloudflare; sebaiknya batasi ke IP Cloudflare saat deploy.
+- Suite penuh: 149 test, 141 lulus, 8 gagal; hasil sama tanpa perubahan ini (semua M15 b/c/e).
+
+### 2026-11-21 — Test pakai SQLite in-memory
+
+- Keputusan PO: `phpunit.xml` kini `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:` (sebelumnya MySQL `topup_game_test`). Docs yang menyebut `topup_game_test` sebagai aturan ikut diperbarui (`CLAUDE.md`, `AGENTS.md` §7, `AI_WORKFLOW.md`, `SYSTEM_ARCHITECTURE.md`, `TECH_STACK.md`); petunjuk setup lama yang masih membuat `topup_game_test` dibiarkan.
+- M15(d) diperbaiki: di SQLite test notifikasi Melo selalu gagal (dua notifikasi di detik yang sama, urutan tidak pasti). `MeloBalanceDashboardTest` kini `travel(1)->seconds()` sebelum level kedua.
+- Catatan: SQLite tidak menguji perilaku khusus MySQL (`lockForUpdate`, tipe kolom, `->after()`).
+- Suite penuh: 149 test, 141 lulus, 8 gagal (semua M15 b/c/e, sama seperti di MySQL).
+
+### 2026-11-21 — QR QRIS di invoice
+
+- `StorefrontController::invoice` menambah prop `order.payment.qrImage`: SVG data URI dari `payment_code` (`qrString` Duitku) lewat `chillerlan/php-qrcode`, hanya jika `DuitkuService::channelGroup(payment_method) === 'QRIS'` dan order `pending`. `Invoice.vue` menampilkan gambar QR (latar putih) menggantikan teks kode; metode lain (VA) tetap menampilkan kode + tombol salin.
+- M15(e) diperbaiki: `test_invoice_shows_own_qris_image_only_while_pending` kini memakai `assertInertia`. Test baru `test_invoice_has_no_qr_image_for_virtual_account`.
+- Suite penuh: 150 test, 143 lulus, 7 gagal (semua M15 b/c).
 
 ## 7. Pekerjaan Berikutnya
 

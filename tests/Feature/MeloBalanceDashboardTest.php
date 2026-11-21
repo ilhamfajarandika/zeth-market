@@ -156,6 +156,7 @@ class MeloBalanceDashboardTest extends TestCase
         $this->artisan('melo:check-balance')->assertSuccessful();
         $this->assertCount(1, $admin->fresh()->notifications);
 
+        $this->travel(1)->seconds();
         $this->fakeBalance(100000);
         $this->artisan('melo:check-balance')->assertSuccessful();
         $this->assertCount(2, $admin->fresh()->notifications);

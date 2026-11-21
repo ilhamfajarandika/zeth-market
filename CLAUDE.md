@@ -28,7 +28,7 @@ php artisan test --compact --filter=test_name                # one test
 vendor/bin/pint --dirty --format agent                       # format changed PHP files only
 ```
 
-Tests need a running MySQL with two databases, `topup_game` (app) and `topup_game_test` (used by `phpunit.xml`, wiped per test). `vendor/` is not committed, so run `composer install` first. In tests, fake all Duitku/Melo HTTP with `Http::fake()`.
+Tests use in-memory SQLite (`phpunit.xml`), so no test database is needed. Run `php artisan optimize:clear` first if config is cached, or tests hit the app's MySQL database and wipe it. `vendor/` is not committed, so run `composer install` first. In tests, fake all Duitku/Melo HTTP with `Http::fake()`.
 
 ## Architecture
 

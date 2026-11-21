@@ -10,6 +10,7 @@ use App\Models\Game;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\Payment\DuitkuService;
+use chillerlan\QRCode\QRCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Number;
@@ -108,12 +109,24 @@ class StorefrontController extends Controller
                 'fee' => $this->rupiah($order->fee),
                 'total' => $this->rupiah($order->total),
                 'payment' => $order->status === OrderStatus::Pending
-                    ? ['code' => $order->payment_code, 'url' => $order->payment_url]
+                    ? ['code' => $order->payment_code, 'url' => $order->payment_url, 'qrImage' => $this->qrisImage($order)]
                     : null,
                 'serialNumber' => $isSuccessful ? $order->serial_number : null,
                 'credentials' => $isSuccessful ? $order->gameAccount?->credentials : null,
             ],
         ]);
+    }
+
+    /**
+     * QR (data URI SVG) dari `qrString` Duitku untuk metode QRIS; null untuk metode lain.
+     */
+    private function qrisImage(Order $order): ?string
+    {
+        if (blank($order->payment_code) || DuitkuService::channelGroup((string) $order->payment_method) !== 'QRIS') {
+            return null;
+        }
+
+        return (new QRCode)->render($order->payment_code);
     }
 
     /**

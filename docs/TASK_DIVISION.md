@@ -69,7 +69,7 @@ Route pelanggan (login, register, riwayat), checkout, dan cek status order: ⏳ 
 | `Game`    | `productGroups[]` | `label`, `products[]` → `id`, `name`, `description`, `price`, `strikePrice`, `isAccount`, `stock`           |
 | `Game`    | `paymentChannels[]` | `code`, `name`, `group` (`QRIS`/`E-Wallet`/`Virtual Account`/`Lainnya`), `iconUrl`, `fee`, `total` (rupiah terformat). Kosong kecuali query `?product={id}` menunjuk produk top up aktif milik game ini |
 | `Game`    | `checkoutUrl`   | URL `POST` checkout (`checkout.store`)                                                                        |
-| `Invoice` | `order`         | `invoice`, `status{value,label,color}`, `gameName`, `productName`, `target`, `paymentMethod`, `createdAt`, `expiresAt`, `price`, `fee`, `total`, `payment{code,url}` (hanya `pending`), `serialNumber` & `credentials` (hanya `success`) |
+| `Invoice` | `order`         | `invoice`, `status{value,label,color}`, `gameName`, `productName`, `target`, `paymentMethod`, `createdAt`, `expiresAt`, `price`, `fee`, `total`, `payment{code,url,qrImage}` (hanya `pending`; `qrImage` = SVG data URI, hanya metode QRIS), `serialNumber` & `credentials` (hanya `success`) |
 
 ### 3.4 Checkout [FINAL, ✅ 2026-11-21]
 

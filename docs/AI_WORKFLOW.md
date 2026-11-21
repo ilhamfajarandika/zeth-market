@@ -59,7 +59,7 @@ flowchart TD
    php artisan test --compact
    vendor/bin/pint --dirty --format agent
    ```
-   HTTP eksternal di-fake. MySQL harus berjalan (DB test: `topup_game_test`).
+   HTTP eksternal di-fake. DB test: SQLite in-memory (tidak perlu MySQL).
 7. **Dokumentasi.**
    - Perbarui `DATABASE_DESIGN.md` jika skema berubah.
    - Perbarui `API_INTEGRATION.md` jika integrasi berubah.

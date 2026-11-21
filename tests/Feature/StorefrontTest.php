@@ -208,10 +208,23 @@ class StorefrontTest extends TestCase
     {
         $order = Order::factory()->create(['payment_method' => 'SP', 'payment_code' => '00020101021226610016ID.CO.SHOPEE.WWW']);
 
-        $this->get(route('invoice.show', $order))->assertOk()->assertSee('data:image/svg+xml;base64,', false);
+        $this->get(route('invoice.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('order.payment.qrImage', fn (string $image) => str_starts_with($image, 'data:image/svg+xml;base64,')));
 
         $order->update(['status' => OrderStatus::Paid]);
 
-        $this->get(route('invoice.show', $order))->assertOk()->assertDontSee('data:image/svg+xml;base64,', false);
+        $this->get(route('invoice.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('order.payment', null));
+    }
+
+    public function test_invoice_has_no_qr_image_for_virtual_account(): void
+    {
+        $order = Order::factory()->create(['payment_method' => 'BC', 'payment_code' => '8808123456789']);
+
+        $this->get(route('invoice.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('order.payment.qrImage', null)->where('order.payment.code', '8808123456789'));
     }
 }

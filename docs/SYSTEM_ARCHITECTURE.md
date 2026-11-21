@@ -82,7 +82,7 @@ flowchart TB
 | Session   | `database`            | `database` / Redis [TBD] |
 | Mail      | `log`                 | SMTP / Resend [TBD]      |
 
-1. Database `topup_game`; test memakai `topup_game_test`.
+1. Database `topup_game`; test memakai SQLite in-memory.
 2. Worker: `php artisan queue:work --tries=3`. Horizon = [TBD] (dependency baru).
 
 ## 5. Integrasi Eksternal
