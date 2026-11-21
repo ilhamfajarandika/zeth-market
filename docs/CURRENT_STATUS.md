@@ -30,7 +30,7 @@
 | Scheduler           | `accounts:release-expired` tiap menit         | `AccountStockServiceTest` |
 | Enkripsi kredensial | cast `encrypted` + hidden                     | `AccountStockServiceTest` |
 | Admin panel         | 5 resource + widget, hanya admin              | `AdminPanelAccessTest`    |
-| Storefront dasar    | Home, halaman game, invoice                   | `StorefrontTest`          |
+| Storefront dasar    | Home, Game, Invoice + komponen `ui/*` (Cyberpunk Dark Gaming) | `StorefrontTest` |
 | Webhook             | Verifikasi signature Duitku & Melo            | `WebhookSignatureTest`    |
 | Service integrasi   | Duitku & Melo (**belum ke API asli**)         | `DuitkuServiceTest`, `MeloServiceTest` |
 | Konfigurasi         | MySQL, Asia/Jakarta, locale `id`, key `.env`  | —                         |
