@@ -9,8 +9,8 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Integrasi Duitku (API langsung): daftar metode bayar, buat transaksi,
- * cek status, dan verifikasi callback. Tanpa library pihak ketiga.
+ * Integrasi Duitku (API langsung): daftar metode bayar, buat transaksi (inquiry), cek status,
+ * dan verifikasi callback. Tanpa library pihak ketiga.
  *
  * @see https://docs.duitku.com
  */
@@ -24,7 +24,8 @@ class DuitkuService
     }
 
     /**
-     * Daftar metode pembayaran aktif untuk nominal tertentu (VA, QRIS, e-wallet, ...).
+     * Daftar metode pembayaran aktif untuk nominal tertentu: kode, nama, biaya (`totalFee`), dan gambar.
+     * Opsional; kode bisa dipakai sebagai `paymentMethod` di createTransaction().
      */
     public function paymentMethods(int $amount): Response
     {
@@ -41,11 +42,12 @@ class DuitkuService
     }
 
     /**
-     * Buat transaksi pembayaran untuk sebuah order. Nominal selalu dari `orders.total`.
+     * Buat transaksi untuk sebuah order. Nominal selalu dari `orders.total`. Respons sukses (`statusCode` `00`)
+     * membawa `reference`, `paymentUrl`, dan `qrString` (metode QRIS) atau `vaNumber` (VA) untuk tampilan sendiri.
      */
     public function createTransaction(Order $order, string $method): Response
     {
-        $amount = (int) $order->total;
+        $amount = $order->total;
         $email = $order->email ?? 'noreply@example.com';
 
         $payload = [
@@ -71,6 +73,22 @@ class DuitkuService
         ];
 
         return $this->send('/v2/inquiry', $payload, $order->invoice);
+    }
+
+    /**
+     * Simpan data bayar dari respons createTransaction() ke order. Tidak mengubah apa pun jika Duitku menolak.
+     */
+    public function storePaymentDetails(Order $order, Response $response): bool
+    {
+        if (! $response->successful() || $response->json('statusCode') !== '00') {
+            return false;
+        }
+
+        return $order->update([
+            'payment_reference' => $response->json('reference'),
+            'payment_url' => $response->json('paymentUrl'),
+            'payment_code' => $response->json('qrString') ?? $response->json('vaNumber'),
+        ]);
     }
 
     /**

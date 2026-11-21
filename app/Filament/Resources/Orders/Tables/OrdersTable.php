@@ -38,13 +38,13 @@ class OrdersTable
                 TextColumn::make('whatsapp')
                     ->searchable(),
                 TextColumn::make('price')
-                    ->money('IDR')
+                    ->money('IDR', locale: 'id', decimalPlaces: 0)
                     ->sortable(),
                 TextColumn::make('fee')
-                    ->numeric()
+                    ->money('IDR', locale: 'id', decimalPlaces: 0)
                     ->sortable(),
                 TextColumn::make('total')
-                    ->numeric()
+                    ->money('IDR', locale: 'id', decimalPlaces: 0)
                     ->sortable(),
                 TextColumn::make('status')
                     ->badge()

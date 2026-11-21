@@ -27,8 +27,9 @@ class GameAccountForm
                     ->preload()
                     ->required(),
                 Select::make('status')
+                    ->helperText('Akun dijual manual di luar sistem: ubah ke Terjual setelah akun diserahkan ke pembeli.')
                     ->options(AccountStatus::class)
-                    ->default(AccountStatus::Available)
+                    ->default(AccountStatus::Available->value)
                     ->required(),
                 Textarea::make('credentials')
                     ->label('Data login (rahasia)')

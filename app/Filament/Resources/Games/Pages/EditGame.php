@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Games\Pages;
 
+use App\Filament\Resources\Games\Actions\SyncMeloProductsAction;
 use App\Filament\Resources\Games\GameResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
@@ -13,6 +14,7 @@ class EditGame extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            SyncMeloProductsAction::make(),
             DeleteAction::make(),
         ];
     }

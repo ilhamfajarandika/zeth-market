@@ -31,10 +31,10 @@ class Product extends Model
     {
         return [
             'type' => ProductType::class,
-            'base_price' => 'decimal:2',
-            'price' => 'decimal:2',
-            'reseller_price' => 'decimal:2',
-            'strike_price' => 'decimal:2',
+            'base_price' => 'integer',
+            'price' => 'integer',
+            'reseller_price' => 'integer',
+            'strike_price' => 'integer',
             'is_active' => 'boolean',
         ];
     }
@@ -71,13 +71,29 @@ class Product extends Model
     /**
      * Harga jual sesuai role pembeli (guest/member pakai harga normal).
      */
-    public function priceFor(?User $user): string
+    public function priceFor(?User $user): int
     {
         if ($user?->role === UserRole::Reseller && $this->reseller_price !== null) {
             return $this->reseller_price;
         }
 
         return $this->price;
+    }
+
+    /**
+     * Harga jual dari harga modal: markup persen atau Rupiah tetap, dibulatkan ke atas ke kelipatan tertentu.
+     *
+     * @param  'percent'|'fixed'  $mode
+     */
+    public static function priceFromBase(int $basePrice, string $mode, int $amount, int $roundTo = 1): int
+    {
+        $price = $mode === 'percent'
+            ? (int) ceil($basePrice * (100 + $amount) / 100)
+            : $basePrice + $amount;
+
+        $roundTo = max(1, $roundTo);
+
+        return (int) (ceil($price / $roundTo) * $roundTo);
     }
 
     /**

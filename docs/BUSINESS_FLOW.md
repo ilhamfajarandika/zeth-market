@@ -49,7 +49,9 @@ stateDiagram-v2
 5. Sistem meminta invoice ke payment gateway dan mengarahkan pembeli ke halaman invoice.
 6. Lanjut ke §4 (pembayaran).
 
-## 3. Alur Pembelian Akun Game [FINAL]
+## 3. Alur Pembelian Akun Game [DIGANTI 2026-11-17]
+
+> **Tidak berlaku lagi** (keputusan PO 2026-11-17, `PROJECT_SPEC.md` §13): akun game hanya display dan dijual manual di luar sistem; admin mengubah status akun di admin panel saat terjual. Tidak ada order, `reserve()`, atau callback untuk produk `account`. Alur di bawah dipertahankan sebagai riwayat.
 
 1. Pembeli memilih produk akun. Produk dengan stok 0 tidak bisa dipilih.
 2. Sistem membuat order `pending`, lalu memanggil `AccountStockService::reserve()` untuk menahan satu akun (`reserved_until` = sekarang + 15 menit [REKOMENDASI]).
@@ -105,7 +107,7 @@ sequenceDiagram
 | Status gateway (Duitku)       | Status order | Tindakan lanjut               |
 | ----------------------------- | ------------ | ----------------------------- |
 | callback `resultCode` = `00`  | `paid`       | Isi `paid_at`, lalu lihat (1) |
-| callback `resultCode` = `01`  | `failed`     | Akun → `release()`            |
+| callback `resultCode` = `02`  | `failed`     | Akun → `release()`            |
 | kedaluwarsa (tanpa callback) (2) | `expired` | Akun → `release()`            |
 
 1. Top up → kirim ke Melo (§6). Akun → `markSold()`, lalu order `success`.

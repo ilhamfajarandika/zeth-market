@@ -36,7 +36,7 @@ Catatan:
 | Jenis       | Nilai `products.type` | Sumber pemenuhan                        | Status  |
 | ----------- | --------------------- | --------------------------------------- | ------- |
 | Top up game | `topup`               | Dikirim otomatis ke Melo (SKU)          | [FINAL] |
-| Akun game   | `account`             | Stok `game_accounts`, tampil di halaman | [FINAL] |
+| Akun game   | `account`             | Stok `game_accounts`, tampil di halaman (display). Dijual manual di luar sistem; admin mengubah status akun (mis. terjual) di admin panel. Tanpa checkout/order/pembayaran (keputusan 2026-11-17) | [FINAL] |
 
 ## 5. Fitur Pelanggan / Guest
 
@@ -85,9 +85,9 @@ Catatan:
 ## 7. Kebutuhan Fungsional Inti
 
 1. Harga & total dihitung di server. Order menyimpan snapshot nama produk dan harga. [FINAL]
-2. Satu akun game tidak boleh terjual ke dua order. Akun ditahan (reserved) saat checkout dan dilepas jika tidak dibayar. [FINAL]
+2. Satu akun game tidak boleh terjual ke dua order. Akun ditahan (reserved) saat checkout dan dilepas jika tidak dibayar. [FINAL] (bagian akun tidak berlaku sejak 2026-11-17: akun dijual manual, lihat §13)
 3. Lama penahanan akun & masa berlaku invoice: **15 menit**. [REKOMENDASI]
-4. Pembayaran sukses → top up dikirim otomatis ke Melo / akun langsung ditandai terjual. [FINAL]
+4. Pembayaran sukses → top up dikirim otomatis ke Melo / akun langsung ditandai terjual. [FINAL] (bagian akun tidak berlaku sejak 2026-11-17: akun dijual manual, lihat §13)
 5. Semua callback payment & supplier diverifikasi signature dan diproses sekali saja (idempotent). [FINAL]
 6. Order yang gagal di supplier setelah dibayar → penanganan [TBD]: kirim ulang manual oleh admin, refund manual di luar sistem, atau refund lewat payment gateway (lihat `BUSINESS_FLOW.md` §9). Saldo/deposit pelanggan bukan opsi karena di luar scope (§10).
 
@@ -158,8 +158,8 @@ Catatan:
 ## 12. Kriteria Keberhasilan
 
 1. Guest dan pelanggan bisa membeli top up sampai sukses terkirim (diuji di sandbox Melo & payment).
-2. Pembelian akun menampilkan detail akun hanya setelah pembayaran sukses, tanpa akun ganda.
-3. Order expired otomatis dan stok akun kembali.
+2. Pembelian akun menampilkan detail akun hanya setelah pembayaran sukses, tanpa akun ganda. (bagian akun tidak berlaku sejak 2026-11-17: akun dijual manual, lihat §13)
+3. Order expired otomatis dan stok akun kembali. (bagian akun tidak berlaku sejak 2026-11-17: akun dijual manual, lihat §13)
 4. Callback palsu (signature salah) ditolak; callback ganda tidak memproses order dua kali.
 5. Admin bisa mengelola katalog, harga, stok, pesanan, dan pelanggan tanpa menyentuh database langsung.
 6. Seluruh feature test lulus, aplikasi ter-deploy di VPS dengan HTTPS.
@@ -176,5 +176,4 @@ Catatan:
 | 2026-11-12 | Reseller di luar scope                          | PO     |
 | 2026-11-12 | Supplier diganti dari Digiflazz ke Melo H2H     | PO     |
 | 2026-11-12 | Timeline diubah menjadi 1 bulan; nilai kontrak tidak dicantumkan di dokumen | PO |
-| 2026-11-13 | Frontend storefront diganti dari Blade/Livewire/Alpine ke Vue 3 + Inertia.js (JavaScript), tetap monolith | PO |
-| 2026-11-13 | Path panel admin diambil dari `ADMIN_PATH` (bukan `/admin` tetap) | PO |
+| 2026-11-17 | Akun game hanya display, dijual manual di luar sistem; admin mengubah status akun (terjual dll.) di admin panel. Checkout, order, dan callback hanya untuk top up (K1) | PO |

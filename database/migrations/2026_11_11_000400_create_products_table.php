@@ -18,13 +18,13 @@ return new class extends Migration
             $table->text('description')->nullable();
 
             // Khusus type=topup (dikirim ke supplier)
-            $table->string('supplier')->nullable(); // digiflazz | vip | apigames
+            $table->string('supplier')->nullable(); // melo
             $table->string('supplier_sku')->nullable()->index();
 
-            $table->decimal('base_price', 15, 2)->default(0);     // harga modal
-            $table->decimal('price', 15, 2)->default(0);          // harga jual member/guest
+            $table->unsignedBigInteger('base_price')->default(0);     // harga modal (Rupiah penuh)
+            $table->unsignedBigInteger('price')->default(0);          // harga jual member/guest (Rupiah penuh)
             $table->decimal('reseller_price', 15, 2)->nullable(); // harga jual reseller
-            $table->decimal('strike_price', 15, 2)->nullable();   // harga coret (opsional)
+            $table->unsignedBigInteger('strike_price')->nullable();   // harga coret (opsional)
 
             $table->boolean('is_active')->default(true);
             $table->unsignedInteger('sort')->default(0);

@@ -150,4 +150,15 @@ class StorefrontTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('order.credentials', 'secret-login'));
     }
+
+    public function test_invoice_shows_own_qris_image_only_while_pending(): void
+    {
+        $order = Order::factory()->create(['payment_method' => 'SP', 'payment_code' => '00020101021226610016ID.CO.SHOPEE.WWW']);
+
+        $this->get(route('invoice.show', $order))->assertOk()->assertSee('data:image/svg+xml;base64,', false);
+
+        $order->update(['status' => OrderStatus::Paid]);
+
+        $this->get(route('invoice.show', $order))->assertOk()->assertDontSee('data:image/svg+xml;base64,', false);
+    }
 }

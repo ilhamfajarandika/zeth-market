@@ -29,8 +29,8 @@ class ProductFactory extends Factory
             'supplier' => 'melo',
             'supplier_sku' => fake()->unique()->bothify('SKU-####??'),
             'base_price' => $basePrice,
-            'price' => $basePrice * 1.05,
-            'reseller_price' => $basePrice * 1.02,
+            'price' => (int) round($basePrice * 1.05),
+            'reseller_price' => (int) round($basePrice * 1.02),
             'is_active' => true,
             'sort' => 0,
         ];

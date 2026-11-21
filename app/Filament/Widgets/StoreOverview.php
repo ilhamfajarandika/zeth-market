@@ -35,7 +35,7 @@ class StoreOverview extends StatsOverviewWidget
             ->count();
 
         return [
-            Stat::make('Omzet hari ini', Number::currency($todayRevenue, 'IDR', 'id'))
+            Stat::make('Omzet hari ini', Number::currency($todayRevenue, 'IDR', 'id', precision: 0))
                 ->description("{$todaySuccess} transaksi sukses"),
             Stat::make('Perlu diproses', $pendingOrders)
                 ->description('Dibayar / sedang diproses supplier')

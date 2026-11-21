@@ -1,7 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-
-> **Terakhir diperbarui:** 2026-11-16, oleh AI agent (sinkronisasi dokumentasi pembayaran Duitku dengan kode). Sebelumnya: 2026-11-14 (Tripay diganti Duitku).
+> **Terakhir diperbarui:** 2026-11-17, oleh AI agent (pemrosesan callback Duitku & Melo). Sebelumnya: 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -11,11 +10,11 @@
 | Fase          | Skeleton selesai, supplier Melo terpasang, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat `IMPLEMENTATION_PLAN.md`                                |
 | Tanggal H1    | [TBD]                                                                          |
-| Test          | **58 lulus, 0 gagal** (1)                                                      |
+| Test          | **104 lulus, 0 gagal** (1)                                                      |
 | Versi         | Laravel 13, Filament 5, PHP 8.4, MySQL 8.0.30 (2)                              |
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
-1. `php artisan test --compact`, 114 assertion, MySQL `topup_game_test` (MAMP, port 8889), 2026-11-14. Perlu `npm run build` dulu agar `ExampleTest` lulus.
+1. `php artisan test --compact`, 328 assertion, MySQL `topup_game_test`, 2026-11-16. Perlu `npm run build` dulu agar `ExampleTest` lulus.
 2. Ditambah Tailwind 4 dan Vite 8, Vue 3.5 Inertia 3 (`inertiajs/inertia-laravel`, `@inertiajs/vue3`), MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
@@ -23,15 +22,18 @@
 
 | Area                | Ringkasan                                     | Test                      |
 | ------------------- | --------------------------------------------- | ------------------------- |
-| Skema DB            | 8 tabel aplikasi + bawaan Laravel             | —                         |
+| Skema DB            | 8 tabel aplikasi + bawaan Laravel; kolom uang integer; `games.melo_brand_id` | — |
 | Model & enum        | 8 model, 4 enum                               | —                         |
 | Factory & seeder    | Admin contoh, 3 kategori, 17 game (+ ikon), produk, 12 stok akun | — |
 | Stok akun           | reserve / markSold / release / releaseExpired | `AccountStockServiceTest` |
 | Scheduler           | `accounts:release-expired` tiap menit         | `AccountStockServiceTest` |
 | Enkripsi kredensial | cast `encrypted` + hidden                     | `AccountStockServiceTest` |
-| Admin panel         | 5 resource + widget, hanya admin              | `AdminPanelAccessTest`    |
-| Storefront dasar    | Home, Game, Invoice + komponen `ui/*` (Cyberpunk Dark Gaming) | `StorefrontTest` |
+| Admin panel         | 6 resource + widget, hanya admin              | `AdminPanelAccessTest`, `AdminCatalogResourceTest`, `AdminCustomerResourceTest` |
+| Dashboard saldo Melo | Widget saldo + pembayaran, peringatan saldo menipis lewat lonceng admin (**belum ke API asli**) | `MeloBalanceDashboardTest` |
+| Sync katalog Melo   | Tautan game↔brand, sync item, atur harga massal (**belum ke API asli**) | `MeloCatalogServiceTest`, `AdminCatalogResourceTest` |
+| Storefront dasar    | Home, halaman game, invoice                   | `StorefrontTest`          |
 | Webhook             | Verifikasi signature Duitku & Melo            | `WebhookSignatureTest`    |
+| Pemrosesan callback | Job `HandlePaymentCallback`, `SendTopupToMelo`, `HandleSupplierCallback` (**test belum dijalankan, lihat §6 2026-11-17**) | `PaymentCallbackTest`, `SupplierCallbackTest` |
 | Service integrasi   | Duitku & Melo (**belum ke API asli**)         | `DuitkuServiceTest`, `MeloServiceTest` |
 | Konfigurasi         | MySQL, Asia/Jakarta, locale `id`, key `.env`  | —                         |
 
@@ -43,7 +45,9 @@ Lokasi & detail:
 - **Stok akun:** `app/Services/AccountStockService.php`, memakai transaksi + lock.
 - **Scheduler:** `routes/console.php`.
 - **Enkripsi:** model `GameAccount`, test `test_credentials_are_encrypted_at_rest`.
-- **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok), Stok Akun, dan Pesanan (tanpa halaman create), plus widget dashboard.
+- **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok, harga jual bisa diedit inline, aksi massal "Atur harga jual"), Stok Akun (semua status diatur manual oleh admin; `sold_at` terisi otomatis saat Terjual, K1), Pesanan (tanpa halaman create), dan Pelanggan (hanya lihat, tanpa admin), plus widget dashboard. Form Kategori/Game/Produk punya slug otomatis + unik, validasi regex, zone wajib bila `requires_zone_id`, supplier+SKU wajib untuk top up.
+- **Dashboard & peringatan saldo:** widget `MeloBalanceOverview` dan `PaymentOverview` (`app/Filament/Widgets`), `MeloBalanceService`, command `melo:check-balance` (dijadwalkan tiap 10 menit; butuh `php artisan schedule:work`). Ambang: `MELO_LOW_BALANCE_THRESHOLD`. Detail di `API_INTEGRATION.md` §2.1a.
+- **Sync katalog Melo:** `app/Services/Supplier/MeloCatalogService.php` + `app/Filament/Resources/Games/Actions/SyncMeloProductsAction.php`. Detail di `API_INTEGRATION.md` §2.2.
 - **Storefront:** `StorefrontController`, `resources/views/storefront`. Input ID di halaman game masih statis. Kredensial di invoice hanya tampil jika order sukses.
 - **Webhook:** `app/Http/Controllers/Webhook` (`DuitkuCallbackController`, `MeloCallbackController`). Hasilnya dicatat di `api_logs`, signature salah → 403 (Duitku) / 401 (Melo), CSRF dikecualikan, ada throttle.
 - **Service integrasi:**
@@ -56,10 +60,9 @@ Lokasi & detail:
 
 - Checkout Inertia → `CheckoutController` (input ID tervalidasi, pilih produk, metode bayar, pembuatan order).
 - Registrasi/login pelanggan dan riwayat transaksi.
-- Resource admin Pelanggan.
-- Pemrosesan callback payment & supplier (masih TODO di controller); queue jobs.
+- Aksi admin pada Pelanggan (blokir dll., keputusan #10) dan batasan form Pesanan (M3).
 - Pemanggilan `createTransaction` dari alur order; tampilan instruksi bayar.
-- Cek status supplier terjadwal; penandaan order `pending` kedaluwarsa menjadi `expired`.
+- Cek status supplier terjadwal / reconcile `transactionStatus()`; penandaan order `pending` kedaluwarsa menjadi `expired`.
 - Sinkron harga Melo, import CSV stok akun.
 - Notifikasi.
 - Desain storefront final dan branding admin.
@@ -171,13 +174,25 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 
 Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController`, `POST /webhook/duitku`, `services.duitku.*`, `DUITKU_*` di `.env`. `TripayService`, `TripayCallbackController`, route, config, dan test Tripay dihapus. Library `duitkupg/duitku-php` dievaluasi dan **tidak dipakai** (lihat `API_INTEGRATION.md` §3). Tidak ada migration baru; komentar di migration `api_logs` yang menyebut `tripay` tidak diedit (migration sudah di-commit). **Belum diuji ke API Duitku asli.** Pemrosesan callback (job) masih TODO.
 
-### 2026-11-19 — Landing page v2 (Acid Arcade)
+### 2026-11-16 — Master data admin + kolom uang integer
 
-- `resources/js/pages/Home.vue` ditulis ulang: hero satu layar dengan indeks katalog, marquee, katalog + pencarian/kategori, cara top up, band fakta, FAQ, cek pesanan (pesan inline tanpa redirect), CTA akhir. Tanpa `Link` ke halaman lain.
-- Layout baru `resources/js/layouts/LandingLayout.vue` (header/footer/menu mobile). `Game.vue` dan `Invoice.vue` tetap memakai `AppLayout`.
-- Token baru di `resources/css/app.css` (`ink`, `surface`, `paper`, `acid`, `electric`, `signal`, `line`, `font-display`, `animate-marquee`, `animate-enter`, `bg-dotgrid`) dan font Space Grotesk lewat `vite.config.js`.
-- `GameCover.vue`: gradien violet diganti palet non-violet.
-- `docs/FRONTEND_PLAN.md` §7.6 mencatat arah desain. Build sukses (584 modul); `php artisan test --compact` 60 lulus. **Menunggu review desain PO sebelum merge dan sebelum Game/Invoice dimigrasikan.**
+- **Pengecualian aturan migration (atas persetujuan PO/user):** `2026_11_11_000400_create_products_table.php` (`base_price`, `price`, `strike_price`) dan `2026_11_11_000500_create_orders_table.php` (`price`, `fee`, `total`) diedit langsung dari `decimal(15,2)` menjadi `unsignedBigInteger` (Rupiah penuh). Berlaku hanya untuk perubahan ini. **Setiap developer (termasuk pemilik `branch-ilham`) wajib menjalankan `php artisan migrate:fresh --seed` di database LOKAL masing-masing**; jangan dijalankan di database bersama/staging. `reseller_price` dan `users.balance` tetap decimal (M4, out of scope).
+- Migration baru `2026_11_16_200655_add_melo_brand_id_to_games_table.php` (`games.melo_brand_id`, nullable, unik).
+- Resource Pelanggan baru (`/admin/users`), hanya List + View. Kategori/Game/Produk/Stok Akun diperkuat (lihat §2). Toggle `is_active`/`is_popular` tidak lagi `required()` (di Filament, toggle wajib berarti harus aktif, sehingga item tidak bisa disimpan nonaktif).
+- Sync katalog Melo (A9 sebagian): hanya lewat `Http::fake()`, **belum diuji ke API Melo asli**. Format target per SKU masih M9.
+- Dashboard saldo Melo + notifikasi lonceng admin ditambahkan. Migration baru `2026_11_16_202857_create_notifications_table.php` (tabel `notifications` standar Laravel). `tests/TestCase.php` kini memanggil `Http::preventStrayRequests()` agar test tak pernah menembak API asli.
+- Tidak dikerjakan: aturan markup tersimpan (A10), import CSV akun (A5), pembatasan form Pesanan (M3), core system (checkout/callback/job).
+
+### 2026-11-17 — Pemrosesan callback Duitku & Melo
+
+- Job baru di `app/Jobs/`: `HandlePaymentCallback` (Duitku), `SendTopupToMelo` (kirim top up), `HandleSupplierCallback` (Melo). Controller webhook kini dispatch job (TODO dihapus). Detail perilaku di `API_INTEGRATION.md` §2.5, §3.4, §4.
+- Keputusan user: hanya order top up yang diproses (K1); kasus tepi (lunas setelah `expired`/`failed`, nominal beda, Melo `refunded`, Melo menolak 4xx, retry habis) tidak mengubah status, hanya `Log::warning` + notifikasi lonceng admin.
+- Signature Duitku tetap HMAC-SHA256 (dikonfirmasi PO); `duitku-collection.json` hanya acuan nama field. Menjawab pertanyaan 24 `CORE_SYSTEM_REVIEW.md`.
+- **K1 diputuskan PO (2026-11-17):** akun game hanya display, dijual manual; admin mengubah status akun di admin panel. Dicatat di `PROJECT_SPEC.md` §4 + §13 dan `BUSINESS_FLOW.md` §3 (ditandai diganti). §7 no. 2/4 dan §12 no. 2–3 diberi catatan.
+- Form Stok Akun (`GameAccountForm`) kini mengizinkan semua status; `GameAccount` mengisi `sold_at` saat status jadi Terjual dan mengosongkannya bila diubah lagi. Test lama penguncian status diganti (`AdminCatalogResourceTest`), belum dijalankan (MySQL mati).
+- **Risiko:** M12 (`MELO_SANDBOX` tanpa default) kini berdampak langsung: `SendTopupToMelo` bisa memotong saldo nyata jika variabel kosong. Perbaiki sebelum queue worker dijalankan di luar test.
+- Tidak dikerjakan: scheduler `pending → expired`, reconcile terjadwal (B3), snapshot `supplier_sku` (O3).
+- Test: `PaymentCallbackTest` (5) dan `SupplierCallbackTest` (10) ditulis tetapi **belum lulus terverifikasi**: MySQL test (`127.0.0.1:8889`) tidak berjalan saat dikerjakan.
 
 ## 7. Pekerjaan Berikutnya
 
@@ -186,4 +201,5 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 2. Putuskan keputusan §5 yang dibutuhkan sebelum Tahap 1–2 (no. 4, 5, 10, 12, 13).
 3. Daftar akun sandbox Duitku & Melo (risiko E1/E2), lalu verifikasi signature callback dan format body `transactionStatus` (lihat `API_INTEGRATION.md` §3.3–3.4).
 4. Uji `MeloService` ke sandbox Melo, termasuk format target per SKU (M9).
-5. Mulai Tahap 2: resource Pelanggan, batasi form pesanan.
+5. Lanjutkan Tahap 2: batasi form pesanan (M3), mask kredensial akun, import CSV akun; lalu core system sesuai `CORE_SYSTEM_REVIEW.md` §4.
+6. Semua developer: `php artisan migrate:fresh --seed` di DB lokal setelah menarik perubahan ini.

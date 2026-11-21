@@ -19,6 +19,7 @@ MELO_API_KEY=
 MELO_SECRET_KEY=
 MELO_WEBHOOK_SECRET=
 MELO_SANDBOX=true
+MELO_LOW_BALANCE_THRESHOLD=500000
 ```
 
 | Key config             | Dipakai di                                   |
@@ -43,9 +44,9 @@ Semua endpoint di bawah `MELO_BASE_URL`. Sumber: `melostore-h2h.json` (OpenAPI r
 |---|---|---|---|
 | Cek akses akun | `GET /profile` | `profile()` | — |
 | Saldo dan kurs | `GET /profile/balance` | `balance()` | alert saldo (rencana) |
-| Katalog reguler | `GET /pricelists` | `priceList()` | sync harga (rencana) |
+| Katalog reguler | `GET /pricelists` | `priceList()` | sync item per brand (`MeloCatalogService::syncProducts()`) |
 | Katalog reguler per brand | `GET /pricelists/{category_slug}` | `priceListByBrand()` | — |
-| Brand reguler | `GET /pricelists/categories` | `brands()` | — |
+| Brand reguler | `GET /pricelists/categories` | `brands()` | pilihan brand di form Game (`MeloCatalogService::brands()`) |
 | Katalog Smart | `GET /smart-pricelists` | `smartPriceList()` | — |
 | Katalog Smart per brand | `GET /smart-pricelists/{category_slug}` | `smartPriceListByBrand()` | — |
 | Brand Smart | `GET /smart-pricelists/categories` | `smartBrands()` | — |
@@ -67,9 +68,15 @@ Method bertanda "—" sudah tersedia di service tetapi **belum dipakai** oleh al
 
 Rate limit: katalog (reguler, Smart, kategori) berbagi 20 request/menit. Jika 429, tunggu sesuai header `Retry-After`.
 
+### 2.1a Saldo H2H & peringatan saldo menipis
+- `MeloBalanceService` memanggil `balance()` (`GET /profile/balance`, field `h2h_balance`, `is_sandbox_mode`), di-cache 60 detik. Ditampilkan di widget dashboard admin (`MeloBalanceOverview`), polling 60 detik.
+- Tingkat: `ok` > `MELO_LOW_BALANCE_THRESHOLD` (default Rp 500.000) · `low` ≤ batas · `critical` ≤ setengah batas.
+- Command terjadwal `melo:check-balance` (tiap 10 menit, `routes/console.php`) mengirim notifikasi lonceng ke semua admin sekali per tingkat (ulang tiap 6 jam; `low` → `critical` langsung dikirim; kembali `ok` mereset). Tidak mengirim saat `is_sandbox_mode = true` atau saat Melo tidak bisa dihubungi (command gagal, error di log). Belum ada kanal email/WhatsApp (keputusan #6 masih terbuka). Belum diuji ke API asli.
+
 ### 2.2 Daftar produk & harga
 - `priceList()` mengambil katalog reguler (default `limit=500`, paginasi `cursor`). Item berisi `sku_code`, `name`, `price`, `status` (`active` / `out_of_stock`, hanya `active` yang bisa dipesan).
-- Rencana: command/aksi admin untuk memperbarui `products.base_price` berdasarkan `supplier_sku`. Harga jual (`price`) **tidak** diubah otomatis; aturan markup = [TBD].
+- **Sync katalog (sudah ada, belum diuji ke API asli):** `App\Services\Supplier\MeloCatalogService`. Admin menautkan game ke brand Melo (`games.melo_brand_id`, Select dari `brands()`), lalu aksi "Sync item dari Melo" memanggil `priceList(['brand_id' => …, 'format' => 'compact'])` mengikuti `next_cursor`. Upsert `products` dengan kunci (`supplier = melo`, `supplier_sku = sku_code`): `name`, `group` (= `type_name`), `base_price` (= `ceil(price)`), `sort` diperbarui; produk baru dibuat nonaktif dengan `price = 0`; `price`, `strike_price`, `image`, `description`, dan status aktif item lama **tidak** ditimpa; item `out_of_stock` atau hilang dari katalog dinonaktifkan (tidak diaktifkan kembali otomatis). Penulisan DB satu transaksi; gagal HTTP/429 berarti tidak ada perubahan. Label/zone game diisi dari `meta.inquiry_forms` (`customer_target_zone`). Mapping field berasal dari `melostore-h2h.json`, bukan respons nyata.
+- Harga jual **tidak** diubah otomatis. Admin mengatur lewat edit inline atau aksi massal "Atur harga jual" (markup % / Rupiah tetap + pembulatan); aturan markup tersimpan = [TBD] (A10).
 
 ### 2.3 Pengiriman transaksi
 Payload (`MeloService::topup`):
@@ -101,65 +108,68 @@ Respons:
 - Callback final tidak punya field `event`; `status` = `success` atau `failed` (gagal menambah `error_code` dan `message`).
 - Event `transaction.action_change` (tindakan pelanggan/2FA) tidak boleh menyelesaikan order, mengubah saldo, atau me-refund.
 - Callback yang sama bisa diterima lebih dari sekali: simpan event dulu, jawab 2xx, dan dedup (`event_id` + `action.version`). Melo mencoba maksimal 3 kali (jeda 30 dan 120 detik) dan menunggu respons 2xx dalam 10 detik, jadi simpan event dulu dan jawab cepat.
-- Pemrosesan status: ➕ belum (TODO di controller), lihat `BUSINESS_FLOW.md` §7.
+- Pemrosesan status: ✅ job `App\Jobs\HandleSupplierCallback` (dispatch dari controller), lihat `BUSINESS_FLOW.md` §7. Event (`transaction.action_change`) diabaikan setelah tersimpan di `api_logs` (tanpa dedup `event_id`, karena tidak memicu aksi). Order final tidak diubah. `success` → `success` + `serial_number` + `completed_at`; `failed` → `failed` + `supplier_message` + lonceng admin; `refunded` → status tetap + lonceng admin (O6 belum diputuskan); `pending`/`processing` → hanya `supplier_status`.
+- Pengiriman: job `App\Jobs\SendTopupToMelo` (unik per order, 3 percobaan, backoff 30/120 detik). Hanya order `paid`. 200/201 → `processing` lalu `data` diteruskan ke `HandleSupplierCallback`. 5xx/timeout → `status(invoice)` dulu; jika belum ada → retry. 4xx → order tetap `paid`, `supplier_message` diisi, lonceng admin. Retry habis → lonceng admin.
 
 ## 3. Payment Gateway — Duitku [FINAL provider, dipilih PO 2026-11-14]
 
 Memakai `Http` Laravel langsung (`DuitkuService`). Library `duitkupg/duitku-php` **tidak dipakai**: hanya `dev-master` tanpa rilis, curl dengan `CURLOPT_SSL_VERIFYPEER = false`, log ke file di `vendor/`, dan callback membaca `$_POST`.
 
-Base URL: sandbox `https://sandbox.duitku.com/webapi/api/merchant`, production `https://passport.duitku.com/webapi/api/merchant` (`DUITKU_SANDBOX`, `DuitkuService::baseUrl()`). Tidak ada header auth; keamanan lewat field `signature` di setiap request. Semua signature = **HMAC-SHA256(stringToSign, apiKey)**, ditulis langsung dengan `hash_hmac('sha256', …)` di `DuitkuService` (tidak ada helper `sign()`). MD5 dan SHA256 biasa sudah usang menurut dokumentasi resmi (docs.duitku.com, changelog v2.0). Koleksi Postman lama yang memakai SHA256/MD5 sudah dihapus dari repo; jangan memakai contoh signature dari sumber lama.
+Base URL: sandbox `https://sandbox.duitku.com/webapi/api/merchant`, production `https://passport.duitku.com/webapi/api/merchant` (`DUITKU_SANDBOX`, `DuitkuService::baseUrl()`), dipakai semua endpoint. Tidak ada header auth; keamanan lewat field `signature` di setiap request. (API Duitku POP `createInvoice` di `api-sandbox.duitku.com` memakai header signature, tetapi **tidak dipakai**: responsnya tidak membawa `qrString`/`vaNumber`, jadi QR sendiri tidak bisa dibuat. Dicoba di sandbox 2026-11-21.) Semua signature = **HMAC-SHA256(stringToSign, apiKey)**, ditulis langsung dengan `hash_hmac('sha256', …)` di `DuitkuService` (tidak ada helper `sign()`). MD5 dan SHA256 biasa sudah usang menurut dokumentasi resmi (docs.duitku.com, changelog v2.0). Koleksi Postman `duitku-collection.json` (root) hanya dipakai sebagai acuan **nama field** (mis. payload callback); script signature-nya (MD5 / SHA256 biasa) usang dan tidak dipakai. Signature tetap HMAC-SHA256 (dikonfirmasi PO 2026-11-17).
 
 Ringkasan signature (`apiKey` = `DUITKU_API_KEY`, `merchantCode` = `DUITKU_MERCHANT_CODE`):
 
 | Operasi                  | Endpoint                               | Metode di kode               | stringToSign                                | Format body | Status        |
 | ------------------------ | -------------------------------------- | ---------------------------- | ------------------------------------------- | ----------- | ------------- |
 | Daftar metode bayar      | `POST /paymentmethod/getpaymentmethod` | `paymentMethods($amount)`    | `merchantCode + amount + datetime`          | JSON        | ✅ ada + dites |
-| Buat transaksi (inquiry) | `POST /v2/inquiry`                     | `createTransaction($order, $method)` | `merchantCode + merchantOrderId + paymentAmount` | JSON | ✅ ada + dites |
+| Buat transaksi (inquiry) | `POST /v2/inquiry`                     | `createTransaction($order, $method)` | `merchantCode + merchantOrderId + paymentAmount` | JSON | ✅ ada + dites + sandbox |
 | Cek status               | `POST /transactionStatus`              | `transactionStatus($invoice)` | `merchantCode + merchantOrderId`           | JSON (1)    | ✅ ada + dites |
 | Callback masuk           | `POST /webhook/duitku` (dari Duitku)   | `isValidCallbackSignature()` | `merchantCode + amount + merchantOrderId`   | form-urlencoded | ✅ ada + dites |
 
 1. Dokumentasi Duitku tidak konsisten soal format body (lihat §3.3). Dipakai JSON, konfirmasi di sandbox.
 
-Semua request keluar memakai timeout 15 detik dan retry 2x (jeda 500 ms), dan dicatat di `api_logs` tanpa field `signature` (lihat §4 dan §5). Kode belum pernah dijalankan ke API Duitku asli.
+Semua request keluar memakai timeout 15 detik dan retry 2x (jeda 500 ms), dan dicatat di `api_logs` tanpa field `signature` (lihat §4 dan §5). Sudah dicoba ke sandbox asli 2026-11-21: `getpaymentmethod` (200, 23 metode), `/v2/inquiry` (200, `qrString` keluar untuk `SP`), callback (signature HMAC cocok). `transactionStatus()` belum dicoba.
+
+Kode error HTTP (dokumentasi Duitku): 400 Bad Request (termasuk "Amount is different please try again later" bila order ID sama dikirim ulang dengan nominal beda), 401 Unauthorized, 404 Not Found, 409 "The transaction is still in progress" (request ulang order ID sama saat request pertama masih diproses), 500 Internal Server Error. Order ID sama dalam 5 menit mengembalikan respons yang sama. Untuk checkout: satu invoice = satu nominal; jangan kirim ulang invoice yang sama dengan nominal berbeda.
 
 Alur singkat pembayaran (detail status order di [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) §4–5):
 
 ```
-Checkout (belum ada) → createTransaction() → Duitku → simpan reference/payment_url/payment_code
-Pembeli bayar → Duitku POST /webhook/duitku → verifikasi signature → api_logs → (job HandlePaymentCallback: belum ada)
+Checkout (belum ada) → createTransaction() → storePaymentDetails() → invoice menampilkan QR dari payment_code
+Pembeli bayar → Duitku POST /webhook/duitku → verifikasi signature → api_logs → job HandlePaymentCallback
 Tidak ada callback sampai expired_at → tandai expired lewat scheduler / transactionStatus() (belum ada)
 ```
 
 ### 3.1 Metode pembayaran
-- `POST /paymentmethod/getpaymentmethod` → `paymentMethods($amount)`. ✅ ada. Body: `merchantcode`, `amount`, `datetime` (`Y-m-d H:i:s`), `signature` = `HMAC-SHA256(merchantCode + amount + datetime, apiKey)`. Respons: `paymentFee[].paymentMethod`.
+`POST {baseUrl}/paymentmethod/getpaymentmethod` → `paymentMethods($amount)`. Opsional (dokumentasi Duitku): memberi daftar metode aktif proyek. Body JSON: `merchantcode`, `amount`, `datetime` (`Y-m-d H:i:s`), `signature` = `HMAC-SHA256(merchantCode + amount + datetime, apiKey)`. Respons: `paymentFee[]` berisi `paymentMethod` (kode), `paymentName`, `paymentImage`, `totalFee`, serta `responseCode` `00` dan `responseMessage`. `totalFee` adalah fee per metode untuk nominal itu, dasar pengisian `orders.fee`. Kode QRIS: `SP`, `NQ`, `SQ`; daftar lengkap ada di dokumentasi Duitku.
 - Metode yang ditampilkan ke pembeli: [TBD] (rekomendasi: QRIS + beberapa VA + e-wallet populer).
 - Cache daftar metode agar tidak memanggil API setiap halaman dibuka. [REKOMENDASI]
 
-### 3.2 Pembuatan invoice / transaksi
-`POST /v2/inquiry` → `createTransaction($order, $method)`. ✅ ada + dites.
+### 3.2 Pembuatan transaksi (inquiry)
+`POST /v2/inquiry` (JSON) → `createTransaction($order, $method)`. ✅ ada + dites + dicoba di sandbox (2026-11-21, `SP`, Rp9.000: HTTP 200, `statusCode` `00`, `qrString` diterima).
 
 | Field                         | Nilai                                  |
 | ----------------------------- | -------------------------------------- |
 | `merchantCode`                | `DUITKU_MERCHANT_CODE`                 |
-| `paymentMethod`               | kode metode (mis. `BK`)                |
+| `paymentMethod`               | kode metode (wajib, mis. `SP`)         |
 | `merchantOrderId`             | `orders.invoice`                       |
 | `paymentAmount`               | `orders.total` (integer Rupiah)        |
 | `productDetails`, `itemDetails` | `product_name`, 1 item, harga = total |
 | `email`, `phoneNumber`        | dari order (1)                         |
 | `customerVaName`              | `Customer` (tetap)                     |
-| `callbackUrl`                 | `route('webhook.duitku')`              |
+| `callbackUrl`                 | `route('webhook.duitku')` (dari `APP_URL`) |
 | `returnUrl`                   | `route('invoice.show', $order)`        |
-| `expiryPeriod`                | menit sampai `orders.expired_at` (min 1, default 15) |
+| `expiryPeriod`                | menit sampai `orders.expired_at` (min 1, default 15) (2) |
 | `signature`                   | `HMAC-SHA256(merchantCode + merchantOrderId + paymentAmount, apiKey)` |
 
 1. Fallback email jika guest tidak mengisi email: [TBD]. Sementara kode memakai `noreply@example.com`.
+2. Contoh di dokumentasi Duitku menyebut 5, 10, atau 60 menit. Apakah 15 menit diterima belum diverifikasi [TBD].
 
-Catatan perilaku `createTransaction()`:
-- `paymentAmount` selalu dari `orders.total` (dicast `(int)`), tidak dari input user.
-- `expiryPeriod` dihitung dari `orders.expired_at` (dibulatkan ke atas, minimal 1 menit; 15 jika `expired_at` kosong). Harus sama dengan masa reservasi/kedaluwarsa order.
-- Respons dikembalikan mentah (`Response`); pemanggil yang memeriksa `statusCode`/`statusMessage` dan menyimpan hasilnya.
+Respons sukses: `reference`, `paymentUrl`, `qrString` (metode QR) atau `vaNumber` (VA), opsional `appUrl` (deeplink e-wallet), `amount`, `statusCode` `00`, `statusMessage`. `DuitkuService::storePaymentDetails($order, $response)` menyimpan `reference` → `payment_reference`, `paymentUrl` → `payment_url`, `qrString` ?? `vaNumber` → `payment_code`; tidak mengubah apa pun jika `statusCode` ≠ `00`. `payment_method` diisi pemanggil.
 
-Simpan dari respons: `reference` → `payment_reference`, `paymentUrl` → `payment_url`, `vaNumber` / `qrString` → `payment_code`. [ASUMSI] nama field respons. Mapping ini belum diimplementasikan (alur order belum ada).
+Tampilan: halaman invoice (`storefront/invoice.blade.php`) merender `payment_code` menjadi gambar QR (library `chillerlan/php-qrcode`, SVG data URI) selama order `pending` dan metode QRIS (`SP`, `NQ`, `SQ`). Metode lain: tautan ke `payment_url`. Tampilan nomor VA: belum.
+
+Redirect `returnUrl`: Duitku menambahkan `merchantOrderId`, `reference`, `resultCode` (`00` sukses, `01` proses, `02` batal/gagal) di query. Hanya informasi; status order **tidak** diubah dari redirect (bisa dimanipulasi pembeli). Status hanya dari callback.
 
 ### 3.3 Cek status transaksi
 `POST /transactionStatus` (JSON) → `transactionStatus($invoice)`. ✅ ada + dites. Signature `HMAC-SHA256(merchantCode + merchantOrderId, apiKey)`. Dokumentasi Duitku tidak konsisten soal format body (tabel: form-urlencoded, contoh kode: JSON); dipakai JSON, konfirmasi di sandbox. `statusCode`: `00` sukses, `01` pending, `02` gagal/kedaluwarsa. [ASUMSI] arti `02`.
@@ -168,17 +178,20 @@ Simpan dari respons: `reference` → `payment_reference`, `paymentUrl` → `paym
 - Endpoint: `POST /webhook/duitku` → `DuitkuCallbackController` (form-urlencoded).
 - Signature: field `signature` = `HMAC-SHA256(merchantCode + amount + merchantOrderId, apiKey)` → `isValidCallbackSignature()`. ✅ ada + dites. Ditolak (403) jika signature kosong/salah, `merchantCode` bukan milik kita, atau API key belum diisi. Field `signature` tidak disimpan di `api_logs`.
 - Referensi order: `merchantOrderId`.
-- Urutan field callback (`merchantCode + amount + merchantOrderId`) berbeda dari inquiry (`merchantCode + merchantOrderId + paymentAmount`). Wajib diverifikasi dengan callback nyata dari sandbox sebelum go-live.
+- Urutan field callback (`merchantCode + amount + merchantOrderId`) berbeda dari inquiry (`merchantCode + merchantOrderId + paymentAmount`). Sudah dicocokkan dengan callback nyata dari sandbox (2026-11-21).
+- IP outgoing Duitku (sandbox `182.23.85.11`, `182.23.85.12`, `103.177.101.187`, `103.177.101.188`; production ada di dokumentasi Duitku) **tidak** di-whitelist; verifikasi cukup lewat signature (keputusan 2026-11-21).
 
 | Callback Duitku             | Status order                                          | Aksi stok akun |
 | --------------------------- | ----------------------------------------------------- | -------------- |
 | `resultCode` = `00`         | `paid`, lalu `processing` (top up) / `success` (akun) | `markSold()`   |
-| `resultCode` = `01`         | `failed`                                              | `release()`    |
+| `resultCode` = `02`         | `failed`                                              | `release()`    |
 | kedaluwarsa (tanpa callback) | `expired`                                            | `release()`    |
 
 Duitku tidak mengirim callback kedaluwarsa: tandai dari `orders.expired_at` dan/atau `transactionStatus()`. Refund: [TBD].
 
-Pemrosesan status: ➕ belum (TODO di controller).
+Kode callback (dokumentasi Duitku): `00` sukses, `02` gagal. `01` hanya ada di redirect; callback dengan kode lain tidak mengubah status (log warning).
+
+Pemrosesan status: ✅ job `App\Jobs\HandlePaymentCallback`. Field callback: `merchantCode`, `amount`, `merchantOrderId`, `productDetail`, `additionalParam`, `paymentCode`, `resultCode`, `merchantUserId`, `reference`, `signature`, `publisherOrderId`, `spUserHash`, `settlementDate`, `issuerCode`, `customerName` (dan field kartu kredit). Yang dipakai: `merchantOrderId`, `amount`, `resultCode`, `reference`. Hanya order top up `pending` yang berubah (order `account` dilewati, K1). `00` + nominal = `total` → `paid`, `paid_at`, `payment_reference`, dispatch `SendTopupToMelo`; `02` → `failed`. Nominal beda, atau lunas untuk order `expired`/`failed` → status tidak diubah + lonceng admin. Callback ulang tidak mengirim top up dua kali.
 
 Validasi tambahan [REKOMENDASI]: cocokkan `amount` callback dengan `orders.total` sebelum menandai lunas.
 
@@ -191,15 +204,15 @@ Buat service setara di `app/Services/Payment/` dengan kemampuan: daftar metode, 
 | -------------------------------------------------- | -------------------- |
 | Timeout HTTP: Duitku 15 detik, Melo 30 detik     | ✅ di service        |
 | Retry Duitku 2x, jeda 500 ms (1)                   | ✅                   |
-| Retry Melo lewat job queue, `buyer_trx_id` sama (2) | [REKOMENDASI], belum |
-| Callback diproses di queue job (3)                 | [REKOMENDASI], belum |
-| Callback untuk order final diabaikan (4)           | [FINAL], belum       |
+| Retry Melo lewat job queue, `buyer_trx_id` sama (2) | ✅ `SendTopupToMelo` |
+| Callback diproses di queue job (3)                 | ✅                   |
+| Callback untuk order final diabaikan (4)           | ✅                   |
 | 1 invoice = 1 `buyer_trx_id` = 1 transaksi supplier | [FINAL]              |
 
 1. `retry(2, 500, throw: false)`.
-2. HTTP client Melo **tidak** retry otomatis. Retry aman karena `buyer_trx_id` sama (tanpa debit ganda); setelah respons 500, cek `status()` dulu. Job-nya belum ada.
+2. HTTP client Melo **tidak** retry otomatis. Retry aman karena `buyer_trx_id` sama (tanpa debit ganda); setelah respons 500, cek `status()` dulu. Diterapkan di `SendTopupToMelo`.
 3. Controller hanya verifikasi, log, dispatch, lalu langsung membalas. Lock order, cek `isFinal()`, dan perubahan status dilakukan di job. Syarat idempotent = [FINAL]; mekanisme queue = [REKOMENDASI].
-4. Memakai `OrderStatus::isFinal()`. Belum diterapkan.
+4. Memakai `OrderStatus::isFinal()` (Melo) dan hanya-dari-`pending` (Duitku).
 
 ## 5. Logging
 
