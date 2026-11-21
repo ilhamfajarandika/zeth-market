@@ -1,7 +1,7 @@
 import { createInertiaApp } from '@inertiajs/vue3';
 import { createApp, h } from 'vue';
 
-const appName = import.meta.env.VITE_APP_NAME || 'TopUp Store';
+const appName = import.meta.env.VITE_APP_NAME || 'Zeth Market';
 
 createInertiaApp({
     title: (title) => (title ? `${title} · ${appName}` : appName),

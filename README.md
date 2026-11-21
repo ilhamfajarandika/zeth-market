@@ -1,4 +1,4 @@
-# TopUp Store — Website Top Up Game & Jual Akun Game
+# Zeth Market — Website Top Up Game & Jual Akun Game
 
 Aplikasi web monolith **Laravel 13** untuk penjualan **top up game** (diproses otomatis melalui **Melo H2H API**) dan **akun game** dari stok internal toko, dengan pembayaran melalui **Duitku Payment Gateway** dan panel admin berbasis **Filament 5**.
 
