@@ -4,6 +4,7 @@ import { computed } from 'vue';
 
 const page = usePage();
 const appName = computed(() => page.props.appName);
+const logoUrl = computed(() => page.props.logoUrl ?? null);
 const links = computed(() => page.props.links);
 const isHome = computed(() => page.component === 'Home');
 const orderLookupUrl = computed(() => `${links.value.home}#cek-pesanan`);
@@ -16,7 +17,16 @@ const year = new Date().getFullYear();
     <header class="sticky top-0 z-40 border-b border-white/10 bg-slate-950/80 backdrop-blur">
         <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
             <Link :href="links.home" class="flex items-center gap-2 text-lg font-bold">
-                <span class="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm shadow-lg shadow-violet-500/30">
+                <img
+                    v-if="logoUrl"
+                    :src="logoUrl"
+                    :alt="appName"
+                    class="size-9 shrink-0 rounded-md object-contain"
+                />
+                <span
+                    v-else
+                    class="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm shadow-lg shadow-violet-500/30"
+                >
                     {{ appName.charAt(0).toUpperCase() }}
                 </span>
                 <span>{{ appName }}</span>

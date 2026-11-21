@@ -25,7 +25,7 @@
 | ------------------- | --------------------------------------------- | ------------------------- |
 | Skema DB            | 8 tabel aplikasi + bawaan Laravel             | —                         |
 | Model & enum        | 8 model, 4 enum                               | —                         |
-| Factory & seeder    | Admin contoh, 3 game, 10 produk, 7 stok akun  | —                         |
+| Factory & seeder    | Admin contoh, 3 kategori, 17 game (+ ikon), produk, 12 stok akun | — |
 | Stok akun           | reserve / markSold / release / releaseExpired | `AccountStockServiceTest` |
 | Scheduler           | `accounts:release-expired` tiap menit         | `AccountStockServiceTest` |
 | Enkripsi kredensial | cast `encrypted` + hidden                     | `AccountStockServiceTest` |
