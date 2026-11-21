@@ -2,6 +2,13 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, shallowRef } from 'vue';
 import GameCover from '../components/GameCover.vue';
+import BaseAlert from '../components/ui/BaseAlert.vue';
+import BaseBadge from '../components/ui/BaseBadge.vue';
+import BaseButton from '../components/ui/BaseButton.vue';
+import BaseCard from '../components/ui/BaseCard.vue';
+import BaseCheckbox from '../components/ui/BaseCheckbox.vue';
+import BaseInput from '../components/ui/BaseInput.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
 import AppLayout from '../layouts/AppLayout.vue';
 
 // TODO (Tahap 3, Backend): form ini akan dikirim ke endpoint checkout (kontrak di docs/TASK_DIVISION.md §3.4).
@@ -13,15 +20,16 @@ const { game, productGroups } = defineProps({
 const page = usePage();
 
 const selectedProductId = shallowRef(null);
+const targetUserId = shallowRef('');
+const targetZoneId = shallowRef('');
+const email = shallowRef('');
+const whatsapp = shallowRef('');
 const idConfirmed = shallowRef(false);
 const paymentGroups = ['QRIS', 'Virtual Account', 'E-Wallet'];
 
 const selectedProduct = computed(
     () => productGroups.flatMap((group) => group.products).find((product) => product.id === selectedProductId.value) ?? null,
 );
-
-const inputClass =
-    'w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 text-sm placeholder:text-slate-500 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30 focus:outline-none';
 
 function isOutOfStock(product) {
     return product.isAccount && product.stock === 0;
@@ -33,17 +41,19 @@ function isSelected(product) {
 
 function productCardClass(product) {
     return [
-        isSelected(product) ? 'border-violet-400 bg-violet-500/15 ring-2 ring-violet-500/40' : 'border-white/10 bg-slate-900/60 hover:border-white/25',
-        { 'cursor-not-allowed opacity-50': isOutOfStock(product) },
+        isSelected(product)
+            ? 'border-brand bg-brand/10'
+            : 'border-border bg-ground hover:border-brand/50',
+        isOutOfStock(product) ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
     ];
 }
 
-function stockClass(product) {
+function stockBadgeVariant(product) {
     if (isOutOfStock(product)) {
-        return 'bg-rose-500/20 text-rose-300';
+        return 'danger';
     }
 
-    return product.stock > 3 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300';
+    return product.stock > 3 ? 'success' : 'warning';
 }
 </script>
 
@@ -51,57 +61,71 @@ function stockClass(product) {
     <Head :title="game.name" />
 
     <AppLayout>
-        <!-- Header game -->
-        <section class="relative overflow-hidden rounded-3xl border border-white/10">
-            <img v-if="game.bannerUrl" :src="game.bannerUrl" alt="" class="absolute inset-0 size-full object-cover opacity-40" />
-            <div v-else class="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-slate-900 to-fuchsia-600/30"></div>
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent"></div>
+        <section class="relative overflow-hidden rounded-lg border border-border bg-surface">
+            <img v-if="game.bannerUrl" :src="game.bannerUrl" alt="" class="absolute inset-0 size-full object-cover opacity-30" />
+            <div v-else class="pointer-events-none absolute inset-0 bg-tech-grid opacity-45" aria-hidden="true"></div>
+            <span class="absolute inset-x-0 top-0 h-0.5 bg-brand" aria-hidden="true"></span>
 
-            <div class="relative flex items-end gap-4 p-5 pt-16 sm:gap-6 sm:p-8 sm:pt-24">
-                <GameCover :game="game" class="size-20 shrink-0 rounded-2xl shadow-xl ring-2 ring-white/20 sm:size-28" />
+            <div class="relative flex items-end gap-4 p-5 pt-10 sm:gap-6 sm:p-8 sm:pt-14">
+                <GameCover :game="game" class="size-20 shrink-0 rounded-lg border border-border sm:size-28" />
                 <div class="min-w-0">
-                    <Link :href="page.props.links.home" class="text-xs text-slate-400 hover:text-white">← Semua game</Link>
-                    <h1 class="mt-1 truncate text-2xl font-extrabold sm:text-3xl">{{ game.name }}</h1>
-                    <p class="text-slate-400">{{ game.publisher }}</p>
-                    <div class="mt-3 flex flex-wrap gap-2 text-xs">
-                        <span class="rounded-full bg-emerald-500/15 px-2.5 py-1 font-medium text-emerald-300 ring-1 ring-emerald-500/30">⚡ Proses otomatis</span>
-                        <span class="rounded-full bg-white/10 px-2.5 py-1 font-medium text-slate-300 ring-1 ring-white/15">🔒 Pembayaran aman</span>
+                    <Link
+                        :href="page.props.links.home"
+                        class="focus-ring inline-flex items-center gap-1.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.14em] text-muted transition-colors hover:text-brand-highlight"
+                    >
+                        <svg class="size-3.5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                        </svg>
+                        Semua game
+                    </Link>
+                    <h1 class="mt-2 truncate font-display text-2xl font-bold tracking-tight sm:text-3xl">{{ game.name }}</h1>
+                    <p class="mt-0.5 font-mono text-xs uppercase tracking-[0.12em] text-muted">{{ game.publisher }}</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <BaseBadge variant="success">Proses otomatis</BaseBadge>
+                        <BaseBadge variant="neutral">Pembayaran aman</BaseBadge>
                     </div>
                 </div>
             </div>
         </section>
 
         <div class="mt-6 grid gap-6 lg:grid-cols-3">
-            <div class="flex flex-col gap-6 lg:col-span-2">
-                <!-- 1. Data akun -->
-                <section class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <h2 class="mb-4 flex items-center gap-3 font-semibold">
-                        <span class="grid size-7 shrink-0 place-items-center rounded-lg bg-violet-500 text-sm font-bold">1</span>
+            <div class="flex flex-col gap-5 lg:col-span-2">
+                <BaseCard>
+                    <h2 class="mb-4 flex items-center gap-3 font-display text-base font-bold tracking-tight">
+                        <span class="clip-corner-sm grid size-7 shrink-0 place-items-center bg-brand font-mono text-xs font-bold text-text">01</span>
                         Masukkan data akun
                     </h2>
                     <div class="grid gap-3" :class="{ 'sm:grid-cols-2': game.requiresZoneId }">
-                        <label class="flex flex-col gap-1.5">
-                            <span class="text-sm text-slate-300">{{ game.userIdLabel }}</span>
-                            <input type="text" inputmode="numeric" :placeholder="`Masukkan ${game.userIdLabel}`" :class="inputClass" />
-                        </label>
-                        <label v-if="game.requiresZoneId" class="flex flex-col gap-1.5">
-                            <span class="text-sm text-slate-300">{{ game.zoneIdLabel }}</span>
-                            <input type="text" inputmode="numeric" :placeholder="`Masukkan ${game.zoneIdLabel}`" :class="inputClass" />
-                        </label>
+                        <BaseInput
+                            v-model="targetUserId"
+                            :label="game.userIdLabel"
+                            type="text"
+                            inputmode="numeric"
+                            :placeholder="`Masukkan ${game.userIdLabel}`"
+                        />
+                        <BaseInput
+                            v-if="game.requiresZoneId"
+                            v-model="targetZoneId"
+                            :label="game.zoneIdLabel"
+                            type="text"
+                            inputmode="numeric"
+                            :placeholder="`Masukkan ${game.zoneIdLabel}`"
+                        />
                     </div>
-                    <p v-if="game.instruction" class="mt-3 rounded-xl bg-slate-900/60 p-3 text-xs text-slate-400">ℹ️ {{ game.instruction }}</p>
-                </section>
+                    <BaseAlert v-if="game.instruction" class="mt-4">
+                        {{ game.instruction }}
+                    </BaseAlert>
+                </BaseCard>
 
-                <!-- 2. Pilih item -->
-                <section class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <h2 class="mb-4 flex items-center gap-3 font-semibold">
-                        <span class="grid size-7 shrink-0 place-items-center rounded-lg bg-violet-500 text-sm font-bold">2</span>
+                <BaseCard>
+                    <h2 class="mb-4 flex items-center gap-3 font-display text-base font-bold tracking-tight">
+                        <span class="clip-corner-sm grid size-7 shrink-0 place-items-center bg-brand font-mono text-xs font-bold text-text">02</span>
                         Pilih item
                     </h2>
 
                     <template v-if="productGroups.length">
                         <div v-for="(group, groupIndex) in productGroups" :key="group.label" :class="{ 'mt-6': groupIndex > 0 }">
-                            <h3 class="mb-3 text-sm font-medium text-slate-400">{{ group.label }}</h3>
+                            <h3 class="mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">{{ group.label }}</h3>
                             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                 <button
                                     v-for="product in group.products"
@@ -109,92 +133,114 @@ function stockClass(product) {
                                     type="button"
                                     :disabled="isOutOfStock(product)"
                                     :aria-pressed="isSelected(product)"
-                                    class="relative flex flex-col items-start rounded-xl border p-3 text-left transition"
+                                    class="focus-ring relative flex flex-col items-start rounded-md border p-3.5 text-left transition-colors"
                                     :class="productCardClass(product)"
                                     @click="selectedProductId = product.id"
                                 >
-                                    <span class="text-sm font-semibold">{{ product.name }}</span>
-                                    <span v-if="product.strikePrice" class="mt-1 text-xs text-slate-500 line-through">{{ product.strikePrice }}</span>
-                                    <span class="mt-0.5 text-sm font-bold text-violet-300">{{ product.price }}</span>
+                                    <span class="pr-6 font-display text-sm font-semibold leading-snug text-text">{{ product.name }}</span>
+                                    <span v-if="product.strikePrice" class="mt-1.5 font-mono text-xs text-muted line-through">{{ product.strikePrice }}</span>
+                                    <span class="mt-1 font-mono text-sm font-bold text-brand-highlight">{{ product.price }}</span>
 
                                     <template v-if="product.isAccount">
-                                        <span class="mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium" :class="stockClass(product)">
+                                        <BaseBadge :variant="stockBadgeVariant(product)" class="mt-2.5">
                                             {{ isOutOfStock(product) ? 'Stok habis' : `Stok: ${product.stock}` }}
-                                        </span>
-                                        <span v-if="product.description" class="mt-2 line-clamp-2 text-xs text-slate-400">{{ product.description }}</span>
+                                        </BaseBadge>
+                                        <span v-if="product.description" class="mt-2 line-clamp-2 text-xs text-muted">{{ product.description }}</span>
                                     </template>
 
-                                    <svg v-if="isSelected(product)" aria-hidden="true" class="absolute top-2 right-2 size-5 text-violet-300" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" /></svg>
+                                    <svg
+                                        v-if="isSelected(product)"
+                                        aria-hidden="true"
+                                        class="absolute top-2.5 right-2.5 size-4 text-brand-highlight"
+                                        viewBox="0 0 24 24"
+                                        fill="currentColor"
+                                    >
+                                        <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" />
+                                    </svg>
                                 </button>
                             </div>
                         </div>
                     </template>
-                    <p v-else class="rounded-xl border border-dashed border-white/10 py-8 text-center text-sm text-slate-400">Belum ada item untuk game ini.</p>
-                </section>
+                    <EmptyState v-else title="Belum ada item" description="Produk untuk game ini belum tersedia saat ini." />
+                </BaseCard>
 
-                <!-- 3. Metode pembayaran -->
-                <section class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <h2 class="mb-1 flex items-center gap-3 font-semibold">
-                        <span class="grid size-7 shrink-0 place-items-center rounded-lg bg-violet-500 text-sm font-bold">3</span>
+                <BaseCard>
+                    <h2 class="mb-1 flex items-center gap-3 font-display text-base font-bold tracking-tight">
+                        <span class="clip-corner-sm grid size-7 shrink-0 place-items-center bg-brand font-mono text-xs font-bold text-text">03</span>
                         Pilih pembayaran
                     </h2>
-                    <p class="mb-4 ml-10 text-xs text-slate-500">Daftar metode akan diambil dari payment gateway setelah integrasi.</p>
+                    <p class="mb-4 pl-10 text-xs text-muted">Daftar metode akan diambil dari payment gateway setelah integrasi.</p>
                     <div class="grid gap-3 sm:grid-cols-3">
-                        <div v-for="paymentGroup in paymentGroups" :key="paymentGroup" class="flex items-center justify-between rounded-xl border border-dashed border-white/10 bg-slate-900/40 p-3 text-sm text-slate-400">
-                            {{ paymentGroup }}
-                            <span class="rounded bg-white/10 px-1.5 py-0.5 text-[10px] tracking-wide uppercase">Contoh</span>
+                        <div
+                            v-for="paymentGroup in paymentGroups"
+                            :key="paymentGroup"
+                            class="flex items-center justify-between rounded-md border border-dashed border-border bg-ground px-3.5 py-3 text-sm text-muted"
+                        >
+                            <span>{{ paymentGroup }}</span>
+                            <BaseBadge variant="neutral">Contoh</BaseBadge>
                         </div>
                     </div>
-                </section>
+                </BaseCard>
 
-                <!-- 4. Kontak -->
-                <section class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <h2 class="mb-4 flex items-center gap-3 font-semibold">
-                        <span class="grid size-7 shrink-0 place-items-center rounded-lg bg-violet-500 text-sm font-bold">4</span>
+                <BaseCard>
+                    <h2 class="mb-4 flex items-center gap-3 font-display text-base font-bold tracking-tight">
+                        <span class="clip-corner-sm grid size-7 shrink-0 place-items-center bg-brand font-mono text-xs font-bold text-text">04</span>
                         Detail kontak
                     </h2>
                     <div class="grid gap-3 sm:grid-cols-2">
-                        <label class="flex flex-col gap-1.5">
-                            <span class="text-sm text-slate-300">Email</span>
-                            <input type="email" placeholder="nama@email.com" :class="inputClass" />
-                        </label>
-                        <label class="flex flex-col gap-1.5">
-                            <span class="text-sm text-slate-300">WhatsApp</span>
-                            <input type="tel" inputmode="tel" placeholder="08xxxxxxxxxx" :class="inputClass" />
-                        </label>
+                        <BaseInput v-model="email" label="Email" type="email" placeholder="nama@email.com" />
+                        <BaseInput v-model="whatsapp" label="WhatsApp" type="tel" inputmode="tel" placeholder="08xxxxxxxxxx" />
                     </div>
-                    <p class="mt-2 text-xs text-slate-500">Invoice dan status pesanan dikirim ke kontak ini.</p>
-                </section>
+                    <p class="mt-3 text-xs text-muted">Invoice dan status pesanan dikirim ke kontak ini.</p>
+                </BaseCard>
             </div>
 
-            <!-- Ringkasan (desktop) -->
             <aside class="hidden lg:block">
-                <div class="sticky top-24 rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <h2 class="font-semibold">Ringkasan pesanan</h2>
-                    <dl class="mt-4 flex flex-col gap-3 text-sm">
-                        <div class="flex justify-between gap-4"><dt class="text-slate-400">Game</dt><dd class="text-right">{{ game.name }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="text-slate-400">Item</dt><dd class="text-right">{{ selectedProduct?.name ?? '-' }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="text-slate-400">Harga</dt><dd class="text-right">{{ selectedProduct?.price ?? '-' }}</dd></div>
-                        <div class="flex justify-between gap-4"><dt class="text-slate-400">Biaya admin</dt><dd class="text-right text-slate-500">Dihitung saat checkout</dd></div>
+                <BaseCard as="div" class="sticky top-24">
+                    <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">Ringkasan</p>
+                    <h2 class="mt-1 font-display text-lg font-bold tracking-tight">Detail pesanan</h2>
+                    <dl class="mt-4 flex flex-col gap-3 border-t border-border pt-4 text-sm">
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-muted">Game</dt>
+                            <dd class="text-right font-medium">{{ game.name }}</dd>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-muted">Item</dt>
+                            <dd class="text-right font-medium">{{ selectedProduct?.name ?? '-' }}</dd>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-muted">Harga</dt>
+                            <dd class="text-right font-mono font-bold text-brand-highlight">{{ selectedProduct?.price ?? '-' }}</dd>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <dt class="text-muted">Biaya admin</dt>
+                            <dd class="text-right text-xs text-muted">Dihitung saat checkout</dd>
+                        </div>
                     </dl>
-                    <label class="mt-5 flex items-start gap-2 text-xs text-slate-300">
-                        <input v-model="idConfirmed" type="checkbox" class="mt-0.5 rounded border-white/20 bg-slate-900 text-violet-500 focus:ring-violet-500/40" />
+
+                    <BaseCheckbox v-model="idConfirmed" class="mt-5">
                         ID yang saya masukkan sudah benar. Kesalahan ID bukan tanggung jawab penjual.
-                    </label>
-                    <button type="button" disabled class="mt-4 w-full cursor-not-allowed rounded-xl bg-violet-500/40 py-3 text-sm font-semibold text-white/70">Beli Sekarang</button>
-                    <p class="mt-2 text-center text-xs text-slate-500">Checkout aktif setelah integrasi pembayaran.</p>
-                </div>
+                    </BaseCheckbox>
+
+                    <BaseButton disabled block size="lg" class="mt-4">
+                        Beli Sekarang
+                    </BaseButton>
+                    <p class="mt-2.5 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-muted">
+                        Checkout aktif setelah integrasi pembayaran
+                    </p>
+                </BaseCard>
             </aside>
         </div>
 
-        <!-- Ringkasan (HP) -->
-        <div class="fixed inset-x-0 bottom-[57px] z-30 border-t border-white/10 bg-slate-900/95 px-4 py-3 backdrop-blur lg:hidden">
-            <div class="mx-auto flex max-w-6xl items-center justify-between gap-3">
+        <div class="fixed inset-x-0 bottom-[57px] z-30 border-t border-border bg-surface px-4 py-3 lg:hidden">
+            <div class="mx-auto flex max-w-7xl items-center justify-between gap-3">
                 <div class="min-w-0">
-                    <p class="truncate text-xs text-slate-400">{{ selectedProduct?.name ?? 'Belum pilih item' }}</p>
-                    <p class="font-bold text-violet-300">{{ selectedProduct?.price ?? '-' }}</p>
+                    <p class="truncate text-xs text-muted">{{ selectedProduct?.name ?? 'Belum pilih item' }}</p>
+                    <p class="font-mono text-sm font-bold text-brand-highlight">{{ selectedProduct?.price ?? '-' }}</p>
                 </div>
-                <button type="button" disabled class="shrink-0 cursor-not-allowed rounded-xl bg-violet-500/40 px-5 py-2.5 text-sm font-semibold text-white/70">Beli Sekarang</button>
+                <BaseButton disabled size="md" class="shrink-0">
+                    Beli Sekarang
+                </BaseButton>
             </div>
         </div>
     </AppLayout>

@@ -28,7 +28,18 @@ onScopeDispose(() => clearTimeout(resetTimer));
 </script>
 
 <template>
-    <button type="button" class="shrink-0 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium transition hover:bg-white/20" @click="copy">
+    <button
+        type="button"
+        class="focus-ring shrink-0 cursor-pointer rounded-md border px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors active:translate-y-px"
+        :class="
+            state === 'copied'
+                ? 'border-success/50 bg-success/10 text-success'
+                : state === 'failed'
+                  ? 'border-danger/50 bg-danger/10 text-danger'
+                  : 'border-border bg-surface-raised text-text hover:border-brand/60 hover:text-brand-highlight'
+        "
+        @click="copy"
+    >
         <span aria-live="polite">{{ state === 'copied' ? 'Tersalin' : state === 'failed' ? 'Gagal menyalin' : label }}</span>
     </button>
 </template>
