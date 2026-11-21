@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+    <body style="background: #111; color: #fff; font: 14px monospace">
+        <img id="i" src="/storage/banners/banner1.webp" style="width: 800px; height: auto" />
+        <pre id="o">loading…</pre>
+        <script>
+            const i = document.getElementById('i');
+            const o = document.getElementById('o');
+            i.addEventListener('load', () => {
+                o.textContent = `OK ${i.naturalWidth}x${i.naturalHeight} ${i.currentSrc}`;
+            });
+            i.addEventListener('error', () => {
+                o.textContent = `ERR ${i.currentSrc}`;
+            });
+        </script>
+    </body>
+</html>

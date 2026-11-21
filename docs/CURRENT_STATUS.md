@@ -15,7 +15,7 @@
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
 1. `php artisan test --compact`, 328 assertion, MySQL `topup_game_test`, 2026-11-16. Perlu `npm run build` dulu agar `ExampleTest` lulus.
-2. Ditambah Tailwind 4 dan Vite 8. MySQL dari Laragon.
+2. Ditambah Tailwind 4 dan Vite 8, Vue 3.5 Inertia 3 (`inertiajs/inertia-laravel`, `@inertiajs/vue3`), MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
 ## 2. Sudah Ada (terverifikasi di kode)
@@ -24,7 +24,7 @@
 | ------------------- | --------------------------------------------- | ------------------------- |
 | Skema DB            | 8 tabel aplikasi + bawaan Laravel; kolom uang integer; `games.melo_brand_id` | — |
 | Model & enum        | 8 model, 4 enum                               | —                         |
-| Factory & seeder    | Admin contoh, 3 game, 10 produk, 7 stok akun  | —                         |
+| Factory & seeder    | Admin contoh, 3 kategori, 17 game (+ ikon), produk, 12 stok akun | — |
 | Stok akun           | reserve / markSold / release / releaseExpired | `AccountStockServiceTest` |
 | Scheduler           | `accounts:release-expired` tiap menit         | `AccountStockServiceTest` |
 | Enkripsi kredensial | cast `encrypted` + hidden                     | `AccountStockServiceTest` |
@@ -58,7 +58,7 @@ Lokasi & detail:
 
 ## 3. Belum Dikerjakan
 
-- Checkout Livewire (input ID tervalidasi, pilih produk, metode bayar, pembuatan order).
+- Checkout Inertia → `CheckoutController` (input ID tervalidasi, pilih produk, metode bayar, pembuatan order).
 - Registrasi/login pelanggan dan riwayat transaksi.
 - Aksi admin pada Pelanggan (blokir dll., keputusan #10) dan batasan form Pesanan (M3).
 - Pemanggilan `createTransaction` dari alur order; tampilan instruksi bayar.
@@ -150,6 +150,26 @@ Digiflazz diganti Melo H2H (`MeloService`, `MeloCallbackController`, `POST /webh
 - Versi stack hanya bersumber dari `PROJECT_SPEC.md` §11.
 - Risiko `MELO_SANDBOX` tanpa default dicatat (M12).
 
+
+### 2026-11-13 — Pembagian tugas
+
+- Ditambah `docs/TASK_DIVISION.md`: Frontend = Ilham Fajar Andika, Backend = Mochammad Lury Choirul Rizky, batas wilayah file, kontrak FE ↔ BE, dan tugas per tahap.
+
+### 2026-11-13 — Tampilan storefront v1
+
+- Desain ulang layout, beranda, halaman game, dan invoice (tema gelap, mobile-first, navigasi bawah di HP). Tanpa perubahan PHP di luar view; menunggu review/revisi PO.
+
+### 2026-11-13 — Storefront Vue 3 + Inertia & path admin
+
+- Keputusan PO: storefront memakai Vue 3 + Inertia.js (JavaScript), tetap monolith. Dependency baru disetujui: `inertiajs/inertia-laravel`, `vue`, `@inertiajs/vue3`, `@vitejs/plugin-vue`.
+- View Blade storefront dihapus, diganti `resources/js/pages/*.vue`. Props dibuat eksplisit (tidak ada kolom internal di HTML).
+- Panel admin memakai `ADMIN_PATH`; `/admin` 404 jika diganti. Production wajib nilai acak.
+
+### 2026-11-13 — Skill agent & review Vue
+
+- 37 skill di `.agents/skills/` (mis. `vue-best-practices`, `design-taste-frontend`, `antislop-*`) dihubungkan ke `.claude/skills/` lewat directory junction supaya dimuat Claude Code. Daftar junction ada di `.claude/skills/.gitignore` (isi ganda tidak di-commit; sumber asli tetap `.agents/skills/`).
+- Membuat ulang di mesin lain (PowerShell, dari root proyek): `Get-ChildItem .agents\skills -Directory | ? { -not (Test-Path ".claude\skills\$($_.Name)") } | % { New-Item -ItemType Junction -Path ".claude\skills\$($_.Name)" -Target $_.FullName }`
+- Kode Vue storefront direview dengan `vue-best-practices` (tetap JavaScript): `shallowRef` untuk primitif, reactive props destructure, turunan data dipindah ke `computed`/fungsi, item terpilih disimpan sebagai `id`, `CopyButton` membersihkan timer dan menangani clipboard gagal, `aria-pressed`/`aria-hidden`/`aria-live` ditambahkan.
 ### 2026-11-14 — Penggantian payment gateway
 
 Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController`, `POST /webhook/duitku`, `services.duitku.*`, `DUITKU_*` di `.env`. `TripayService`, `TripayCallbackController`, route, config, dan test Tripay dihapus. Library `duitkupg/duitku-php` dievaluasi dan **tidak dipakai** (lihat `API_INTEGRATION.md` §3). Tidak ada migration baru; komentar di migration `api_logs` yang menyebut `tripay` tidak diedit (migration sudah di-commit). **Belum diuji ke API Duitku asli.** Pemrosesan callback (job) masih TODO.
