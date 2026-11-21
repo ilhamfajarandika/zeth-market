@@ -1,12 +1,11 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import BrandLogo from '../components/BrandLogo.vue';
 
 const page = usePage();
-const appName = computed(() => page.props.appName ?? 'Top Up');
-const logoUrl = computed(() => page.props.logoUrl ?? null);
+const appName = computed(() => page.props.appName ?? 'Zeth Market');
 const links = computed(() => page.props.links);
-const brandInitial = computed(() => appName.value.charAt(0).toUpperCase());
 const isHome = computed(() => page.component === 'Home');
 const orderLookupUrl = computed(() => `${links.value.home}#cek-pesanan`);
 const year = new Date().getFullYear();
@@ -16,27 +15,8 @@ const year = new Date().getFullYear();
     <div class="min-h-screen bg-ground font-sans text-text antialiased">
         <header class="sticky top-0 z-40 border-t-2 border-b border-t-brand border-b-border bg-ground">
             <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
-                <Link :href="links.home" class="focus-ring flex items-center gap-3 rounded-md">
-                    <img
-                        v-if="logoUrl"
-                        :src="logoUrl"
-                        :alt="appName"
-                        class="size-9 shrink-0 rounded-md object-contain"
-                    />
-                    <span
-                        v-else
-                        class="clip-corner-sm grid size-9 place-items-center bg-brand font-display text-base font-bold leading-none text-text"
-                    >
-                        {{ brandInitial }}
-                    </span>
-                    <span class="flex flex-col">
-                        <span class="font-display text-base font-bold uppercase leading-none tracking-tight">
-                            {{ appName }}
-                        </span>
-                        <span class="mt-1 font-mono text-[10px] uppercase leading-none tracking-[0.22em] text-muted">
-                            Top up game &amp; akun
-                        </span>
-                    </span>
+                <Link :href="links.home" class="focus-ring rounded-md">
+                    <BrandLogo subtitle="Top up game & akun" />
                 </Link>
 
                 <nav class="hidden items-center gap-6 md:flex" aria-label="Navigasi utama">
@@ -64,21 +44,7 @@ const year = new Date().getFullYear();
         <footer class="border-t border-border bg-ground pb-16 md:pb-0">
             <div class="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-3 sm:px-6 lg:px-8">
                 <div class="sm:col-span-2">
-                    <div class="flex items-center gap-3">
-                        <img
-                            v-if="logoUrl"
-                            :src="logoUrl"
-                            :alt="appName"
-                            class="size-8 shrink-0 rounded-md object-contain"
-                        />
-                        <span
-                            v-else
-                            class="clip-corner-sm grid size-8 place-items-center bg-brand font-display text-sm font-bold leading-none text-text"
-                        >
-                            {{ brandInitial }}
-                        </span>
-                        <span class="font-display text-base font-bold uppercase tracking-tight">{{ appName }}</span>
-                    </div>
+                    <BrandLogo size="sm" />
                     <p class="mt-3 max-w-md text-sm leading-relaxed text-muted">
                         Top up game dan beli akun game dengan proses otomatis. Masukkan ID, pilih nominal, bayar, selesai.
                     </p>

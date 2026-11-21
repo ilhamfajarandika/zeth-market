@@ -1,12 +1,11 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import BrandLogo from '../components/BrandLogo.vue';
 
 const page = usePage();
-const appName = computed(() => page.props.appName ?? 'Top Up');
-const logoUrl = computed(() => page.props.logoUrl ?? null);
+const appName = computed(() => page.props.appName ?? 'Zeth Market');
 const links = computed(() => page.props.links);
-const brandInitial = computed(() => appName.value.charAt(0).toUpperCase());
 const year = new Date().getFullYear();
 
 const navItems = [
@@ -72,27 +71,8 @@ onBeforeUnmount(() => {
     <div class="min-h-screen bg-ground font-sans text-text antialiased">
         <header class="sticky top-0 z-40 border-t-2 border-b border-t-brand border-b-border bg-ground">
             <div class="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
-                <Link :href="links.home" class="focus-ring flex items-center gap-3 rounded-md">
-                    <img
-                        v-if="logoUrl"
-                        :src="logoUrl"
-                        :alt="appName"
-                        class="size-9 shrink-0 rounded-md object-contain"
-                    />
-                    <span
-                        v-else
-                        class="clip-corner-sm grid size-9 place-items-center bg-brand font-display text-base font-bold leading-none text-text"
-                    >
-                        {{ brandInitial }}
-                    </span>
-                    <span class="flex flex-col">
-                        <span class="font-display text-base font-bold uppercase leading-none tracking-tight">
-                            {{ appName }}
-                        </span>
-                        <span class="mt-1 font-mono text-[10px] uppercase leading-none tracking-[0.22em] text-muted">
-                            Top up game &amp; akun
-                        </span>
-                    </span>
+                <Link :href="links.home" class="focus-ring rounded-md">
+                    <BrandLogo subtitle="Top up game & akun" />
                 </Link>
 
                 <nav class="ml-auto hidden items-center gap-6 md:flex" aria-label="Navigasi utama">
@@ -139,10 +119,7 @@ onBeforeUnmount(() => {
             @keydown.escape.window="closeMenu"
         >
             <div class="flex h-16 items-center justify-between border-b border-border px-4">
-                <div class="flex flex-col">
-                    <span class="font-display text-sm font-bold uppercase tracking-tight">{{ appName }}</span>
-                    <span class="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-muted">Menu</span>
-                </div>
+                <BrandLogo size="sm" subtitle="Menu" />
                 <button
                     ref="closeButton"
                     type="button"
@@ -195,21 +172,7 @@ onBeforeUnmount(() => {
         <footer class="border-t border-border bg-ground">
             <div class="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr] lg:px-8">
                 <div>
-                    <div class="flex items-center gap-3">
-                        <img
-                            v-if="logoUrl"
-                            :src="logoUrl"
-                            :alt="appName"
-                            class="size-9 shrink-0 rounded-md object-contain"
-                        />
-                        <span
-                            v-else
-                            class="clip-corner-sm grid size-9 place-items-center bg-brand font-display text-base font-bold leading-none text-text"
-                        >
-                            {{ brandInitial }}
-                        </span>
-                        <span class="font-display text-lg font-bold uppercase tracking-tight">{{ appName }}</span>
-                    </div>
+                    <BrandLogo size="lg" />
                     <p class="mt-4 max-w-sm text-sm leading-relaxed text-muted">
                         Top up game dan beli akun game dengan proses otomatis. Pilih game, masukkan ID, bayar, lalu pantau status pesanan.
                     </p>

@@ -7,7 +7,7 @@
 
 ## 2. Kerjakan Sekarang (Tanpa Tunggu Backend)
 - [x] **`fe/ui-components`** — Buat komponen `ui/*` & migrasikan `AppLayout.vue`, `Game.vue`, `Invoice.vue` ke tema Cyberpunk Dark Gaming (hilangkan warna ungu lama).
-- [ ] **`fe/brand-logo`** — Satukan logo navbar/footer ke satu komponen `BrandLogo.vue`.
+- [x] **`fe/brand-logo`** — Satukan logo navbar/footer ke satu komponen `BrandLogo.vue`.
 - [ ] **`fe/filament-branding`** — Sesuaikan warna (`Color::Violet` → brand), logo, dan font di panel admin Filament.
 - [ ] **`fe/error-states`** — Buat tampilan halaman error (404) & empty state yang seragam.
 
