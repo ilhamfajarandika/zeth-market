@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OrderStatus;
+use App\Enums\ProductType;
 use App\Models\Banner;
 use App\Models\Category;
 use App\Models\Game;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\Payment\DuitkuService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Number;
 use Inertia\Inertia;
@@ -48,7 +51,7 @@ class StorefrontController extends Controller
         ]);
     }
 
-    public function game(Game $game): Response
+    public function game(Request $request, Game $game, DuitkuService $duitku): Response
     {
         abort_unless($game->is_active, 404);
 
@@ -73,6 +76,9 @@ class StorefrontController extends Controller
                 'zoneIdLabel' => $game->zone_id_label,
             ],
             'productGroups' => $productGroups,
+            // Closure: Duitku hanya dipanggil saat pembeli memilih item (partial reload ?product=ID).
+            'paymentChannels' => fn (): array => $this->paymentChannels($game, $request->integer('product'), $duitku),
+            'checkoutUrl' => route('checkout.store', $game),
         ]);
     }
 
@@ -141,6 +147,26 @@ class StorefrontController extends Controller
             'isAccount' => $product->isAccount(),
             'stock' => $product->isAccount() ? $product->available_accounts_count : null,
         ];
+    }
+
+    /**
+     * Metode bayar untuk produk top up terpilih. Nominal dan fee dihitung server dari harga produk.
+     *
+     * @return list<array{code: string, name: string, group: string, iconUrl: ?string, fee: string, total: string}>
+     */
+    private function paymentChannels(Game $game, int $productId, DuitkuService $duitku): array
+    {
+        $product = $game->products()->active()->where('type', ProductType::Topup)->find($productId);
+
+        if ($product === null) {
+            return [];
+        }
+
+        return array_map(fn (array $channel): array => [
+            ...$channel,
+            'fee' => $this->rupiah($channel['fee']),
+            'total' => $this->rupiah($product->price + $channel['fee']),
+        ], $duitku->paymentChannels($product->price));
     }
 
     private function rupiah(string|int|float|null $amount): string

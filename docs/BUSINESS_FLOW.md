@@ -93,8 +93,9 @@ sequenceDiagram
     PG->>W: callback status (lihat §5)
 ```
 
-- Biaya admin payment ditanggung pembeli atau toko: [TBD] (kolom `orders.fee` sudah tersedia).
-- Pilihan metode yang ditampilkan: [TBD] (QRIS, VA, e-wallet).
+- Biaya admin payment **ditanggung pembeli** (keputusan PO 2026-11-21): `orders.fee` = `totalFee` Duitku untuk metode dan nominal itu, `orders.total` = harga + fee.
+- Metode yang ditampilkan: **semua metode aktif dari Duitku** untuk nominal itu, dikelompokkan QRIS / E-Wallet / Virtual Account / Lainnya (keputusan PO 2026-11-21).
+- Kontak guest: **WhatsApp wajib**, email opsional (keputusan PO 2026-11-21).
 
 ## 5. Alur Callback Payment Gateway [FINAL]
 

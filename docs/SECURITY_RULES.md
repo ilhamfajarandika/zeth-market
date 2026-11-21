@@ -38,12 +38,14 @@
 
 ## 3. Validasi Input
 
-- Semua input storefront divalidasi di server (Form Request). Validasi di Vue hanya untuk kenyamanan, bukan pengaman. ⏳
-- User ID / Zone ID divalidasi dengan `games.user_id_regex` / `zone_id_regex` jika diisi, plus batas panjang. ⏳
-- Produk yang dipilih harus `is_active`, milik game yang sama, dan (untuk akun) stoknya tersedia. ⏳
-- Email/WhatsApp divalidasi formatnya. ⏳
+- Semua input storefront divalidasi di server (Form Request). Validasi di Vue hanya untuk kenyamanan, bukan pengaman. ✅ checkout (`CheckoutRequest`)
+- User ID / Zone ID divalidasi dengan `games.user_id_regex` / `zone_id_regex` jika diisi, plus batas panjang. ✅
+- Produk yang dipilih harus `is_active`, milik game yang sama, dan bertipe `topup` (K1: akun tidak di-checkout). ✅
+- Email/WhatsApp divalidasi formatnya. ✅
+- Metode bayar harus ada di daftar Duitku untuk nominal itu; harga, fee, dan total tidak diterima dari input. ✅
 - Upload gambar produk hanya tipe gambar (`FileUpload::image()` di `ProductForm`). ✅
-- Gambar game (`games.thumbnail`, `games.banner`) masih berupa input teks path, belum upload. Jika diubah menjadi upload, wajib `FileUpload::image()`. ⚠️ ditinjau
+- Thumbnail game (`games.thumbnail`) di-upload dengan `FileUpload::image()` (WebP/JPEG/PNG, maks 2 MB) di `GameForm`. ✅
+- Banner game (`games.banner`) masih berupa input teks path, belum upload. Jika diubah menjadi upload, wajib `FileUpload::image()`. ⚠️ ditinjau
 
 ## 4. Proteksi Endpoint
 

@@ -14,14 +14,19 @@ use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Game;
 use App\Models\GameAccount;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\Supplier\MeloCatalogService;
 use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -130,7 +135,9 @@ class AdminCatalogResourceTest extends TestCase
 
     public function test_selecting_melo_brand_fills_game_defaults_without_overwriting_manual_input(): void
     {
+        Storage::fake('public');
         Http::fake([
+            'https://melo.test/ml.png' => Http::response(UploadedFile::fake()->image('ml.png', 10, 10)->getContent()),
             self::MELO_URL.'/pricelists/categories' => Http::response(['success' => true, 'data' => [
                 ['brand_id' => 10, 'name' => 'Mobile Legends', 'slug' => 'mobile-legends', 'category' => ['id' => 1, 'name' => 'Games', 'slug' => 'games'], 'type' => []],
             ]]),
@@ -155,8 +162,73 @@ class AdminCatalogResourceTest extends TestCase
                 'name' => 'ML Custom Name',
                 'requires_zone_id' => true,
                 'zone_id_label' => 'Zone ID',
-                'thumbnail' => 'https://melo.test/ml.png',
-            ]);
+            ])
+            ->fillForm(['slug' => 'ml-custom', 'zone_id_regex' => '^\d{3,5}$'])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $thumbnail = Game::query()->where('slug', 'ml-custom')->value('thumbnail');
+        $this->assertStringStartsWith('games/thumbnails/', $thumbnail);
+        Storage::disk('public')->assertExists($thumbnail);
+    }
+
+    public function test_game_thumbnail_is_uploaded_to_public_disk(): void
+    {
+        Storage::fake('public');
+
+        Livewire::test(CreateGame::class)
+            ->fillForm($this->gameData(['thumbnail' => UploadedFile::fake()->image('ff.png', 600, 600)]))
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $thumbnail = Game::query()->where('slug', 'free-fire')->value('thumbnail');
+        $this->assertStringStartsWith('games/thumbnails/', $thumbnail);
+        Storage::disk('public')->assertExists($thumbnail);
+    }
+
+    public function test_game_thumbnail_rejects_non_image(): void
+    {
+        Storage::fake('public');
+
+        Livewire::test(CreateGame::class)
+            ->fillForm($this->gameData(['thumbnail' => UploadedFile::fake()->create('evil.pdf', 10, 'application/pdf')]))
+            ->call('create')
+            ->assertHasFormErrors(['thumbnail']);
+    }
+
+    public function test_game_with_orders_cannot_be_deleted_from_edit_page(): void
+    {
+        $game = Order::factory()->create()->game;
+
+        Livewire::test(EditGame::class, ['record' => $game->getRouteKey()])
+            ->assertActionDisabled(DeleteAction::class);
+
+        $this->assertModelExists($game);
+    }
+
+    public function test_game_without_orders_can_be_deleted_from_edit_page(): void
+    {
+        $game = Game::factory()->create();
+
+        Livewire::test(EditGame::class, ['record' => $game->getRouteKey()])
+            ->assertActionEnabled(DeleteAction::class)
+            ->callAction(DeleteAction::class);
+
+        $this->assertModelMissing($game);
+    }
+
+    public function test_bulk_delete_skips_games_with_orders(): void
+    {
+        $ordered = Order::factory()->create()->game;
+        $unused = Game::factory()->create();
+
+        Livewire::test(ListGames::class)
+            ->selectTableRecords([$ordered->getKey(), $unused->getKey()])
+            ->callAction(TestAction::make(DeleteBulkAction::class)->table()->bulk())
+            ->assertNotified();
+
+        $this->assertModelExists($ordered);
+        $this->assertModelMissing($unused);
     }
 
     public function test_sync_action_imports_items_for_linked_game(): void

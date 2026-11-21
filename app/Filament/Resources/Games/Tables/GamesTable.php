@@ -7,6 +7,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -28,8 +29,10 @@ class GamesTable
                     ->toggleable(),
                 TextColumn::make('publisher')
                     ->searchable(),
-                TextColumn::make('thumbnail')
-                    ->searchable(),
+                ImageColumn::make('thumbnail')
+                    ->disk('public')
+                    ->square()
+                    ->imageHeight(40),
                 TextColumn::make('banner')
                     ->searchable(),
                 IconColumn::make('requires_zone_id')
@@ -67,7 +70,8 @@ class GamesTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->missingBulkProcessingFailureNotificationMessage(fn (int $failureCount): string => "{$failureCount} game sudah punya pesanan sehingga tidak dihapus. Nonaktifkan lewat toggle \"Aktif\"."),
                 ]),
             ]);
     }

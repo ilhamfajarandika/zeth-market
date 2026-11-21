@@ -27,6 +27,42 @@ class DuitkuServiceTest extends TestCase
         ]);
     }
 
+    public function test_payment_channels_are_grouped_rounded_and_cached_per_amount(): void
+    {
+        Http::fake([self::SANDBOX_URL.'/paymentmethod/getpaymentmethod' => Http::response([
+            'responseCode' => '00',
+            'paymentFee' => [
+                ['paymentMethod' => 'SP', 'paymentName' => 'ShopeePay QRIS', 'paymentImage' => 'https://img.test/sp.png', 'totalFee' => '630.40'],
+                ['paymentMethod' => 'BC', 'paymentName' => 'BCA VA', 'paymentImage' => null, 'totalFee' => 5000],
+                ['paymentMethod' => 'OV', 'paymentName' => 'OVO', 'totalFee' => '0'],
+                ['paymentMethod' => 'ZZ', 'paymentName' => 'Baru', 'totalFee' => '1'],
+            ],
+        ])]);
+        $duitku = app(DuitkuService::class);
+
+        $channels = $duitku->paymentChannels(9000);
+        $duitku->paymentChannels(9000);
+
+        $this->assertSame([
+            ['code' => 'SP', 'name' => 'ShopeePay QRIS', 'group' => 'QRIS', 'iconUrl' => 'https://img.test/sp.png', 'fee' => 631],
+            ['code' => 'BC', 'name' => 'BCA VA', 'group' => 'Virtual Account', 'iconUrl' => null, 'fee' => 5000],
+            ['code' => 'OV', 'name' => 'OVO', 'group' => 'E-Wallet', 'iconUrl' => null, 'fee' => 0],
+            ['code' => 'ZZ', 'name' => 'Baru', 'group' => 'Lainnya', 'iconUrl' => null, 'fee' => 1],
+        ], $channels);
+        Http::assertSentCount(1);
+    }
+
+    public function test_payment_channels_are_empty_and_not_cached_when_duitku_fails(): void
+    {
+        Http::fakeSequence(self::SANDBOX_URL.'/paymentmethod/getpaymentmethod')
+            ->push(['responseCode' => '01', 'responseMessage' => 'error'], 200)
+            ->push(['responseCode' => '00', 'paymentFee' => [['paymentMethod' => 'SP', 'paymentName' => 'QRIS', 'totalFee' => '0']]]);
+        $duitku = app(DuitkuService::class);
+
+        $this->assertSame([], $duitku->paymentChannels(9000));
+        $this->assertCount(1, $duitku->paymentChannels(9000));
+    }
+
     public function test_base_url_follows_sandbox_flag(): void
     {
         $this->assertSame(self::SANDBOX_URL, app(DuitkuService::class)->baseUrl());

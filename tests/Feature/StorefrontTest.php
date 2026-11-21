@@ -9,6 +9,8 @@ use App\Models\GameAccount;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Number;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -102,6 +104,57 @@ class StorefrontTest extends TestCase
                 ->where('productGroups.0.products.0.stock', 2)
                 ->where('productGroups.0.products.1.name', 'Akun Kosong')
                 ->where('productGroups.0.products.1.stock', 0));
+    }
+
+    public function test_game_page_has_no_payment_channels_until_a_product_is_chosen(): void
+    {
+        Http::fake();
+        $game = Game::factory()->create();
+
+        $this->get(route('game.show', $game))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('paymentChannels', [])
+                ->where('checkoutUrl', route('checkout.store', $game)));
+
+        Http::assertNothingSent();
+    }
+
+    public function test_game_page_lists_payment_channels_with_fee_and_total_for_chosen_topup(): void
+    {
+        config(['services.duitku.merchant_code' => 'D1234', 'services.duitku.api_key' => 'key', 'services.duitku.sandbox' => true]);
+        Http::fake(['*/paymentmethod/getpaymentmethod' => Http::response([
+            'responseCode' => '00',
+            'paymentFee' => [['paymentMethod' => 'SP', 'paymentName' => 'ShopeePay QRIS', 'paymentImage' => 'https://img.test/sp.png', 'totalFee' => '630']],
+        ])]);
+        $game = Game::factory()->create();
+        $product = Product::factory()->for($game)->create(['price' => 9000]);
+
+        $this->get(route('game.show', [$game, 'product' => $product->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('paymentChannels', 1)
+                ->where('paymentChannels.0.code', 'SP')
+                ->where('paymentChannels.0.group', 'QRIS')
+                ->where('paymentChannels.0.fee', Number::currency(630, 'IDR', 'id'))
+                ->where('paymentChannels.0.total', Number::currency(9630, 'IDR', 'id')));
+
+        Http::assertSent(fn ($request): bool => $request['amount'] === 9000);
+    }
+
+    public function test_game_page_offers_no_payment_for_account_or_foreign_products(): void
+    {
+        Http::fake();
+        $game = Game::factory()->create();
+        $account = Product::factory()->account()->for($game)->create();
+        $foreign = Product::factory()->create();
+
+        foreach ([$account, $foreign] as $product) {
+            $this->get(route('game.show', [$game, 'product' => $product->id]))
+                ->assertInertia(fn (Assert $page) => $page->where('paymentChannels', []));
+        }
+
+        Http::assertNothingSent();
     }
 
     public function test_game_page_props_never_expose_internal_product_columns(): void

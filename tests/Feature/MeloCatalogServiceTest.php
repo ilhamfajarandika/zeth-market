@@ -8,8 +8,10 @@ use App\Models\Product;
 use App\Services\Supplier\MeloCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -106,6 +108,35 @@ class MeloCatalogServiceTest extends TestCase
             'zone_id_label' => 'Zone',
             'thumbnail' => 'https://melo.test/ff.png',
         ], app(MeloCatalogService::class)->inquiryDefaults(10));
+    }
+
+    public function test_store_thumbnail_downloads_image_to_public_disk(): void
+    {
+        Storage::fake('public');
+        $png = UploadedFile::fake()->image('ff.png', 10, 10)->getContent();
+        Http::fake(['https://cdn.melo.test/ff.png' => Http::response($png, 200, ['Content-Type' => 'text/plain'])]);
+
+        $path = app(MeloCatalogService::class)->storeThumbnail('https://cdn.melo.test/ff.png');
+
+        $this->assertMatchesRegularExpression('#^games/thumbnails/\w{40}\.png$#', $path);
+        $this->assertSame($png, Storage::disk('public')->get($path));
+    }
+
+    public function test_store_thumbnail_rejects_non_image_failed_or_insecure_url(): void
+    {
+        Storage::fake('public');
+        $png = UploadedFile::fake()->image('ff.png', 10, 10)->getContent();
+        Http::fake([
+            'https://cdn.melo.test/fake.png' => Http::response('<?php echo 1;', 200, ['Content-Type' => 'image/png']),
+            'https://cdn.melo.test/missing.png' => Http::response($png, 404),
+            'http://cdn.melo.test/*' => Http::response($png),
+        ]);
+        $catalog = app(MeloCatalogService::class);
+
+        $this->assertNull($catalog->storeThumbnail('https://cdn.melo.test/fake.png'));
+        $this->assertNull($catalog->storeThumbnail('https://cdn.melo.test/missing.png'));
+        $this->assertNull($catalog->storeThumbnail('http://cdn.melo.test/ff.png'));
+        $this->assertSame([], Storage::disk('public')->allFiles());
     }
 
     public function test_sync_creates_inactive_products_without_selling_price(): void

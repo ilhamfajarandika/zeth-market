@@ -9,7 +9,10 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
@@ -103,6 +106,44 @@ class MeloCatalogService
             'zone_id_label' => $zone['name'] ?? null,
             'thumbnail' => collect($body['meta']['brands'] ?? [])->firstWhere('id', $brandId)['thumbnail'] ?? null,
         ];
+    }
+
+    /**
+     * Unduh thumbnail brand Melo ke disk public agar storefront tidak bergantung pada CDN Melo.
+     * Hanya https, maks 2 MB, dan isi file harus benar-benar WebP/JPEG/PNG (tipe dibaca dari isi, bukan header).
+     *
+     * @return string|null Path di disk public (mis. games/thumbnails/abc.webp), null bila gagal.
+     */
+    public function storeThumbnail(string $url): ?string
+    {
+        if (! str_starts_with($url, 'https://')) {
+            return null;
+        }
+
+        try {
+            $response = Http::timeout(10)->get($url);
+        } catch (Throwable $e) {
+            Log::warning('Gagal mengunduh thumbnail Melo: '.$e->getMessage());
+
+            return null;
+        }
+
+        $body = $response->body();
+        $extension = match (@getimagesizefromstring($body)['mime'] ?? null) {
+            'image/webp' => 'webp',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            default => null,
+        };
+
+        if (! $response->successful() || $extension === null || strlen($body) > 2 * 1024 * 1024) {
+            return null;
+        }
+
+        $path = 'games/thumbnails/'.Str::random(40).'.'.$extension;
+        Storage::disk('public')->put($path, $body);
+
+        return $path;
     }
 
     /**

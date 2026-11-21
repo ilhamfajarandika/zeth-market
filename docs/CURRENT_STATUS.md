@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-17, oleh AI agent (pemrosesan callback Duitku & Melo). Sebelumnya: 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
+> **Terakhir diperbarui:** 2026-11-21, oleh AI agent (pilih metode bayar + checkout). Sebelumnya: 2026-11-21 (upload thumbnail game), 2026-11-17 (pemrosesan callback Duitku & Melo), 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -58,10 +58,9 @@ Lokasi & detail:
 
 ## 3. Belum Dikerjakan
 
-- Checkout Inertia → `CheckoutController` (input ID tervalidasi, pilih produk, metode bayar, pembuatan order).
 - Registrasi/login pelanggan dan riwayat transaksi.
 - Aksi admin pada Pelanggan (blokir dll., keputusan #10) dan batasan form Pesanan (M3).
-- Pemanggilan `createTransaction` dari alur order; tampilan instruksi bayar.
+- Nama metode bayar di invoice (masih kode, mis. `SP`); tampilan nomor VA di invoice.
 - Cek status supplier terjadwal / reconcile `transactionStatus()`; penandaan order `pending` kedaluwarsa menjadi `expired`.
 - Sinkron harga Melo, import CSV stok akun.
 - Notifikasi.
@@ -85,6 +84,8 @@ Lokasi & detail:
 | M11 | Data lama `products.supplier = digiflazz` (jika ada) | Produk tidak terkirim          | Terbuka       |
 | M12 | `MELO_SANDBOX` tanpa default di config               | Saldo Melo terpotong sungguhan | Terbuka       |
 | M13 | `DuitkuService` tidak sinkron dengan test/docs | Checkout crash, callback sah ditolak | Selesai (2026-11-16) |
+| M14 | Thumbnail game dari Melo (URL absolut) jadi gambar rusak | Gambar game tidak tampil | Selesai (2026-11-21), data lama perlu upload ulang |
+| M15 | 17 test gagal saat dev server (`public/hot`) aktif / admin 404 | Hasil test tidak bisa dipercaya | Terbuka |
 
 Detail:
 - **M1:** `StorefrontController::invoice`. Termasuk kredensial akun setelah order sukses.
@@ -100,6 +101,8 @@ Detail:
 - **M11:** Default factory kini `melo`. Data `digiflazz` di database lama perlu diubah manual.
 - **M13:** (selesai 2026-11-16, commit `5f7e2f3`) inquiry, callback, dan `transactionStatus()` kini HMAC-SHA256 dengan body JSON, sesuai test dan `API_INTEGRATION.md` §3. Dokumentasi resmi Duitku (docs.duitku.com) juga menyatakan MD5/SHA256 biasa usang. `php artisan test --compact --filter='Duitku|WebhookSignature'`: 15 lulus. Masih perlu verifikasi ke sandbox Duitku asli. Riwayat temuan: [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §2.
 - **M12:** `config/services.php`: `'sandbox' => env('MELO_SANDBOX')` tanpa default. Jika variabel tidak ada di `.env`, `MeloService::withSandboxMode()` mengirim `sandbox_mode = false` sehingga order menjadi transaksi nyata. Usulan: default `true`. Dicatat saja, belum diperbaiki.
+- **M14:** Ditemukan saat uji manual di browser (2026-11-21). `GameForm` mengisi `games.thumbnail` dengan URL CDN Melo (`https://cdn.melostore.id/...`), lalu `StorefrontController::gameSummary()` (`thumbnailUrl`) membungkusnya dengan `Storage::disk('public')->url()` sehingga menjadi `/storage/https://...`. Gambar rusak di beranda dan halaman game. Selesai 2026-11-21: field thumbnail diganti upload file (lihat Riwayat), isi otomatis thumbnail dari Melo dihapus. Game yang sudah tersimpan dengan URL CDN tetap rusak sampai admin meng-upload ulang thumbnail-nya.
+- **M15:** Ditemukan 2026-11-21, gagal juga tanpa perubahan hari itu (130 test, 113 lulus). (a) 11 test storefront/`ExampleTest` error 500 `StrayRequestException` ke `http://[::1]:5173/__inertia_ssr`: saat `composer run dev` jalan, `public/hot` ada sehingga Inertia mencoba SSR ke Vite. Terkonfirmasi 2026-11-21: dengan `INERTIA_SSR_ENABLED=false php artisan test --compact` semua test storefront lulus kecuali (e). (b) Halaman admin (`AdminCatalogResourceTest`, `AdminCustomerResourceTest`, `AdminPanelAccessTest`, `MeloBalanceDashboardTest`) mengembalikan 404, bukan 200/403; penyebab belum diselidiki. (c) `test_admin_marking_account_sold_...` gagal karena `credentials` wajib di form edit. (d) `MeloBalanceDashboardTest::test_command_notifies_admins_once_per_level_and_escalates` flaky (2 dari 3 run lulus): notifikasi `menipis` dan `hampir habis` kemungkinan dibuat di detik yang sama sehingga urutan `notifications` tidak pasti. (e) `StorefrontTest::test_invoice_shows_own_qris_image_only_while_pending` mencari `data:image/svg+xml;base64,` di HTML, padahal invoice kini halaman Inertia (QR dirender di Vue); gagal juga tanpa perubahan. Dicatat saja, belum diperbaiki.
 
 ## 5. Keputusan yang Menunggu (PO/Klien)
 
@@ -113,8 +116,8 @@ Semua diputuskan oleh PO. Kolom "Dibutuhkan sebelum" diturunkan dari `IMPLEMENTA
 | 4   | Aksi admin yang diizinkan pada pesanan (M3)                     | H5 (Tahap 2)         |
 | 5   | Nasib kolom reseller (M4): hapus lewat migration atau biarkan   | H1 (Tahap 1)         |
 | 6   | Notifikasi: email saja, atau + WhatsApp gateway                 | H23 (Tahap 5)        |
-| 7   | Kontak wajib untuk guest: email, WhatsApp, atau salah satu      | H11 (Tahap 3)        |
-| 8   | Penanggung biaya payment (fee), aturan markup harga             | H11 (Tahap 3)        |
+| 7   | ~~Kontak wajib untuk guest~~ → WhatsApp wajib, email opsional (2026-11-21) | ✅ selesai |
+| 8   | ~~Penanggung biaya payment (fee)~~ → pembeli (2026-11-21); aturan markup harga masih terbuka | H11 (Tahap 3)        |
 | 9   | Masa berlaku invoice/reservasi (rekomendasi 15 menit)           | H11 (Tahap 3)        |
 | 10  | Verifikasi email pelanggan, cakupan "kelola pelanggan"          | H5 (Tahap 2)         |
 | 11  | Coolify vs Laravel Forge; domain & VPS                          | H27 (Tahap 6, E6)    |
@@ -193,6 +196,26 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - **Risiko:** M12 (`MELO_SANDBOX` tanpa default) kini berdampak langsung: `SendTopupToMelo` bisa memotong saldo nyata jika variabel kosong. Perbaiki sebelum queue worker dijalankan di luar test.
 - Tidak dikerjakan: scheduler `pending → expired`, reconcile terjadwal (B3), snapshot `supplier_sku` (O3).
 - Test: `PaymentCallbackTest` (5) dan `SupplierCallbackTest` (10) ditulis tetapi **belum lulus terverifikasi**: MySQL test (`127.0.0.1:8889`) tidak berjalan saat dikerjakan.
+
+### 2026-11-21 — Upload thumbnail game
+
+- `GameForm`: `thumbnail` kini `FileUpload::image()` (disk `public`, folder `games/thumbnails`, WebP/JPEG/PNG, maks 2 MB), otomatis dipotong 1:1 dan di-resize ke 512×512 px sesuai tampilan storefront (`aspect-square`). Kolom tetap menyimpan path (sesuai `DATABASE_DESIGN.md`), tanpa migration.
+- Thumbnail dari brand Melo kini **diunduh ke storage** saat brand dipilih (keputusan PO 2026-11-21, bukan menyimpan link CDN): `MeloCatalogService::storeThumbnail()` hanya menerima URL https, maks 2 MB, dan isi file harus benar-benar WebP/JPEG/PNG (dicek dari isi, bukan header). Hasilnya mengisi field upload; admin tetap bisa menggantinya. Gambar Melo disimpan apa adanya (tidak di-resize 512×512). Jika admin batal menyimpan, file unduhan tertinggal di `games/thumbnails`.
+- `GamesTable`: kolom thumbnail kini `ImageColumn` (pratinjau gambar).
+- `banner` game masih input teks (tidak diminta).
+- Hapus game yang sudah punya pesanan: FK `orders.game_id` tetap `RESTRICT` (keputusan PO 2026-11-21, sesuai `DATABASE_DESIGN.md`; opsi cascade ditolak karena menghapus riwayat transaksi). Tombol Delete di halaman edit kini nonaktif dengan tooltip "nonaktifkan lewat toggle Aktif" (sebelumnya error SQL 1451). Bulk delete sudah melewati game berpesanan; pesan gagalnya kini menjelaskan alasannya. Relasi baru `Game::orders()`. Test: 3 baru di `AdminCatalogResourceTest`, lulus. Suite penuh: 137 test, 120 lulus, 17 gagal (semua M15).
+
+### 2026-11-21 — Pilih metode bayar + checkout
+
+- Keputusan PO: fee ditanggung pembeli (#8 sebagian), semua metode aktif Duitku ditampilkan dan dikelompokkan, WhatsApp wajib dan email opsional (#7). Checkout hanya produk top up (K1).
+- `DuitkuService::paymentChannels()` (cache 10 menit per nominal) + `channelGroup()`. `StorefrontController::game()` menambah prop `paymentChannels` (diisi lewat partial reload `?product=ID`) dan `checkoutUrl`.
+- Baru: route `POST /game/{game}/checkout` (`checkout.store`, throttle 10/menit), `CheckoutRequest`, `CheckoutController`. Order `pending` dengan snapshot, `fee` dari Duitku, `total = price + fee`, `expired_at` 15 menit, lalu `createTransaction()` + `storePaymentDetails()`, kemudian redirect ke invoice. Duitku gagal: order `failed` + error di form.
+- `Game.vue`: form `useForm`, kartu metode bayar per grup dengan biaya, ringkasan Harga/Biaya admin/Total, tombol Beli aktif. Checkbox konfirmasi ID dipindah ke kartu "Detail kontak" agar tampil juga di HP (sebelumnya hanya di sidebar desktop).
+- Tanpa migration. Kontrak di `TASK_DIVISION.md` §3.3–3.4 ditandai FINAL.
+- Diuji ke **sandbox** Duitku: 23 metode tampil (fee 0 di sandbox); checkout `SP` Rp9.000 → order `INV261121M3OXNIIV` `pending` dengan `payment_reference` dan QR string, redirect ke invoice.
+- Test baru: `CheckoutTest` (7), `StorefrontTest` (+3), `DuitkuServiceTest` (+2), semua lulus. Suite penuh: 149 test; dengan dev server jalan 129 lulus/20 gagal (M15 + 3 test storefront baru yang kena SSR); dengan `INERTIA_SSR_ENABLED=false` 140 lulus/9 gagal (semua M15).
+- Belum: nama metode di invoice masih kode; penanda `pending` → `expired`; fee asli production belum terverifikasi; peta kode grup belum dicocokkan dokumentasi resmi Duitku.
+- Test baru: `AdminCatalogResourceTest` (upload tersimpan di disk `public`, file non-gambar ditolak, pilih brand Melo menyimpan thumbnail unduhan) dan `MeloCatalogServiceTest` (unduh sukses; tolak isi bukan gambar, 404, dan http). Semua lulus. Suite penuh: 134 test, 116 lulus, 18 gagal; semua kegagalan ada di M15 (17 sudah ada sebelum perubahan + 1 test flaky).
 
 ## 7. Pekerjaan Berikutnya
 
