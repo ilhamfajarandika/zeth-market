@@ -89,6 +89,20 @@ class StorefrontTest extends TestCase
         $this->get(route('game.show', $game))->assertNotFound();
     }
 
+    public function test_storefront_shares_the_brand_logo(): void
+    {
+        $this->get(route('home'))
+            ->assertInertia(fn (Assert $page) => $page->where('logoUrl', asset('images/logo.png')));
+    }
+
+    public function test_storefront_pages_link_the_logo_favicon(): void
+    {
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('favicon-32x32.png', false)
+            ->assertSee('apple-touch-icon.png', false);
+    }
+
     public function test_game_page_lists_only_available_accounts(): void
     {
         $game = Game::factory()->create();

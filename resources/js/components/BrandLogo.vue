@@ -17,6 +17,13 @@ const logoUrl = computed(() => page.props.logoUrl ?? null);
 const brandInitial = computed(() => appName.value.charAt(0).toUpperCase());
 
 const iconSizeClass = computed(() => (size === 'sm' ? 'size-8 text-sm' : 'size-9 text-base'));
+const logoSizeClass = computed(() => {
+    if (size === 'sm') {
+        return 'h-8';
+    }
+
+    return size === 'lg' ? 'h-16' : 'h-10';
+});
 const titleSizeClass = computed(() => {
     if (size === 'sm') {
         return 'text-sm';
@@ -31,10 +38,10 @@ const titleSizeClass = computed(() => {
         <img
             v-if="logoUrl"
             :src="logoUrl"
-            alt=""
+            :alt="appName"
             decoding="async"
-            class="shrink-0 rounded-md object-contain"
-            :class="iconSizeClass"
+            class="w-auto shrink-0 object-contain"
+            :class="logoSizeClass"
         />
         <span
             v-else
@@ -44,11 +51,11 @@ const titleSizeClass = computed(() => {
         >
             {{ brandInitial }}
         </span>
-        <span class="flex flex-col">
-            <span class="font-display font-bold uppercase leading-none tracking-tight" :class="titleSizeClass">
+        <span v-if="!logoUrl || subtitle" class="flex flex-col">
+            <span v-if="!logoUrl" class="font-display font-bold uppercase leading-none tracking-tight" :class="titleSizeClass">
                 {{ appName }}
             </span>
-            <span v-if="subtitle" class="mt-1 font-mono text-[10px] uppercase leading-none tracking-[0.22em] text-muted">
+            <span v-if="subtitle" class="font-mono text-[10px] uppercase leading-none tracking-[0.22em] text-muted" :class="{ 'mt-1': !logoUrl }">
                 {{ subtitle }}
             </span>
         </span>

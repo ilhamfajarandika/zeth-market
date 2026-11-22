@@ -33,6 +33,7 @@ class AdminPanelProvider extends PanelProvider
                 'info' => Color::hex('#1fb6ff'),
             ])
             ->font('Poppins')
+            ->favicon(asset('favicon-32x32.png'))
             ->sidebarCollapsibleOnDesktop()
             ->databaseNotifications()
             ->databaseNotificationsPolling('60s')

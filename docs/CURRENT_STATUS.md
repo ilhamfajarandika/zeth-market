@@ -271,6 +271,14 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - **Belum direvisi:** `README.md`, `TECH_STACK.md`, `TASK_DIVISION.md`, `IMPLEMENTATION_PLAN.md`, `FRONTEND_PLAN.md`, `TO_DO.md`, dan `docs/AGENTS.md`. Masih menyebut stok akun atau produk akun. `AGENTS.md` butuh persetujuan PO untuk diubah.
 - **Belum diverifikasi:** migration belum dijalankan di MySQL (server dev di port 8889 tidak berjalan). Perlu `php artisan migrate` di DB lokal dan pengecekan halaman game serta invoice di browser (`npm run build` sudah lulus).
 
+### 2026-11-22 — Brand Zeth Market dan logo transparan
+
+- Nama toko diambil dari `APP_NAME` di `.env` (diubah PO ke "Zeth Market"). Judul halaman dan footer ikut berubah. `VITE_APP_NAME` juga harus sama bila diisi, lalu `npm run build`.
+- Logo tanpa latar: `public/images/logo.png` (512 px, PNG alpha). Dibuat dari `logo.webp` lewat Vision foreground subject lifting (macOS). File sumber di root repo tidak di-track.
+- `HandleInertiaRequests` membagikan `logoUrl = asset('images/logo.png')` (sebelumnya `storage/app/public/logo/logo.webp`, yang di-ignore git). `BrandLogo.vue` menampilkan logo sebagai gambar dengan tinggi tetap; teks nama disembunyikan saat logo tampil, subtitle tetap.
+- Test: `StorefrontTest::test_storefront_shares_the_brand_logo`. Suite penuh: 152 test, 145 lulus, 7 gagal (sama dengan sebelumnya: M15 dan `MeloServiceTest` `max_price`).
+- Belum: favicon masih dari logo versi dengan latar gelap (belum diganti versi transparan). Tampilan header belum dicek di browser.
+
 ## 7. Pekerjaan Berikutnya
 
 0. Jawab pertanyaan di [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §5 (review core system 2026-11-16). Dokumen itu juga mencatat keputusan baru yang belum masuk `PROJECT_SPEC.md` §13: akun dijual manual via WhatsApp (K1), kolom uang jadi integer dengan pengecualian edit migration (K2), dan pengujian pembayaran tanpa tampilan (K3).

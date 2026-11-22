@@ -22,6 +22,13 @@ class AdminPanelAccessTest extends TestCase
         $this->get('/admin/login')->assertNotFound();
     }
 
+    public function test_admin_login_page_uses_the_logo_favicon(): void
+    {
+        $this->get(self::ADMIN_PATH.'/login')
+            ->assertOk()
+            ->assertSee('favicon-32x32.png', false);
+    }
+
     public function test_guest_is_redirected_to_login_on_the_configured_admin_path(): void
     {
         $this->get(self::ADMIN_PATH)->assertRedirect(self::ADMIN_PATH.'/login');
