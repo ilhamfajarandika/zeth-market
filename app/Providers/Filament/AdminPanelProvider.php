@@ -29,7 +29,8 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->brandName(config('app.name'))
             ->colors([
-                'primary' => Color::Violet,
+                'primary' => Color::hex('#e8174a'),
+                'info' => Color::hex('#1fb6ff'),
             ])
             ->font('Poppins')
             ->sidebarCollapsibleOnDesktop()
