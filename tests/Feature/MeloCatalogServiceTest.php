@@ -209,7 +209,7 @@ class MeloCatalogServiceTest extends TestCase
         $this->assertSame('86 Diamonds', $product->name);
         $this->assertSame('Diamonds', $product->group);
         $this->assertSame(1001, $product->base_price);
-        $this->assertSame(0, $product->price);
+        $this->assertSame(1001, $product->price);
         $this->assertFalse($product->is_active);
         $this->assertSame(5000, Product::where('supplier_sku', 'A2')->value('price'));
     }

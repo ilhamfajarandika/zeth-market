@@ -264,7 +264,7 @@ class AdminCatalogResourceTest extends TestCase
             ->callAction(TestAction::make('addProducts')->table()->bulk())
             ->assertNotified('1 produk ditambahkan');
 
-        $this->assertDatabaseHas('products', ['game_id' => $game->id, 'supplier_sku' => 'ML86', 'base_price' => 19000, 'price' => 0, 'is_active' => false]);
+        $this->assertDatabaseHas('products', ['game_id' => $game->id, 'supplier_sku' => 'ML86', 'base_price' => 19000, 'price' => 19000, 'is_active' => false]);
         $this->assertDatabaseMissing('products', ['supplier_sku' => 'ML172']);
     }
 

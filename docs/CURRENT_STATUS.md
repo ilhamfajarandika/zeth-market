@@ -279,6 +279,14 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - Test: `StorefrontTest::test_storefront_shares_the_brand_logo`. Suite penuh: 152 test, 145 lulus, 7 gagal (sama dengan sebelumnya: M15 dan `MeloServiceTest` `max_price`).
 - Belum: favicon masih dari logo versi dengan latar gelap (belum diganti versi transparan). Tampilan header belum dicek di browser.
 
+### 2026-11-23 — Mempercepat "Jadikan produk" dengan harga otomatis
+
+- `MeloCatalogService::addProducts()`: saat aksi massal "Jadikan produk" di tab Item Melo, produk kini dibuat dengan `price = base_price` (harga modal dari Melo), bukan `price = 0`. Admin tinggal toggle `is_active` di table Produk (via bulk action) tanpa perlu edit satu-satu untuk isi harga.
+- Alasan: mempercepat alur master data — produk siap dengan harga, tidak perlu edit manual lagi.
+- File berubah: `app/Services/Supplier/MeloCatalogService.php` (1 baris).
+- Test berubah: 2 test yang assert `price = 0` diubah assert `price = base_price` (`AdminCatalogResourceTest`, `MeloCatalogServiceTest`).
+- Suite penuh (`INERTIA_SSR_ENABLED=false`): 152 test, 145 lulus, 7 gagal (M15 b/c dan `MeloServiceTest` `max_price`, sama dengan sebelumnya).
+
 ## 7. Pekerjaan Berikutnya
 
 0. Jawab pertanyaan di [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §5 (review core system 2026-11-16). Dokumen itu juga mencatat keputusan baru yang belum masuk `PROJECT_SPEC.md` §13: akun dijual manual via WhatsApp (K1), kolom uang jadi integer dengan pengecualian edit migration (K2), dan pengujian pembayaran tanpa tampilan (K3).

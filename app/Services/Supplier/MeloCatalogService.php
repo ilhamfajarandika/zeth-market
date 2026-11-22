@@ -240,7 +240,7 @@ class MeloCatalogService
                     'name' => $item->name,
                     'group' => $item->type_name,
                     'base_price' => $item->price,
-                    'price' => 0,
+                    'price' => $item->price,
                     'is_active' => false,
                 ],
             );
