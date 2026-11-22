@@ -16,6 +16,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -28,10 +29,18 @@ class AdminPanelProvider extends PanelProvider
             ->path(config('app.admin_path'))
             ->login()
             ->brandName(config('app.name'))
+            ->brandLogo(fn () => view('filament.brand-logo'))
+            ->brandLogoHeight('2rem')
+            ->favicon(
+                Storage::disk('public')->exists('logo/logo.webp')
+                    ? Storage::disk('public')->url('logo/logo.webp')
+                    : null,
+            )
             ->colors([
-                'primary' => Color::Violet,
+                'primary' => Color::hex('#e50914'),
+                'gray' => Color::Zinc,
             ])
-            ->font('Poppins')
+            ->font('Instrument Sans')
             ->sidebarCollapsibleOnDesktop()
             ->databaseNotifications()
             ->databaseNotificationsPolling('60s')
