@@ -56,15 +56,8 @@ class DatabaseSeeder extends Seeder
             'base_price' => 55000, 'price' => 58000,
         ]);
 
-        // Produk jual akun + stok
-        $mythicAccount = Product::factory()->account()->for($mlbb)->create([
-            'name' => 'Akun MLBB Mythic Glory', 'base_price' => 250000, 'price' => 350000,
-        ]);
-        GameAccount::factory()->count(5)->for($mythicAccount)->create();
-
-        $ffAccount = Product::factory()->account()->for($freeFire)->create([
-            'name' => 'Akun FF Sultan', 'base_price' => 150000, 'price' => 200000,
-        ]);
-        GameAccount::factory()->count(2)->for($ffAccount)->create();
+        // Akun game yang dijual (tabel terpisah, bukan produk)
+        GameAccount::factory()->count(5)->for($mlbb)->create(['name' => 'Akun MLBB Mythic Glory', 'price' => 350000]);
+        GameAccount::factory()->count(2)->for($freeFire)->create(['name' => 'Akun FF Sultan', 'price' => 200000]);
     }
 }

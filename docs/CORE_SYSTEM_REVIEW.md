@@ -92,7 +92,7 @@ Yang perlu dilakukan (bukan bagian review ini): selesaikan `transactionStatus()`
 
 - M3, M4, M8, M11; cache daftar metode bayar; sinkron harga Melo; import CSV stok; branding; notifikasi WA.
 - Perbedaan perilaku queue `database` (dev) vs Redis (production).
-- Scheduler `accounts:release-expired` dan `AccountStockService::reserve()` menjadi tidak terpakai oleh checkout karena K1. Jangan dihapus tanpa izin.
+- Scheduler `accounts:release-expired` dan `AccountStockService::reserve()` menjadi tidak terpakai oleh checkout karena K1. Jangan dihapus tanpa izin. **Dihapus 2026-11-22 atas persetujuan PO** (lihat `CURRENT_STATUS.md`).
 
 ## 5. Pertanyaan untuk PO ("grill")
 

@@ -25,7 +25,6 @@ class OrderFactory extends Factory
             'invoice' => Order::generateInvoice(),
             'product_id' => Product::factory(),
             'game_id' => fn (array $attributes) => Product::find($attributes['product_id'])->game_id,
-            'product_type' => fn (array $attributes) => Product::find($attributes['product_id'])->type,
             'product_name' => fn (array $attributes) => Product::find($attributes['product_id'])->name,
             'target_user_id' => (string) fake()->numberBetween(100000000, 999999999),
             'email' => fake()->safeEmail(),

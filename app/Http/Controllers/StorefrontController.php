@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AccountStatus;
 use App\Enums\OrderStatus;
-use App\Enums\ProductType;
 use App\Models\Banner;
 use App\Models\Category;
 use App\Models\Game;
+use App\Models\GameAccount;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\Payment\DuitkuService;
@@ -56,15 +57,17 @@ class StorefrontController extends Controller
     {
         abort_unless($game->is_active, 404);
 
-        $productGroups = $game->products()
+        $products = $game->products()
             ->active()
-            ->withStock()
             ->get()
-            ->groupBy(fn (Product $product): string => $product->type->getLabel())
-            ->map(fn ($products, string $label): array => [
-                'label' => $label,
-                'products' => $products->map(fn (Product $product): array => $this->productCard($product))->values(),
-            ])
+            ->map(fn (Product $product): array => $this->productCard($product))
+            ->values();
+
+        $accounts = $game->gameAccounts()
+            ->where('status', AccountStatus::Available)
+            ->orderBy('price')
+            ->get()
+            ->map(fn (GameAccount $account): array => $this->accountCard($account))
             ->values();
 
         return Inertia::render('Game', [
@@ -76,7 +79,8 @@ class StorefrontController extends Controller
                 'userIdLabel' => $game->user_id_label,
                 'zoneIdLabel' => $game->zone_id_label,
             ],
-            'productGroups' => $productGroups,
+            'products' => $products,
+            'accounts' => $accounts,
             // Closure: Duitku hanya dipanggil saat pembeli memilih item (partial reload ?product=ID).
             'paymentChannels' => fn (): array => $this->paymentChannels($game, $request->integer('product'), $duitku),
             'checkoutUrl' => route('checkout.store', $game),
@@ -85,7 +89,7 @@ class StorefrontController extends Controller
 
     public function invoice(Order $order): Response
     {
-        $order->load(['game', 'gameAccount']);
+        $order->load('game');
 
         $isSuccessful = $order->status === OrderStatus::Success;
 
@@ -113,7 +117,6 @@ class StorefrontController extends Controller
                     ? ['code' => $order->payment_code, 'url' => $order->payment_url, 'qrImage' => $this->qrisImage($order)]
                     : null,
                 'serialNumber' => $isSuccessful ? $order->serial_number : null,
-                'credentials' => $isSuccessful ? $order->gameAccount?->credentials : null,
             ],
         ]);
     }
@@ -146,7 +149,7 @@ class StorefrontController extends Controller
     }
 
     /**
-     * @return array{id: int, name: string, price: string, strikePrice: ?string, isAccount: bool, stock: ?int}
+     * @return array{id: int, name: string, group: ?string, price: string, strikePrice: ?string}
      */
     private function productCard(Product $product): array
     {
@@ -155,10 +158,24 @@ class StorefrontController extends Controller
         return [
             'id' => $product->id,
             'name' => $product->name,
+            'group' => $product->group,
             'price' => $this->rupiah($product->price),
             'strikePrice' => $hasStrikePrice ? $this->rupiah($product->strike_price) : null,
-            'isAccount' => $product->isAccount(),
-            'stock' => $product->isAccount() ? $product->available_accounts_count : null,
+        ];
+    }
+
+    /**
+     * Akun yang dijual: hanya field yang boleh tampil (tanpa status internal atau kredensial).
+     *
+     * @return array{id: int, name: string, price: string, publicInfo: ?string}
+     */
+    private function accountCard(GameAccount $account): array
+    {
+        return [
+            'id' => $account->id,
+            'name' => $account->name,
+            'price' => $this->rupiah($account->price),
+            'publicInfo' => $account->public_info,
         ];
     }
 
@@ -169,7 +186,7 @@ class StorefrontController extends Controller
      */
     private function paymentChannels(Game $game, int $productId, DuitkuService $duitku): array
     {
-        $product = $game->products()->active()->where('type', ProductType::Topup)->find($productId);
+        $product = $game->products()->active()->find($productId);
 
         if ($product === null) {
             return [];

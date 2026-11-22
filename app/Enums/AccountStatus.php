@@ -8,7 +8,6 @@ use Filament\Support\Contracts\HasLabel;
 enum AccountStatus: string implements HasColor, HasLabel
 {
     case Available = 'available';
-    case Reserved = 'reserved';
     case Sold = 'sold';
     case Disabled = 'disabled';
 
@@ -16,7 +15,6 @@ enum AccountStatus: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::Available => 'Tersedia',
-            self::Reserved => 'Dipesan',
             self::Sold => 'Terjual',
             self::Disabled => 'Nonaktif',
         };
@@ -26,7 +24,6 @@ enum AccountStatus: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::Available => 'success',
-            self::Reserved => 'warning',
             self::Sold => 'gray',
             self::Disabled => 'danger',
         };

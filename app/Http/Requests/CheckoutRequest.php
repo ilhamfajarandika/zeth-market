@@ -2,15 +2,14 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\ProductType;
 use App\Models\Game;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Checkout guest/pelanggan untuk produk top up (K1: akun dijual manual). Harga, fee, dan total
- * tidak diterima dari input; dihitung di CheckoutController.
+ * Checkout guest/pelanggan untuk produk top up. Harga, fee, dan total tidak diterima dari input;
+ * dihitung di CheckoutController.
  */
 class CheckoutRequest extends FormRequest
 {
@@ -33,8 +32,7 @@ class CheckoutRequest extends FormRequest
                 'integer',
                 Rule::exists('products', 'id')
                     ->where('game_id', $game->id)
-                    ->where('is_active', true)
-                    ->where('type', ProductType::Topup->value),
+                    ->where('is_active', true),
             ],
             'target_user_id' => ['required', 'string', 'max:50', ...$this->patternRule($game->user_id_regex)],
             'target_zone_id' => $game->requires_zone_id

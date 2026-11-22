@@ -2,7 +2,6 @@
 
 namespace App\Services\Supplier;
 
-use App\Enums\ProductType;
 use App\Models\Game;
 use App\Models\MeloProduct;
 use App\Models\Product;
@@ -238,7 +237,6 @@ class MeloCatalogService
                 ['supplier' => 'melo', 'supplier_sku' => $item->sku_code],
                 [
                     'game_id' => $item->game_id,
-                    'type' => ProductType::Topup,
                     'name' => $item->name,
                     'group' => $item->type_name,
                     'base_price' => $item->price,

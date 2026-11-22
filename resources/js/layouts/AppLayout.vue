@@ -46,7 +46,7 @@ const year = new Date().getFullYear();
                 <div class="sm:col-span-2">
                     <BrandLogo size="sm" />
                     <p class="mt-3 max-w-md text-sm leading-relaxed text-muted">
-                        Top up game dan beli akun game dengan proses otomatis. Masukkan ID, pilih nominal, bayar, selesai.
+                        Top up game dengan proses otomatis. Masukkan ID, pilih nominal, bayar, selesai.
                     </p>
                 </div>
                 <div>

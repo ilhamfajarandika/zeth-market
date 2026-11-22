@@ -11,10 +11,10 @@
 | `users`         | Admin dan pelanggan                           | `0001…000000` + `000100` |
 | `categories`    | Pengelompokan game (Mobile, PC, Voucher, ...) | `000200`                 |
 | `games`         | Game yang dijual + aturan input User/Zone ID  | `000300`                 |
-| `products`      | Item yang dijual (top up atau akun) + harga   | `000400`                 |
+| `products`      | Item top up yang dijual + harga               | `000400`                 |
 | `melo_products` | Katalog Melo hasil sync, dipilih admin (3)    | `2026_11_22_120006`      |
 | `orders`        | Transaksi pembelian + data payment & supplier | `000500`                 |
-| `game_accounts` | Stok akun game (1 baris = 1 akun)             | `000600`                 |
+| `game_accounts` | Akun game yang dijual (1 baris = 1 akun), tanpa kredensial | `2026_11_22_204917` (menggantikan `000600`) |
 | `api_logs`      | Log request/callback payment & supplier       | `000700`                 |
 | `settings`      | Pengaturan key-value (nama situs, dll.)       | `000800`                 |
 
@@ -23,6 +23,7 @@ Catatan:
 - Tabel bawaan Laravel (`0001_01_01_*`): `sessions`, `password_reset_tokens`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`.
 2. Tabel `notifications` (migration `2026_11_16_202857_create_notifications_table.php`, standar Laravel via `make:notifications-table`): menyimpan notifikasi lonceng panel admin (Filament database notifications), saat ini untuk peringatan saldo Melo. Bukan tabel domain.
 3. Ditambahkan atas persetujuan PO 2026-11-22 (pengecualian prinsip "tidak ada tabel baru").
+4. Sejak 2026-11-22 semua produk adalah top up. Akun game dipisah ke `game_accounts` (tabel baru di migration `2026_11_22_204917`, menggantikan `000600`). Kolom `products.type` dan `orders.product_type` dihapus. Data akun lama dibuang atas keputusan PO. Lihat §3 `game_accounts`.
 
 ## 2. ERD
 
@@ -34,8 +35,7 @@ erDiagram
     games ||--o{ melo_products : "katalog Melo"
     games ||--o{ orders : "dirujuk"
     products ||--o{ orders : "dibeli di"
-    products ||--o{ game_accounts : "stok"
-    orders ||--o| game_accounts : "mendapat (akun)"
+    games ||--o{ game_accounts : "akun dijual"
 
     users { bigint id PK
         string email UK
@@ -50,7 +50,6 @@ erDiagram
         bool requires_zone_id }
     products { bigint id PK
         bigint game_id FK
-        string type
         string supplier_sku
         bigint price }
     melo_products { bigint id PK
@@ -65,9 +64,9 @@ erDiagram
         string status
         bigint total }
     game_accounts { bigint id PK
-        bigint product_id FK
-        bigint order_id FK
-        text credentials
+        bigint game_id FK
+        string name
+        bigint price
         string status }
 ```
 
@@ -129,10 +128,9 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | ---------------- | --------------- | -------------------------------------- |
 | `id`             | BIGINT PK       |                                        |
 | `game_id`        | FK              | → `games.id`, cascade (1)              |
-| `type`           | VARCHAR(20) IDX | `topup` / `account`                    |
 | `name`           | VARCHAR         |                                        |
 | `group`          | VARCHAR N       | Pengelompokan tampilan (Diamond, dll.) |
-| `supplier`       | VARCHAR N       | `melo` (khusus `topup`)                |
+| `supplier`       | VARCHAR N       | `melo`                                 |
 | `supplier_sku`   | VARCHAR N IDX   | `sku_code` Melo                        |
 | `base_price`     | BIGINT UNSIGNED | Harga modal, Rupiah penuh (2)          |
 | `price`          | BIGINT UNSIGNED | Harga jual, Rupiah penuh. `0` = belum diatur (2) |
@@ -141,7 +139,7 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 
 1. `ON DELETE CASCADE`.
 2. Sejak 2026-11-16 kolom uang `products` dan `orders` berupa integer (Rupiah penuh, tanpa sen); lihat `CURRENT_STATUS.md` §6.
-3. Kolom `reseller_price`, `sort`, `image`, `description` dihapus 2026-11-22 (`2026_11_22_120007`, keputusan PO). Urutan tampil storefront = `price`.
+3. Kolom `reseller_price`, `sort`, `image`, `description` dihapus 2026-11-22 (`2026_11_22_120007`, keputusan PO). Kolom `type` dihapus 2026-11-22 (`2026_11_22_204917`): semua produk top up. Urutan tampil storefront = `price`.
 - Index tambahan: UQ(`supplier`, `supplier_sku`) untuk mencegah SKU ganda. Dipakai untuk mencocokkan produk dengan `melo_products.sku_code`.
 
 ### `melo_products`
@@ -169,8 +167,8 @@ Katalog Melo per game hasil sync (`MeloCatalogService::syncProducts()`). Admin m
 | `invoice`                          | VARCHAR UQ      | Nomor order (1)                      |
 | `user_id`                          | FK N            | → `users.id`, set null. NULL = guest |
 | `game_id`, `product_id`            | FK              | Restrict (2)                         |
-| `product_type`, `product_name`     | VARCHAR         | **Snapshot** saat order              |
-| `target_user_id`, `target_zone_id` | VARCHAR N       | Kosong untuk pembelian akun          |
+| `product_name`                     | VARCHAR         | **Snapshot** saat order              |
+| `target_user_id`, `target_zone_id` | VARCHAR N       | ID tujuan top up                     |
 | `email`, `whatsapp`                | VARCHAR N       | Kontak pembeli                       |
 | `price`, `fee`, `total`            | BIGINT UNSIGNED | **Snapshot**, Rupiah penuh (3)       |
 | `status`                           | VARCHAR(20) IDX | Default `pending` (4)                |
@@ -193,22 +191,23 @@ Katalog Melo per game hasil sync (`MeloCatalogService::syncProducts()`). Admin m
 
 ### `game_accounts`
 
-| Kolom            | Tipe        | Keterangan                                 |
-| ---------------- | ----------- | ------------------------------------------ |
-| `id`             | BIGINT PK   |                                            |
-| `product_id`     | FK          | → `products.id`, cascade. Produk `account` |
-| `credentials`    | TEXT        | **Terenkripsi** (1)                        |
-| `public_info`    | TEXT N      | Boleh tampil publik (rank, skin)           |
-| `status`         | VARCHAR(20) | Default `available` (2)                    |
-| `order_id`       | FK N        | → `orders.id`, set null (3)                |
-| `reserved_until` | TIMESTAMP N | Batas penahanan                            |
-| `sold_at`        | TIMESTAMP N |                                            |
+Akun game yang dijual, terpisah dari `products` (keputusan PO 2026-11-22, migration `2026_11_22_204917`). Penjualan dilakukan manual di luar sistem, jadi tabel ini **tidak** terhubung ke `orders` dan **tidak** menyimpan kredensial.
 
-1. Cast `encrypted` (kunci `APP_KEY`), disembunyikan dari serialisasi (`#[Hidden]`).
-2. `available` / `reserved` / `sold` / `disabled`.
-3. Order yang sedang menahan atau sudah membeli akun.
-- Index: (`product_id`, `status`) untuk hitung stok & ambil akun tersedia.
-- Index: (`status`, `reserved_until`) untuk scheduler release.
+| Kolom         | Tipe            | Keterangan                                   |
+| ------------- | --------------- | -------------------------------------------- |
+| `id`          | BIGINT PK       |                                              |
+| `game_id`     | FK              | → `games.id`, cascade                        |
+| `name`        | VARCHAR         | Nama akun, contoh "Akun Mythic Glory"        |
+| `price`       | BIGINT UNSIGNED | Harga jual, Rupiah penuh, diisi admin        |
+| `public_info` | TEXT N          | Boleh tampil publik (rank, skin)             |
+| `status`      | VARCHAR(20)     | Default `available`. `available` / `sold` / `disabled` (1) |
+| `sold_at`     | TIMESTAMP N     | Diisi otomatis saat status jadi `sold` (2)   |
+| timestamps    |                 |                                              |
+
+1. Diubah manual oleh admin. Tidak ada status `reserved` lagi.
+2. Dikosongkan otomatis jika status berubah dari `sold`.
+- Index: (`game_id`, `status`) untuk daftar akun tersedia per game.
+- Tidak ada kolom kredensial. Data login akun tidak disimpan di sistem.
 
 ### `api_logs`
 
@@ -237,8 +236,8 @@ Katalog Melo per game hasil sync (`MeloCatalogService::syncProducts()`). Admin m
 ## 4. Aturan Penyimpanan Data [FINAL]
 
 1. Harga & nama produk di `orders` adalah snapshot. Perubahan harga produk tidak memengaruhi order lama.
-2. Data login akun hanya di `game_accounts.credentials` (terenkripsi). Jangan disalin ke `orders`, log, atau email dalam bentuk teks biasa tanpa persetujuan.
-3. `APP_KEY` production wajib dibackup. Jika hilang, kredensial akun tidak bisa dibaca lagi.
+2. Data login akun game tidak disimpan di sistem (keputusan PO 2026-11-22). Jangan menambah kolom kredensial tanpa persetujuan.
+3. `APP_KEY` production wajib dibackup (dipakai untuk enkripsi data lain).
 4. Status disimpan sebagai string dan di-cast ke enum PHP (`app/Enums`). Nilai baru harus ditambahkan di enum terlebih dahulu.
 5. Produk yang sudah pernah dibeli tidak dihapus. Nonaktifkan dengan `is_active = false` (FK `RESTRICT`).
 
@@ -248,21 +247,9 @@ Katalog Melo per game hasil sync (`MeloCatalogService::syncProducts()`). Admin m
 - Update status order dari callback: ambil order dengan `lockForUpdate()`, cek `status->isFinal()`, baru ubah. [REKOMENDASI] untuk job yang akan dibuat.
 - Panggilan HTTP ke pihak luar **tidak** boleh berada di dalam transaksi DB yang memegang lock.
 
-## 6. Perlindungan Stok (Anti Jual Ganda) [FINAL]
+## 6. Perlindungan Stok (dihapus 2026-11-22)
 
-Diimplementasikan di `app/Services/AccountStockService.php`:
-
-| Metode             | Perilaku                                                   |
-| ------------------ | ---------------------------------------------------------- |
-| `reserve()`        | Kunci 1 akun `available` → `reserved` untuk order (1)      |
-| `markSold()`       | Akun milik order → `sold`, isi `sold_at`. Idempotent       |
-| `release()`        | Akun `reserved` milik order → `available`                  |
-| `releaseExpired()` | Semua `reserved` yang lewat `reserved_until` → `available` |
-
-1. Di dalam transaksi + `lockForUpdate()`. Mengisi `order_id` dan `reserved_until`. Jika tidak ada stok → `OutOfStockException`.
-
-- Dites di `tests/Feature/AccountStockServiceTest.php` (MySQL, termasuk kasus dua order tidak mendapat akun yang sama).
-- **Masalah terbuka:** `releaseExpired()` belum mengecek status order (lihat `CURRENT_STATUS.md`).
+`AccountStockService`, scheduler `accounts:release-expired`, dan `OutOfStockException` dihapus atas keputusan PO. Akun dijual manual, jadi tidak ada reservasi dan tidak ada anti jual ganda otomatis. Stok = jumlah baris `game_accounts` dengan status `available`.
 
 ## 7. Item Ditinjau / TBD
 

@@ -55,6 +55,14 @@ class Game extends Model
     }
 
     /**
+     * @return HasMany<GameAccount, $this>
+     */
+    public function gameAccounts(): HasMany
+    {
+        return $this->hasMany(GameAccount::class);
+    }
+
+    /**
      * @return HasMany<MeloProduct, $this>
      */
     public function meloProducts(): HasMany

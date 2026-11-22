@@ -24,13 +24,13 @@
 | ------------------- | --------------------------------------------- | ------------------------- |
 | Skema DB            | 9 tabel aplikasi (+ `melo_products`) + bawaan Laravel; kolom uang integer; `games.melo_brand_id` | — |
 | Model & enum        | 9 model (+ `MeloProduct`), 4 enum              | —                         |
-| Factory & seeder    | Admin contoh, 3 kategori, 17 game (+ ikon), produk, 12 stok akun | — |
-| Stok akun           | reserve / markSold / release / releaseExpired | `AccountStockServiceTest` |
-| Scheduler           | `accounts:release-expired` tiap menit         | `AccountStockServiceTest` |
-| Enkripsi kredensial | cast `encrypted` + hidden                     | `AccountStockServiceTest` |
+| Factory & seeder    | Admin contoh, 3 kategori, 17 game (+ ikon), produk top up, 7 akun game | — |
+| Akun game           | `game_accounts` (tabel terpisah, tanpa reservasi, tanpa kredensial) | `AdminCatalogResourceTest`, `StorefrontTest` |
+| Scheduler           | `melo:check-balance` tiap 10 menit            | `MeloBalanceDashboardTest` |
+| Kredensial          | tidak disimpan di sistem (dihapus 2026-11-22) | `test_game_accounts_table_has_no_credentials_column` |
 | Admin panel         | 6 resource + widget, hanya admin              | `AdminPanelAccessTest`, `AdminCatalogResourceTest`, `AdminCustomerResourceTest` |
 | Dashboard saldo Melo | Widget saldo + pembayaran, peringatan saldo menipis lewat lonceng admin (**belum ke API asli**) | `MeloBalanceDashboardTest` |
-| Sync katalog Melo   | Tautan game↔brand, sync ke `melo_products`, pilih item jadi produk (tab "Item Melo"), atur harga massal (**belum ke API asli**) | `MeloCatalogServiceTest`, `AdminCatalogResourceTest` |
+| Sync katalog Melo   | Tautan game↔brand, sync ke `melo_products`, pilih item jadi produk (tab "Item Melo" atau Select SKU di form Produk), atur harga massal (**belum ke API asli**) | `MeloCatalogServiceTest`, `AdminCatalogResourceTest` |
 | Storefront dasar    | Home, halaman game, invoice                   | `StorefrontTest`          |
 | Webhook             | Verifikasi signature Duitku & Melo            | `WebhookSignatureTest`    |
 | Pemrosesan callback | Job `HandlePaymentCallback`, `SendTopupToMelo`, `HandleSupplierCallback` (**test belum dijalankan, lihat §6 2026-11-17**) | `PaymentCallbackTest`, `SupplierCallbackTest` |
@@ -40,12 +40,12 @@
 Lokasi & detail:
 - **Skema DB:** `database/migrations/2026_11_11_*`.
 - **Model:** User, Category, Game, Product, GameAccount, Order, ApiLog, Setting (`app/Models`).
-- **Enum:** ProductType, OrderStatus, AccountStatus, UserRole (`app/Enums`).
+- **Enum:** OrderStatus, AccountStatus, UserRole (`app/Enums`).
 - **Seeder:** `database/seeders/DatabaseSeeder.php`.
-- **Stok akun:** `app/Services/AccountStockService.php`, memakai transaksi + lock.
+- **Akun game:** tidak ada service stok (`AccountStockService` dihapus 2026-11-22). Dijual manual.
 - **Scheduler:** `routes/console.php`.
-- **Enkripsi:** model `GameAccount`, test `test_credentials_are_encrypted_at_rest`.
-- **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (kolom stok, harga jual bisa diedit inline, aksi massal "Atur harga jual"), Stok Akun (semua status diatur manual oleh admin; `sold_at` terisi otomatis saat Terjual, K1), Pesanan (tanpa halaman create), dan Pelanggan (hanya lihat, tanpa admin), plus widget dashboard. Form Kategori/Game/Produk punya slug otomatis + unik, validasi regex, zone wajib bila `requires_zone_id`, supplier+SKU wajib untuk top up.
+- **Kredensial:** tidak disimpan di sistem (keputusan PO 2026-11-22).
+- **Admin panel** (`app/Filament`): resource Kategori, Game, Produk (harga jual bisa diedit inline, aksi massal "Atur harga jual"), Akun Game (status diatur manual oleh admin; `sold_at` terisi otomatis saat Terjual; tanpa kolom kredensial), Pesanan (tanpa halaman create), dan Pelanggan (hanya lihat, tanpa admin), plus widget dashboard. Form Kategori/Game/Produk punya slug otomatis + unik, validasi regex, zone wajib bila `requires_zone_id`, supplier + SKU wajib (semua produk top up).
 - **Dashboard & peringatan saldo:** widget `MeloBalanceOverview` dan `PaymentOverview` (`app/Filament/Widgets`), `MeloBalanceService`, command `melo:check-balance` (dijadwalkan tiap 10 menit; butuh `php artisan schedule:work`). Ambang: `MELO_LOW_BALANCE_THRESHOLD`. Detail di `API_INTEGRATION.md` §2.1a.
 - **Sync katalog Melo:** `app/Services/Supplier/MeloCatalogService.php` + `app/Filament/Resources/Games/Actions/SyncMeloProductsAction.php`. Detail di `API_INTEGRATION.md` §2.2.
 - **Storefront:** `StorefrontController`, `resources/views/storefront`. Input ID di halaman game masih statis. Kredensial di invoice hanya tampil jika order sukses.
@@ -62,7 +62,7 @@ Lokasi & detail:
 - Aksi admin pada Pelanggan (blokir dll., keputusan #10) dan batasan form Pesanan (M3).
 - Nama metode bayar di invoice (masih kode, mis. `SP`); tampilan nomor VA di invoice.
 - Cek status supplier terjadwal / reconcile `transactionStatus()`; penandaan order `pending` kedaluwarsa menjadi `expired`.
-- Sinkron harga Melo, import CSV stok akun.
+- Sinkron harga Melo, import CSV akun game.
 - Notifikasi.
 - Desain storefront final dan branding admin.
 - Deployment.
@@ -71,8 +71,8 @@ Lokasi & detail:
 
 | #   | Masalah                                              | Dampak                         | Status        |
 | --- | ---------------------------------------------------- | ------------------------------ | ------------- |
-| M1  | Invoice bisa dibuka siapa saja yang tahu nomornya    | Kebocoran detail akun          | Terbuka       |
-| M2  | `releaseExpired()` tidak cek status order            | Akun lepas padahal sudah bayar | Terbuka       |
+| M1  | Invoice bisa dibuka siapa saja yang tahu nomornya    | Kebocoran data pesanan (kredensial sudah tidak disimpan sejak 2026-11-22) | Terbuka (berkurang) |
+| M2  | ~~`releaseExpired()` tidak cek status order~~ | — | Selesai: fitur reservasi dihapus 2026-11-22 |
 | M3  | Form edit pesanan admin bisa edit semua kolom        | Manipulasi data transaksi      | Terbuka       |
 | M4  | Kolom/role reseller masih ada (out of scope)         | Kebingungan scope              | ✅ 2026-11-22 |
 | M5  | `docs/AGENTS.md` belum dimuat otomatis               | Aturan proyek bisa terlewat    | ✅ 2026-11-12 |
@@ -89,8 +89,8 @@ Lokasi & detail:
 | M16 | `php artisan test` memakai DB dev jika config di-cache | Data `topup_game` terhapus | Terbuka |
 
 Detail:
-- **M1:** `StorefrontController::invoice`. Termasuk kredensial akun setelah order sukses.
-- **M2:** `AccountStockService::releaseExpired`. Jika callback lunas datang setelah reservasi habis, akun sudah dilepas.
+- **M1:** `StorefrontController::invoice`. Kredensial akun tidak ada lagi di sistem (2026-11-22). Yang masih terbuka: nomor SN dan data pesanan.
+- **M2:** ~~`AccountStockService::releaseExpired`~~. Dihapus 2026-11-22 bersama fitur reservasi.
 - **M3:** `app/Filament/Resources/Orders/Schemas/OrderForm.php`. Kolom total, status, dan payment ikut bisa diedit.
 - **M4:** Selesai 2026-11-22. Migration `2026_11_22_120007` menghapus `users.balance` dan `products.reseller_price` (user `reseller` jadi `member`); `UserRole::Reseller`, `Product::priceFor()`, `UserFactory::reseller()`, dan kolom/field reseller di Filament dihapus.
 - **M5:** Selesai. `CLAUDE.md` root meng-import `@docs/AGENTS.md`, dan status file itu menjadi "berlaku".
@@ -103,7 +103,7 @@ Detail:
 - **M13:** (selesai 2026-11-16, commit `5f7e2f3`) inquiry, callback, dan `transactionStatus()` kini HMAC-SHA256 dengan body JSON, sesuai test dan `API_INTEGRATION.md` §3. Dokumentasi resmi Duitku (docs.duitku.com) juga menyatakan MD5/SHA256 biasa usang. `php artisan test --compact --filter='Duitku|WebhookSignature'`: 15 lulus. Masih perlu verifikasi ke sandbox Duitku asli. Riwayat temuan: [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §2.
 - **M12:** `config/services.php`: `'sandbox' => env('MELO_SANDBOX')` tanpa default. Jika variabel tidak ada di `.env`, `MeloService::withSandboxMode()` mengirim `sandbox_mode = false` sehingga order menjadi transaksi nyata. Usulan: default `true`. Dicatat saja, belum diperbaiki.
 - **M14:** Ditemukan saat uji manual di browser (2026-11-21). `GameForm` mengisi `games.thumbnail` dengan URL CDN Melo (`https://cdn.melostore.id/...`), lalu `StorefrontController::gameSummary()` (`thumbnailUrl`) membungkusnya dengan `Storage::disk('public')->url()` sehingga menjadi `/storage/https://...`. Gambar rusak di beranda dan halaman game. Selesai 2026-11-21: field thumbnail diganti upload file (lihat Riwayat), isi otomatis thumbnail dari Melo dihapus. Game yang sudah tersimpan dengan URL CDN tetap rusak sampai admin meng-upload ulang thumbnail-nya.
-- **M15:** Ditemukan 2026-11-21, gagal juga tanpa perubahan hari itu (130 test, 113 lulus). (a) 11 test storefront/`ExampleTest` error 500 `StrayRequestException` ke `http://[::1]:5173/__inertia_ssr`: saat `composer run dev` jalan, `public/hot` ada sehingga Inertia mencoba SSR ke Vite. Terkonfirmasi 2026-11-21: dengan `INERTIA_SSR_ENABLED=false php artisan test --compact` semua test storefront lulus kecuali (e). (b) Halaman admin (`AdminCatalogResourceTest`, `AdminCustomerResourceTest`, `AdminPanelAccessTest`, `MeloBalanceDashboardTest`) mengembalikan 404, bukan 200/403; penyebab belum diselidiki. (c) `test_admin_marking_account_sold_...` gagal karena `credentials` wajib di form edit. (d) `MeloBalanceDashboardTest::test_command_notifies_admins_once_per_level_and_escalates` flaky (2 dari 3 run lulus): notifikasi `menipis` dan `hampir habis` kemungkinan dibuat di detik yang sama sehingga urutan `notifications` tidak pasti. (e) ~~`StorefrontTest::test_invoice_shows_own_qris_image_only_while_pending` mencari data URI di HTML~~ diperbaiki 2026-11-21 (QR QRIS di invoice).
+- **M15:** Ditemukan 2026-11-21, gagal juga tanpa perubahan hari itu (130 test, 113 lulus). (a) 11 test storefront/`ExampleTest` error 500 `StrayRequestException` ke `http://[::1]:5173/__inertia_ssr`: saat `composer run dev` jalan, `public/hot` ada sehingga Inertia mencoba SSR ke Vite. Terkonfirmasi 2026-11-21: dengan `INERTIA_SSR_ENABLED=false php artisan test --compact` semua test storefront lulus kecuali (e). (b) Halaman admin (`AdminCatalogResourceTest`, `AdminCustomerResourceTest`, `AdminPanelAccessTest`, `MeloBalanceDashboardTest`) mengembalikan 404, bukan 200/403; penyebab belum diselidiki. (c) ~~`test_admin_marking_account_sold_...` gagal karena `credentials` wajib di form edit~~ (hilang 2026-11-22, kolom dihapus). (d) `MeloBalanceDashboardTest::test_command_notifies_admins_once_per_level_and_escalates` flaky (2 dari 3 run lulus): notifikasi `menipis` dan `hampir habis` kemungkinan dibuat di detik yang sama sehingga urutan `notifications` tidak pasti. (e) ~~`StorefrontTest::test_invoice_shows_own_qris_image_only_while_pending` mencari data URI di HTML~~ diperbaiki 2026-11-21 (QR QRIS di invoice).
 - **M16:** Ditemukan 2026-11-21. Jika `bootstrap/cache/config.php` ada (`php artisan optimize`/`config:cache`), env dari `phpunit.xml` diabaikan sehingga test berjalan di `topup_game` dan `RefreshDatabase` mengosongkannya (terjadi 2026-11-21, data dev hilang). Jalankan `php artisan optimize:clear` sebelum test. Usulan pengaman (belum dibuat): cek nama database di `TestCase::setUp()`.
 
 ## 5. Keputusan yang Menunggu (PO/Klien)
@@ -114,7 +114,7 @@ Semua diputuskan oleh PO. Kolom "Dibutuhkan sebelum" diturunkan dari `IMPLEMENTA
 | --- | --------------------------------------------------------------- | -------------------- |
 | 1   | ~~Provider payment final~~ → Duitku (2026-11-14)                | ✅ selesai           |
 | 2   | Penanganan supplier gagal setelah dibayar & apakah refund masuk | H23 (Tahap 5)        |
-| 3   | Aturan akses invoice/kredensial akun (M1)                       | H23 (Tahap 5)        |
+| 3   | Aturan akses invoice (M1)                       | H23 (Tahap 5)        |
 | 4   | Aksi admin yang diizinkan pada pesanan (M3)                     | H5 (Tahap 2)         |
 | 5   | ~~Nasib kolom reseller (M4)~~ → dihapus lewat migration (2026-11-22) | ✅ selesai |
 | 6   | Notifikasi: email saja, atau + WhatsApp gateway                 | H23 (Tahap 5)        |
@@ -251,6 +251,26 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - `Invoice.vue` memakai `usePoll` Inertia (tanpa websocket/paket baru): reload prop `order` tiap 5 detik, berhenti saat status final. Prop baru `order.status.isFinal` (dari `OrderStatus::isFinal()`). Test `test_invoice_marks_final_status_so_page_stops_polling`.
 - Status hanya berubah jika callback Duitku/Melo sampai ke server (lokal butuh ngrok). Order `pending` yang lewat `expired_at` tidak otomatis jadi `expired`, jadi tab invoice itu terus polling selama dibuka.
 
+### 2026-11-22 — Pilih SKU Melo di form Produk
+
+- Instruksi PO: admin tetap mengisi produk lewat form, tetapi SKU dipilih dari item Melo. `melo_products` tetap jadi penampung katalog (diisi "Sync item dari Melo"); tab "Item Melo" + "Jadikan produk" tetap ada.
+- `ProductForm`: `supplier_sku` jadi Select dari `melo_products` milik game terpilih (label nama · grup · modal · status [SKU]). Memilih SKU mengisi `base_price` dan `group`, serta `name` jika masih kosong. Ganti game mengosongkan SKU. SKU di luar item game itu ditolak (`in`); SKU produk yang sedang diedit selalu ikut di pilihan, jadi produk yang SKU-nya hilang dari katalog tetap bisa disimpan. Game tanpa brand/belum di-sync tidak punya pilihan SKU (produk topup tidak bisa dibuat sampai di-sync). Tidak ada migration.
+- Label "★ Harga terbaik" di Select SKU: SKU `active` termurah di antara SKU dengan nama sama (tanpa beda huruf besar/spasi ujung), hanya jika nama itu punya >1 SKU; harga sama = semua ditandai. Tidak memakai katalog Smart Melo (`smart-pricelists`).
+- Test baru di `AdminCatalogResourceTest`: prefill dari SKU, label harga terbaik, SKU game lain ditolak, edit produk dengan SKU yang sudah hilang. Test create/unique disesuaikan (membuat `MeloProduct` dulu).
+- Suite penuh (`INERTIA_SSR_ENABLED=false`): 158 test, 150 lulus, 8 gagal: 7 M15 b/c, ditambah `MeloServiceTest::test_topup_sends_authenticated_request_...` yang gagal karena perubahan `max_price` di `MeloService::topup()` (belum di-commit, di luar tugas ini; body request di test belum memuat `max_price`).
+
+### 2026-11-22 — Akun game dipisah dari produk
+
+- Keputusan PO: semua produk adalah top up. Akun game dipindah ke tabel `game_accounts` yang berdiri sendiri (`game_id`, `name`, `price`, `public_info`, `status`, `sold_at`), tanpa kredensial dan tanpa relasi ke order. Atas persetujuan PO, `AccountStatus::Reserved`, stok/reservasi, dan kredensial dihapus.
+- Migration baru: `2026_11_22_204917_separate_game_accounts_from_products.php`. Men-drop `game_accounts` lama, menghapus baris produk dan order bertipe `account`, lalu men-drop `products.type` dan `orders.product_type`. Data lama dibuang atas persetujuan PO. `down()` best effort (tidak mengembalikan data).
+- Dihapus: `ProductType`, `AccountStockService`, `OutOfStockException`, command dan jadwal `accounts:release-expired`, `AccountStockServiceTest`, kartu kredensial di invoice, filter/kolom tipe di admin, dan logika akun di checkout dan callback.
+- Storefront: halaman game memuat `products` (datar) dan `accounts` (hanya `available`, field `name`/`price`/`publicInfo`). Akun tampil sebagai daftar baca-saja dengan teks "hubungi admin". Tidak ada tombol beli.
+- Seeder: 7 akun contoh (5 MLBB, 2 FF) langsung di `game_accounts`.
+- Test: `AccountStockServiceTest` dihapus. Test checkout/callback akun dihapus. Test halaman game, form akun, dan "kolom kredensial tidak ada" ditulis ulang. Suite penuh (`INERTIA_SSR_ENABLED=false`): 149 test, 142 lulus, 7 gagal (M15 b/c dan `MeloServiceTest` `max_price`, lihat entri sebelumnya).
+- Dokumen direvisi: `CLAUDE.md`, `PROJECT_SPEC.md` (§4, §13), `DATABASE_DESIGN.md`, `BUSINESS_FLOW.md`, `API_INTEGRATION.md` §3.4, `SYSTEM_ARCHITECTURE.md`, `SECURITY_RULES.md` §10, `CORE_SYSTEM_REVIEW.md`.
+- **Belum direvisi:** `README.md`, `TECH_STACK.md`, `TASK_DIVISION.md`, `IMPLEMENTATION_PLAN.md`, `FRONTEND_PLAN.md`, `TO_DO.md`, dan `docs/AGENTS.md`. Masih menyebut stok akun atau produk akun. `AGENTS.md` butuh persetujuan PO untuk diubah.
+- **Belum diverifikasi:** migration belum dijalankan di MySQL (server dev di port 8889 tidak berjalan). Perlu `php artisan migrate` di DB lokal dan pengecekan halaman game serta invoice di browser (`npm run build` sudah lulus).
+
 ## 7. Pekerjaan Berikutnya
 
 0. Jawab pertanyaan di [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §5 (review core system 2026-11-16). Dokumen itu juga mencatat keputusan baru yang belum masuk `PROJECT_SPEC.md` §13: akun dijual manual via WhatsApp (K1), kolom uang jadi integer dengan pengecualian edit migration (K2), dan pengujian pembayaran tanpa tampilan (K3).
@@ -258,6 +278,6 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 2. Putuskan keputusan §5 yang dibutuhkan sebelum Tahap 1–2 (no. 4, 5, 10, 12, 13).
 3. Daftar akun sandbox Duitku & Melo (risiko E1/E2), lalu verifikasi signature callback dan format body `transactionStatus` (lihat `API_INTEGRATION.md` §3.3–3.4).
 4. Uji `MeloService` ke sandbox Melo, termasuk format target per SKU (M9).
-5. Lanjutkan Tahap 2: batasi form pesanan (M3), mask kredensial akun, import CSV akun; lalu core system sesuai `CORE_SYSTEM_REVIEW.md` §4.
+5. Lanjutkan Tahap 2: batasi form pesanan (M3), import CSV akun game; lalu core system sesuai `CORE_SYSTEM_REVIEW.md` §4.
 6. Semua developer: `php artisan migrate:fresh --seed` di DB lokal setelah menarik perubahan ini.
 7. Jalankan `php artisan migrate` di DB lokal untuk migration 2026-11-22 (menghapus kolom reseller/`sort`/`image`/`description`).

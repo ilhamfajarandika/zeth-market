@@ -40,7 +40,7 @@
 
 - Semua input storefront divalidasi di server (Form Request). Validasi di Vue hanya untuk kenyamanan, bukan pengaman. ✅ checkout (`CheckoutRequest`)
 - User ID / Zone ID divalidasi dengan `games.user_id_regex` / `zone_id_regex` jika diisi, plus batas panjang. ✅
-- Produk yang dipilih harus `is_active`, milik game yang sama, dan bertipe `topup` (K1: akun tidak di-checkout). ✅
+- Produk yang dipilih harus `is_active` dan milik game yang sama. Semua produk adalah top up (keputusan 2026-11-22). ✅
 - Email/WhatsApp divalidasi formatnya. ✅
 - Metode bayar harus ada di daftar Duitku untuk nominal itu; harga, fee, dan total tidak diterima dari input. ✅
 - Upload gambar produk hanya tipe gambar (`FileUpload::image()` di `ProductForm`). ✅
@@ -68,7 +68,7 @@
 - Kode membaca secret lewat `config('services.*')`, bukan `env()` langsung di luar folder `config/`. ✅
 - AI agent tidak membaca atau menampilkan isi `.env` (`AGENTS.md` §9). [FINAL]
 - `MELO_SANDBOX` wajib `true` di semua lingkungan selain production. Di `config/services.php` variabel ini tidak punya default, jadi jika lupa diisi, sandbox **mati** dan order memotong saldo sungguhan. ⚠️ (M12)
-- `APP_KEY` production dibuat sekali, dibackup aman, dan tidak pernah diganti (kunci enkripsi kredensial akun). ⚠️ saat deploy
+- `APP_KEY` production dibuat sekali, dibackup aman, dan tidak pernah diganti (kunci enkripsi data sensitif). ⚠️ saat deploy
 - Jangan menulis secret di dokumen, test, log, atau screenshot. [FINAL]
 
 ## 6. Verifikasi Callback
@@ -92,7 +92,7 @@
 
 ## 8. Transaksi Database
 
-- Stok akun: transaksi + `lockForUpdate()` (`AccountStockService`). ✅ dites (`test_two_orders_never_receive_the_same_account`)
+- Stok akun: tidak ada lagi (dihapus 2026-11-22). Akun game dijual manual, tanpa reservasi.
 - Perubahan status order dari callback: transaksi + lock order. ⏳
 - Tidak boleh ada panggilan HTTP eksternal di dalam transaksi yang memegang lock. [FINAL]
 
@@ -105,16 +105,14 @@
 
 ## 10. Perlindungan Informasi Akun Game
 
-- `game_accounts.credentials` terenkripsi (cast `encrypted`) dan disembunyikan dari serialisasi. ✅ dites (`test_credentials_are_encrypted_at_rest`)
-- Hanya `public_info` yang tampil di halaman produk. ✅
-- Kredensial hanya tampil di invoice jika order `success`. ✅ dites (`test_invoice_hides_account_credentials_until_order_succeeds`)
-- ⚠️ **Invoice dapat dibuka siapa saja yang tahu nomor invoice** (`/invoice/{invoice}`), termasuk kredensial setelah sukses. Perlu aturan akses [TBD]: mis. URL bertanda tangan (signed URL), token rahasia di link email, atau wajib login untuk order milik pelanggan.
-- Admin melihat kredensial di form edit Stok Akun. Apakah perlu disembunyikan atau di-mask = [TBD].
+- Kredensial akun game tidak disimpan di sistem (keputusan PO 2026-11-22). Kolom `credentials` dihapus. ✅ dites (`test_game_accounts_table_has_no_credentials_column`)
+- Halaman game hanya memuat akun dengan status `available`, dengan field `name`, `price`, dan `publicInfo` (array eksplisit). ✅ dites (`test_game_page_lists_only_available_accounts`)
+- `public_info` ditulis admin dan tampil publik. Jangan isi data login di sana.
 
 ## 11. Pencegahan Kebocoran Data
 
 - Jangan tampilkan email/WA pembeli lain di halaman publik. ✅
-- Props Inertia tercetak sebagai JSON di sumber halaman. Controller wajib mengirim array eksplisit, **bukan model utuh**, supaya `base_price`, `reseller_price`, `supplier_sku`, dan kredensial tidak bocor. ✅ dites (`test_game_page_props_never_expose_internal_product_columns`)
+- Props Inertia tercetak sebagai JSON di sumber halaman. Controller wajib mengirim array eksplisit, **bukan model utuh**, supaya `base_price`, `reseller_price`, `supplier_sku` tidak bocor. ✅ dites (`test_game_page_props_never_expose_internal_product_columns`)
 - Log (`api_logs`, `storage/logs`) tidak boleh berisi secret atau `credentials`. ✅ untuk kode saat ini
 - Respons error production generik (tanpa stack trace) → `APP_DEBUG=false`. ⚠️ saat deploy
 - Riwayat order pelanggan hanya menampilkan order miliknya. ⏳
@@ -124,4 +122,3 @@
 - Request/callback eksternal → `api_logs`. ✅
 - Error integrasi (timeout, respons tidak valid) dicatat dengan konteks `invoice`, tanpa secret. ⏳
 - Job yang gagal permanen masuk `failed_jobs`. Admin perlu tahu order yang tertahan. [REKOMENDASI] ⏳
-- `OutOfStockException` ditangani menjadi pesan ramah "stok habis". ⏳

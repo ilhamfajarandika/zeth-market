@@ -132,19 +132,6 @@ const details = computed(() =>
                 </div>
             </BaseCard>
 
-            <BaseCard v-if="order.credentials" variant="success" padding="lg">
-                <div class="flex items-center justify-between gap-3">
-                    <div>
-                        <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-success">Akun game</p>
-                        <h2 class="mt-1 font-display text-lg font-bold text-text">Detail akun</h2>
-                    </div>
-                    <CopyButton :text="order.credentials" label="Salin semua" />
-                </div>
-                <pre
-                    class="mt-4 rounded-md border border-border bg-ground p-4 font-mono text-sm whitespace-pre-wrap text-text">{{ order.credentials }}</pre>
-                <p class="mt-3 text-xs text-muted">Segera ganti password dan amankan akun setelah login.</p>
-            </BaseCard>
-
             <Link :href="page.props.links.home"
                 class="focus-ring mx-auto inline-flex items-center gap-1.5 rounded-sm font-mono text-xs uppercase tracking-[0.14em] text-muted transition-colors hover:text-brand-highlight">
                 <svg class="size-3.5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2"

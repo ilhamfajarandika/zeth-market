@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\ProductType;
 use App\Models\Game;
 use App\Models\MeloProduct;
 use App\Models\Product;
@@ -206,7 +205,6 @@ class MeloCatalogServiceTest extends TestCase
         $this->assertSame(1, $created);
         $product = Product::where('supplier_sku', 'A1')->first();
         $this->assertSame($game->id, $product->game_id);
-        $this->assertSame(ProductType::Topup, $product->type);
         $this->assertSame('melo', $product->supplier);
         $this->assertSame('86 Diamonds', $product->name);
         $this->assertSame('Diamonds', $product->group);
@@ -234,15 +232,15 @@ class MeloCatalogServiceTest extends TestCase
         $this->assertFalse(Product::where('supplier_sku', 'A2')->exists());
     }
 
-    public function test_sync_does_not_touch_manual_or_account_products(): void
+    public function test_sync_does_not_touch_manual_products(): void
     {
         Http::fake([self::BASE_URL.'/pricelists*' => Http::response($this->page([$this->item('A1')]))]);
         $game = Game::factory()->create(['melo_brand_id' => 10]);
-        $account = Product::factory()->account()->for($game)->create(['is_active' => true]);
+        $manual = Product::factory()->for($game)->create(['supplier' => null, 'supplier_sku' => null, 'is_active' => true]);
 
         app(MeloCatalogService::class)->syncProducts($game);
 
-        $this->assertTrue($account->refresh()->is_active);
+        $this->assertTrue($manual->refresh()->is_active);
     }
 
     public function test_sync_does_not_touch_products_of_another_game(): void

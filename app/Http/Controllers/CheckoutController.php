@@ -42,7 +42,6 @@ class CheckoutController extends Controller
             'user_id' => $request->user()?->id,
             'game_id' => $game->id,
             'product_id' => $product->id,
-            'product_type' => $product->type,
             'product_name' => $product->name,
             'target_user_id' => $request->string('target_user_id')->trim()->toString(),
             'target_zone_id' => $game->requires_zone_id ? $request->string('target_zone_id')->trim()->toString() : null,

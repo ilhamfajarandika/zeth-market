@@ -150,7 +150,6 @@ class CheckoutTest extends TestCase
         $products = [
             Product::factory()->create(),
             Product::factory()->for($this->game)->create(['is_active' => false]),
-            Product::factory()->account()->for($this->game)->create(),
         ];
 
         foreach ($products as $product) {

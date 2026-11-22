@@ -182,17 +182,19 @@ Redirect `returnUrl`: Duitku menambahkan `merchantOrderId`, `reference`, `result
 - Urutan field callback (`merchantCode + amount + merchantOrderId`) berbeda dari inquiry (`merchantCode + merchantOrderId + paymentAmount`). Sudah dicocokkan dengan callback nyata dari sandbox (2026-11-21).
 - IP outgoing Duitku (sandbox `182.23.85.11`, `182.23.85.12`, `103.177.101.187`, `103.177.101.188`; production ada di dokumentasi Duitku) **tidak** di-whitelist; verifikasi cukup lewat signature (keputusan 2026-11-21).
 
-| Callback Duitku             | Status order                                          | Aksi stok akun |
-| --------------------------- | ----------------------------------------------------- | -------------- |
-| `resultCode` = `00`         | `paid`, lalu `processing` (top up) / `success` (akun) | `markSold()`   |
-| `resultCode` = `02`         | `failed`                                              | `release()`    |
-| kedaluwarsa (tanpa callback) | `expired`                                            | `release()`    |
+| Callback Duitku             | Status order                                          |
+| --------------------------- | ----------------------------------------------------- |
+| `resultCode` = `00`         | `paid`, lalu `processing` (top up)                    |
+| `resultCode` = `02`         | `failed`                                              |
+| kedaluwarsa (tanpa callback) | `expired`                                            |
+
+Sejak 2026-11-22 tidak ada aksi stok akun di callback (akun game dijual manual, `game_accounts` tidak terhubung ke order).
 
 Duitku tidak mengirim callback kedaluwarsa: tandai dari `orders.expired_at` dan/atau `transactionStatus()`. Refund: [TBD].
 
 Kode callback (dokumentasi Duitku): `00` sukses, `02` gagal. `01` hanya ada di redirect; callback dengan kode lain tidak mengubah status (log warning).
 
-Pemrosesan status: ✅ job `App\Jobs\HandlePaymentCallback`. Field callback: `merchantCode`, `amount`, `merchantOrderId`, `productDetail`, `additionalParam`, `paymentCode`, `resultCode`, `merchantUserId`, `reference`, `signature`, `publisherOrderId`, `spUserHash`, `settlementDate`, `issuerCode`, `customerName` (dan field kartu kredit). Yang dipakai: `merchantOrderId`, `amount`, `resultCode`, `reference`. Hanya order top up `pending` yang berubah (order `account` dilewati, K1). `00` + nominal = `total` → `paid`, `paid_at`, `payment_reference`, dispatch `SendTopupToMelo`; `02` → `failed`. Nominal beda, atau lunas untuk order `expired`/`failed` → status tidak diubah + lonceng admin. Callback ulang tidak mengirim top up dua kali.
+Pemrosesan status: ✅ job `App\Jobs\HandlePaymentCallback`. Field callback: `merchantCode`, `amount`, `merchantOrderId`, `productDetail`, `additionalParam`, `paymentCode`, `resultCode`, `merchantUserId`, `reference`, `signature`, `publisherOrderId`, `spUserHash`, `settlementDate`, `issuerCode`, `customerName` (dan field kartu kredit). Yang dipakai: `merchantOrderId`, `amount`, `resultCode`, `reference`. Semua order adalah top up, jadi order `pending` yang diproses. `00` + nominal = `total` → `paid`, `paid_at`, `payment_reference`, dispatch `SendTopupToMelo`; `02` → `failed`. Nominal beda, atau lunas untuk order `expired`/`failed` → status tidak diubah + lonceng admin. Callback ulang tidak mengirim top up dua kali.
 
 Validasi tambahan [REKOMENDASI]: cocokkan `amount` callback dengan `orders.total` sebelum menandai lunas.
 

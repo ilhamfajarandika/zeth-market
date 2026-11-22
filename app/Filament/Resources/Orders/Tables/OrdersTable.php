@@ -23,9 +23,6 @@ class OrdersTable
                     ->searchable(),
                 TextColumn::make('product.name')
                     ->searchable(),
-                TextColumn::make('product_type')
-                    ->badge()
-                    ->searchable(),
                 TextColumn::make('product_name')
                     ->searchable(),
                 TextColumn::make('target_user_id')

@@ -12,9 +12,10 @@ import EmptyState from '../components/ui/EmptyState.vue';
 import AppLayout from '../layouts/AppLayout.vue';
 
 // Kontrak checkout: docs/TASK_DIVISION.md §3.4. Harga, fee, dan total dihitung server.
-const { game, productGroups, paymentChannels, checkoutUrl } = defineProps({
+const { game, products, accounts, paymentChannels, checkoutUrl } = defineProps({
     game: { type: Object, required: true },
-    productGroups: { type: Array, required: true },
+    products: { type: Array, required: true },
+    accounts: { type: Array, default: () => [] },
     paymentChannels: { type: Array, default: () => [] },
     checkoutUrl: { type: String, required: true },
 });
@@ -23,7 +24,7 @@ const page = usePage();
 
 const channelGroupOrder = ['QRIS', 'E-Wallet', 'Virtual Account', 'Lainnya'];
 
-const allProducts = productGroups.flatMap((group) => group.products);
+const allProducts = products;
 
 // ?product=ID dipakai partial reload metode bayar; dibaca ulang agar pilihan bertahan saat halaman dimuat ulang.
 const productFromUrl = Number(new URL(page.url, 'http://localhost').searchParams.get('product')) || null;
@@ -53,7 +54,6 @@ const channelGroups = computed(() =>
 const canCheckout = computed(
     () =>
         selectedProduct.value !== null &&
-        !selectedProduct.value.isAccount &&
         selectedChannel.value !== null &&
         form.whatsapp.trim() !== '' &&
         form.id_confirmed &&
@@ -69,11 +69,6 @@ function selectProduct(product) {
     form.product_id = product.id;
     form.payment_method = null;
     form.clearErrors('product_id', 'payment_method');
-
-    // K1: akun dijual manual, tidak ada metode bayar.
-    if (product.isAccount) {
-        return;
-    }
 
     router.reload({
         only: ['paymentChannels'],
@@ -97,35 +92,20 @@ function submit() {
     form.post(checkoutUrl, { preserveScroll: true });
 }
 
-function isOutOfStock(product) {
-    return product.isAccount && product.stock === 0;
-}
-
 function isSelected(product) {
     return form.product_id === product.id;
 }
 
 function productCardClass(product) {
-    return [
-        isSelected(product)
-            ? 'border-brand bg-brand/10'
-            : 'border-border bg-ground hover:border-brand/50',
-        isOutOfStock(product) ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
-    ];
+    return isSelected(product)
+        ? 'border-brand bg-brand/10'
+        : 'border-border bg-ground hover:border-brand/50';
 }
 
 function channelCardClass(channel) {
     return form.payment_method === channel.code
         ? 'border-brand bg-brand/10'
         : 'border-border bg-ground hover:border-brand/50';
-}
-
-function stockBadgeVariant(product) {
-    if (isOutOfStock(product)) {
-        return 'danger';
-    }
-
-    return product.stock > 3 ? 'success' : 'warning';
 }
 </script>
 
@@ -201,44 +181,47 @@ function stockBadgeVariant(product) {
                         Pilih item
                     </h2>
 
-                    <template v-if="productGroups.length">
-                        <div v-for="(group, groupIndex) in productGroups" :key="group.label" :class="{ 'mt-6': groupIndex > 0 }">
-                            <h3 class="mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">{{ group.label }}</h3>
-                            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                                <button
-                                    v-for="product in group.products"
-                                    :key="product.id"
-                                    type="button"
-                                    :disabled="isOutOfStock(product)"
-                                    :aria-pressed="isSelected(product)"
-                                    class="focus-ring relative flex flex-col items-start rounded-md border p-3.5 text-left transition-colors"
-                                    :class="productCardClass(product)"
-                                    @click="selectProduct(product)"
+                    <template v-if="products.length">
+                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                            <button
+                                v-for="product in products"
+                                :key="product.id"
+                                type="button"
+                                :aria-pressed="isSelected(product)"
+                                class="focus-ring relative flex cursor-pointer flex-col items-start rounded-md border p-3.5 text-left transition-colors"
+                                :class="productCardClass(product)"
+                                @click="selectProduct(product)"
+                            >
+                                <span class="pr-6 font-display text-sm font-semibold leading-snug text-text">{{ product.name }}</span>
+                                <span v-if="product.strikePrice" class="mt-1.5 font-mono text-xs text-muted line-through">{{ product.strikePrice }}</span>
+                                <span class="mt-1 font-mono text-sm font-bold text-brand-highlight">{{ product.price }}</span>
+
+                                <svg
+                                    v-if="isSelected(product)"
+                                    aria-hidden="true"
+                                    class="absolute top-2.5 right-2.5 size-4 text-brand-highlight"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
                                 >
-                                    <span class="pr-6 font-display text-sm font-semibold leading-snug text-text">{{ product.name }}</span>
-                                    <span v-if="product.strikePrice" class="mt-1.5 font-mono text-xs text-muted line-through">{{ product.strikePrice }}</span>
-                                    <span class="mt-1 font-mono text-sm font-bold text-brand-highlight">{{ product.price }}</span>
-
-                                    <template v-if="product.isAccount">
-                                        <BaseBadge :variant="stockBadgeVariant(product)" class="mt-2.5">
-                                            {{ isOutOfStock(product) ? 'Stok habis' : `Stok: ${product.stock}` }}
-                                        </BaseBadge>                                    </template>
-
-                                    <svg
-                                        v-if="isSelected(product)"
-                                        aria-hidden="true"
-                                        class="absolute top-2.5 right-2.5 size-4 text-brand-highlight"
-                                        viewBox="0 0 24 24"
-                                        fill="currentColor"
-                                    >
-                                        <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
-                            </div>
+                                    <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
                         </div>
                         <p v-if="form.errors.product_id" class="mt-3 text-xs text-danger">{{ form.errors.product_id }}</p>
                     </template>
                     <EmptyState v-else title="Belum ada item" description="Produk untuk game ini belum tersedia saat ini." />
+                </BaseCard>
+
+                <BaseCard v-if="accounts.length">
+                    <h2 class="font-display text-base font-bold tracking-tight">Akun game dijual</h2>
+                    <p class="mb-4 mt-1 text-xs text-muted">Akun dijual manual. Hubungi admin untuk membeli akun ini.</p>
+                    <ul class="grid gap-3 sm:grid-cols-2">
+                        <li v-for="account in accounts" :key="account.id" class="rounded-md border border-border bg-ground p-3.5">
+                            <p class="font-display text-sm font-semibold text-text">{{ account.name }}</p>
+                            <p v-if="account.publicInfo" class="mt-1 text-xs text-muted">{{ account.publicInfo }}</p>
+                            <p class="mt-2 font-mono text-sm font-bold text-brand-highlight">{{ account.price }}</p>
+                        </li>
+                    </ul>
                 </BaseCard>
 
                 <BaseCard>
@@ -248,9 +231,6 @@ function stockBadgeVariant(product) {
                     </h2>
 
                     <p v-if="!selectedProduct" class="text-sm text-muted">Pilih item dulu untuk melihat metode pembayaran dan biayanya.</p>
-                    <BaseAlert v-else-if="selectedProduct.isAccount">
-                        Akun game dijual manual. Hubungi admin untuk membeli akun ini.
-                    </BaseAlert>
                     <p v-else-if="isLoadingChannels" class="text-sm text-muted" role="status">Memuat metode pembayaran…</p>
                     <BaseAlert v-else-if="!channelGroups.length" variant="warning">
                         Metode pembayaran belum tersedia. Coba pilih item lagi beberapa saat lagi.

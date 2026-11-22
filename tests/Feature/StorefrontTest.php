@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AccountStatus;
 use App\Enums\OrderStatus;
 use App\Models\Banner;
 use App\Models\Game;
@@ -88,22 +89,22 @@ class StorefrontTest extends TestCase
         $this->get(route('game.show', $game))->assertNotFound();
     }
 
-    public function test_game_page_shows_account_stock(): void
+    public function test_game_page_lists_only_available_accounts(): void
     {
         $game = Game::factory()->create();
-        $inStock = Product::factory()->account()->for($game)->create(['name' => 'Akun Ready', 'price' => 100000]);
-        GameAccount::factory()->count(2)->for($inStock)->create();
-        GameAccount::factory()->sold()->for($inStock)->create();
-        Product::factory()->account()->for($game)->create(['name' => 'Akun Kosong', 'price' => 200000]);
+        GameAccount::factory()->for($game)->create(['name' => 'Akun Ready', 'price' => 100000, 'public_info' => 'Rank Mythic']);
+        GameAccount::factory()->sold()->for($game)->create(['name' => 'Akun Terjual']);
+        GameAccount::factory()->for($game)->create(['name' => 'Akun Nonaktif', 'status' => AccountStatus::Disabled]);
+        GameAccount::factory()->for(Game::factory())->create(['name' => 'Akun Game Lain']);
 
         $this->get(route('game.show', $game))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Game')
-                ->where('productGroups.0.products.0.name', 'Akun Ready')
-                ->where('productGroups.0.products.0.stock', 2)
-                ->where('productGroups.0.products.1.name', 'Akun Kosong')
-                ->where('productGroups.0.products.1.stock', 0));
+                ->has('accounts', 1)
+                ->where('accounts.0.name', 'Akun Ready')
+                ->where('accounts.0.publicInfo', 'Rank Mythic')
+                ->where('accounts.0.price', Number::currency(100000, 'IDR', 'id')));
     }
 
     public function test_game_page_has_no_payment_channels_until_a_product_is_chosen(): void
@@ -142,17 +143,14 @@ class StorefrontTest extends TestCase
         Http::assertSent(fn ($request): bool => $request['amount'] === 9000);
     }
 
-    public function test_game_page_offers_no_payment_for_account_or_foreign_products(): void
+    public function test_game_page_offers_no_payment_for_foreign_products(): void
     {
         Http::fake();
         $game = Game::factory()->create();
-        $account = Product::factory()->account()->for($game)->create();
         $foreign = Product::factory()->create();
 
-        foreach ([$account, $foreign] as $product) {
-            $this->get(route('game.show', [$game, 'product' => $product->id]))
-                ->assertInertia(fn (Assert $page) => $page->where('paymentChannels', []));
-        }
+        $this->get(route('game.show', [$game, 'product' => $foreign->id]))
+            ->assertInertia(fn (Assert $page) => $page->where('paymentChannels', []));
 
         Http::assertNothingSent();
     }
@@ -168,8 +166,8 @@ class StorefrontTest extends TestCase
         $response = $this->get(route('game.show', $game))->assertOk();
 
         $response->assertInertia(fn (Assert $page) => $page
-            ->missing('productGroups.0.products.0.base_price')
-            ->missing('productGroups.0.products.0.supplier_sku'));
+            ->missing('products.0.base_price')
+            ->missing('products.0.supplier_sku'));
         $response->assertDontSee('SECRET-SKU-123');
     }
 
@@ -182,24 +180,6 @@ class StorefrontTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->where('game.requiresZoneId', true)->where('game.zoneIdLabel', 'Zone ID'));
         $this->get(route('game.show', $withoutZone))
             ->assertInertia(fn (Assert $page) => $page->where('game.requiresZoneId', false));
-    }
-
-    public function test_invoice_hides_account_credentials_until_order_succeeds(): void
-    {
-        $product = Product::factory()->account()->create();
-        $order = Order::factory()->for($product)->create();
-        GameAccount::factory()->reserved()->for($product)->create(['order_id' => $order->id, 'credentials' => 'secret-login']);
-
-        $this->get(route('invoice.show', $order))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Invoice')->where('order.credentials', null))
-            ->assertDontSee('secret-login');
-
-        $order->update(['status' => OrderStatus::Success]);
-
-        $this->get(route('invoice.show', $order))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('order.credentials', 'secret-login'));
     }
 
     public function test_invoice_shows_own_qris_image_only_while_pending(): void

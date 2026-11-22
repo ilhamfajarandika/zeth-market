@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Products\Tables;
 
-use App\Enums\ProductType;
 use App\Models\Product;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -36,8 +35,6 @@ class ProductsTable
                 TextColumn::make('name')
                     ->label('Produk')
                     ->searchable(),
-                TextColumn::make('type')
-                    ->badge(),
                 TextColumn::make('group')
                     ->toggleable(),
                 TextColumn::make('supplier_sku')
@@ -62,8 +59,6 @@ class ProductsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('type')
-                    ->options(ProductType::class),
                 Filter::make('active_only')
                     ->label('Aktif saja')
                     ->query(fn (Builder $query): Builder => $query->where('is_active', true))

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project
 
 
-Indonesian game top-up storefront: a single Laravel 13 monolith (PHP 8.4) with a Filament 5 admin panel at `/admin`, Blade + Tailwind 4 storefront, MySQL, and PHPUnit. Two product types: `topup` (fulfilled via the Melo supplier API) and `account` (sold from internal stock in `game_accounts`). Payment goes through Duitku. There is no nickname/ID lookup by design (only regex format validation per game).
+Indonesian game top-up storefront: a single Laravel 13 monolith (PHP 8.4) with a Filament 5 admin panel at `/admin`, Blade + Tailwind 4 storefront, MySQL, and PHPUnit. All products are top-up (fulfilled via the Melo supplier API). Game accounts are not products: they live in `game_accounts` and are sold manually outside the system (no checkout, no credentials stored). Payment goes through Duitku. There is no nickname/ID lookup by design (only regex format validation per game).
  
 
 Project docs are in Indonesian. `docs/` holds the spec and rules. For what must be built, `docs/PROJECT_SPEC.md` is the source of truth, then `docs/AGENTS.md`, then other docs. For what already exists (schema, routes, class names), the code and migrations are the truth (see `docs/AGENTS.md` §3). `docs/CURRENT_STATUS.md` lists what is built, known issues and open decisions. `docs/AGENTS.md` is imported below and always applies. Read `docs/CURRENT_STATUS.md` before non-trivial work. If sources conflict, stop the affected work and report it instead of choosing. Features outside the spec (reseller pricing, nickname checks, MLBB calculator) need approval. Root `TECH_STACK.md` is a short summary that points to `docs/`; `docs/` wins if they differ.
@@ -19,9 +19,9 @@ Deployment is a VPS (Coolify or Forge) behind Cloudflare, **not** Laravel Cloud,
 ```bash
 composer run setup          # install, .env, key, migrate, npm build
 composer run dev            # dev server (runs `php artisan dev`)
-php artisan migrate --seed  # seeds admin@example.com / password, sample games, products, stock
+php artisan migrate --seed  # seeds admin@example.com / password, sample games, products, accounts
 npm run build               # Vite build (npm run dev for HMR)
-php artisan schedule:work   # required locally/in production: runs accounts:release-expired every minute
+php artisan schedule:work   # required locally/in production: runs melo:check-balance every 10 minutes
 php artisan test --compact                                   # full suite
 php artisan test --compact tests/Feature/StorefrontTest.php  # one file
 php artisan test --compact --filter=test_name                # one test
@@ -34,7 +34,7 @@ Tests use in-memory SQLite (`phpunit.xml`), so no test database is needed. Run `
 
 **Order and stock lifecycle.** `OrderStatus` runs `pending → paid → processing → success`, or ends in `failed`, `expired` or `refunded`. `OrderStatus::isFinal()` marks states that callbacks must never change, so callback handling has to be idempotent. Orders store a snapshot of the product name and price, and the price must never be re-read from `products` after the order exists. Totals are always computed server-side.
 
-**Account stock** (`App\Services\AccountStockService`) is the only place `game_accounts` change state: `available → reserved → sold`, with `reserved → available` on release or expiry. Every mutation uses `DB::transaction` + `lockForUpdate()` so an account can't be sold twice. A reservation lasts 15 minutes (`RESERVATION_MINUTES`) and should match the payment invoice expiry. `accounts:release-expired` (scheduled in `routes/console.php`) calls `releaseExpired()`, which currently checks only time, not order status (known issue M2). Displayed stock is `Product::withStock()` (`available_accounts_count`). `game_accounts.credentials` uses the `encrypted` cast and is shown only on the invoice page after the order succeeds.
+**Game accounts** (`App\Models\GameAccount`, table `game_accounts`) are a standalone catalog: one row per account for sale, with `name`, `price`, `public_info` and `status` (`available` / `sold` / `disabled`, edited by admins). They are not linked to orders and there is no reservation or stock service. Credentials are not stored in the system (decision 2026-11-22). The game page lists only `available` accounts.
 
 **External integrations** live in `App\Services\Payment\DuitkuService` (plain `Http` client, no Duitku SDK) and `App\Services\Supplier\MeloService`. They log requests to `api_logs` and are configured in `config/services.php` from `.env` (`DUITKU_*`, `MELO_*`). Neither has been tested against the real APIs. Melo authenticates with `X-API-Key`/`X-Secret-Key` headers, uses the invoice as `buyer_trx_id` (retry-safe, no double debit), and replaced Digiflazz; `MELO_SANDBOX=true` simulates orders without debit.
 

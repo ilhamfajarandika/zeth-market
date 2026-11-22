@@ -124,6 +124,7 @@ class MeloService
             'customer_target' => $order->target_user_id,
             'customer_target_zone' => $order->target_zone_id,
             'buyer_trx_id' => $order->invoice,
+            'max_price' => $order->price,
         ]);
     }
 

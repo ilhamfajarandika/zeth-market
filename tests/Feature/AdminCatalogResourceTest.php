@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enums\AccountStatus;
-use App\Enums\ProductType;
 use App\Filament\Resources\Categories\Pages\ManageCategories;
 use App\Filament\Resources\GameAccounts\Pages\CreateGameAccount;
 use App\Filament\Resources\GameAccounts\Pages\EditGameAccount;
@@ -12,6 +11,7 @@ use App\Filament\Resources\Games\Pages\EditGame;
 use App\Filament\Resources\Games\Pages\ListGames;
 use App\Filament\Resources\Games\RelationManagers\MeloProductsRelationManager;
 use App\Filament\Resources\Products\Pages\CreateProduct;
+use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Game;
 use App\Models\GameAccount;
@@ -24,10 +24,12 @@ use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -289,7 +291,6 @@ class AdminCatalogResourceTest extends TestCase
     {
         return $overrides + [
             'game_id' => $game->id,
-            'type' => ProductType::Topup->value,
             'name' => '86 Diamonds',
             'supplier' => 'melo',
             'supplier_sku' => 'ML86',
@@ -302,6 +303,7 @@ class AdminCatalogResourceTest extends TestCase
     public function test_admin_can_create_topup_product_with_integer_prices(): void
     {
         $game = Game::factory()->create();
+        MeloProduct::factory()->for($game)->create(['sku_code' => 'ML86']);
 
         Livewire::test(CreateProduct::class)
             ->fillForm($this->productData($game))
@@ -321,14 +323,10 @@ class AdminCatalogResourceTest extends TestCase
             ->assertHasFormErrors(['supplier' => 'required', 'supplier_sku' => 'required']);
     }
 
-    public function test_account_product_does_not_need_supplier_and_negative_or_decimal_prices_are_rejected(): void
+    public function test_negative_or_decimal_prices_are_rejected(): void
     {
         $game = Game::factory()->create();
-
-        Livewire::test(CreateProduct::class)
-            ->fillForm($this->productData($game, ['type' => ProductType::Account->value, 'supplier' => null, 'supplier_sku' => null]))
-            ->call('create')
-            ->assertHasNoFormErrors();
+        MeloProduct::factory()->for($game)->create(['sku_code' => 'NEW']);
 
         Livewire::test(CreateProduct::class)
             ->fillForm($this->productData($game, ['supplier_sku' => 'NEW', 'price' => -1, 'base_price' => '10.5']))
@@ -339,12 +337,66 @@ class AdminCatalogResourceTest extends TestCase
     public function test_supplier_sku_must_be_unique_per_supplier(): void
     {
         $game = Game::factory()->create();
+        MeloProduct::factory()->for($game)->create(['sku_code' => 'ML86']);
         Product::factory()->for($game)->create(['supplier' => 'melo', 'supplier_sku' => 'ML86']);
 
         Livewire::test(CreateProduct::class)
             ->fillForm($this->productData($game))
             ->call('create')
             ->assertHasFormErrors(['supplier_sku' => 'unique']);
+    }
+
+    public function test_picking_melo_sku_prefills_base_price_group_and_empty_name(): void
+    {
+        $game = Game::factory()->create();
+        MeloProduct::factory()->for($game)->create(['sku_code' => 'ML86', 'name' => '86 Diamonds', 'type_name' => 'Diamond', 'price' => 19000]);
+
+        Livewire::test(CreateProduct::class)
+            ->fillForm(['game_id' => $game->id, 'name' => null])
+            ->fillForm(['supplier_sku' => 'ML86'])
+            ->assertSchemaStateSet(['base_price' => 19000, 'group' => 'Diamond', 'name' => '86 Diamonds']);
+    }
+
+    public function test_sku_options_mark_cheapest_active_sku_per_name_as_best_price(): void
+    {
+        $game = Game::factory()->create();
+        MeloProduct::factory()->for($game)->create(['sku_code' => 'A', 'name' => '86 Diamonds', 'price' => 20000, 'status' => 'active']);
+        MeloProduct::factory()->for($game)->create(['sku_code' => 'B', 'name' => '86 diamonds ', 'price' => 19000, 'status' => 'active']);
+        MeloProduct::factory()->for($game)->create(['sku_code' => 'C', 'name' => '86 Diamonds', 'price' => 18000, 'status' => 'out_of_stock']);
+        MeloProduct::factory()->for($game)->create(['sku_code' => 'D', 'name' => 'Weekly Pass', 'price' => 27000, 'status' => 'active']);
+
+        Livewire::test(CreateProduct::class)
+            ->fillForm(['game_id' => $game->id])
+            ->assertFormFieldExists('supplier_sku', function (Select $field): bool {
+                $best = collect($field->getOptions())->filter(fn (string $label): bool => str_starts_with($label, '★ Harga terbaik'));
+
+                return $best->keys()->all() === ['B'];
+            });
+    }
+
+    public function test_supplier_sku_must_be_a_melo_item_of_the_selected_game(): void
+    {
+        $game = Game::factory()->create();
+        MeloProduct::factory()->for(Game::factory())->create(['sku_code' => 'ML86']);
+
+        Livewire::test(CreateProduct::class)
+            ->fillForm($this->productData($game))
+            ->call('create')
+            ->assertHasFormErrors(['supplier_sku' => 'in']);
+
+        $this->assertDatabaseCount('products', 0);
+    }
+
+    public function test_product_whose_sku_left_melo_catalog_can_still_be_edited(): void
+    {
+        $product = Product::factory()->create(['supplier' => 'melo', 'supplier_sku' => 'GONE', 'price' => 1000]);
+
+        Livewire::test(EditProduct::class, ['record' => $product->getRouteKey()])
+            ->fillForm(['price' => 2000])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(2000, $product->refresh()->price);
     }
 
     public function test_price_can_be_edited_inline_and_unpriced_filter_works(): void
@@ -398,14 +450,19 @@ class AdminCatalogResourceTest extends TestCase
 
     public function test_admin_can_create_game_account_with_any_status(): void
     {
-        $product = Product::factory()->account()->create();
+        $game = Game::factory()->create();
 
         Livewire::test(CreateGameAccount::class)
-            ->fillForm(['product_id' => $product->id, 'credentials' => 'user:pass', 'status' => AccountStatus::Disabled->value])
+            ->fillForm(['game_id' => $game->id, 'name' => 'Akun Mythic', 'price' => 350000, 'status' => AccountStatus::Disabled->value])
             ->call('create')
             ->assertHasNoFormErrors();
 
-        $this->assertDatabaseHas('game_accounts', ['product_id' => $product->id, 'status' => 'disabled', 'sold_at' => null]);
+        $this->assertDatabaseHas('game_accounts', ['game_id' => $game->id, 'name' => 'Akun Mythic', 'price' => 350000, 'status' => 'disabled', 'sold_at' => null]);
+    }
+
+    public function test_game_accounts_table_has_no_credentials_column(): void
+    {
+        $this->assertFalse(Schema::hasColumn('game_accounts', 'credentials'));
     }
 
     public function test_admin_marking_account_sold_fills_sold_at_and_reverting_clears_it(): void
