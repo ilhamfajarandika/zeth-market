@@ -13,7 +13,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\TextInputColumn;
 use Filament\Tables\Columns\ToggleColumn;
@@ -29,10 +28,8 @@ class ProductsTable
     {
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with('game'))
-            ->defaultSort('sort')
+            ->defaultSort('price')
             ->columns([
-                ImageColumn::make('image')
-                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('game.name')
                     ->label('Game')
                     ->sortable(),
@@ -56,11 +53,6 @@ class ProductsTable
                     ->type('number')
                     ->rules(['required', 'integer', 'min:0'])
                     ->sortable(),
-                TextColumn::make('reseller_price')
-                    ->label('Harga reseller')
-                    ->money('IDR', locale: 'id', decimalPlaces: 0)
-                    ->sortable()
-                    ->toggleable(),
                 ToggleColumn::make('is_active')
                     ->label('Aktif')
                     ->sortable(),

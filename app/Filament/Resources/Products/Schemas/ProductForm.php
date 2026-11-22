@@ -3,9 +3,7 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use App\Enums\ProductType;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Utilities\Get;
@@ -29,10 +27,6 @@ class ProductForm
                 TextInput::make('name')
                     ->required(),
                 TextInput::make('group'),
-                FileUpload::make('image')
-                    ->image(),
-                Textarea::make('description')
-                    ->columnSpanFull(),
                 Select::make('supplier')
                     ->options(['melo' => 'Melo'])
                     ->live()
@@ -66,10 +60,6 @@ class ProductForm
                     ->helperText(fn (Get $get): ?string => filled($get('price')) && (int) $get('price') < (int) $get('base_price')
                         ? 'Peringatan: harga jual di bawah harga modal.'
                         : null),
-                TextInput::make('reseller_price')
-                    ->integer()
-                    ->minValue(0)
-                    ->prefix('Rp'),
                 TextInput::make('strike_price')
                     ->label('Harga coret')
                     ->integer()
@@ -78,11 +68,6 @@ class ProductForm
                 Toggle::make('is_active')
                     ->label('Aktif')
                     ->default(true),
-                TextInput::make('sort')
-                    ->required()
-                    ->integer()
-                    ->minValue(0)
-                    ->default(0),
             ]);
     }
 

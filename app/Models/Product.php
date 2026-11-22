@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\AccountStatus;
 use App\Enums\ProductType;
-use App\Enums\UserRole;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -15,9 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
-    'game_id', 'type', 'name', 'group', 'image', 'description',
-    'supplier', 'supplier_sku', 'base_price', 'price', 'reseller_price', 'strike_price',
-    'is_active', 'sort',
+    'game_id', 'type', 'name', 'group',
+    'supplier', 'supplier_sku', 'base_price', 'price', 'strike_price', 'is_active',
 ])]
 class Product extends Model
 {
@@ -33,7 +31,6 @@ class Product extends Model
             'type' => ProductType::class,
             'base_price' => 'integer',
             'price' => 'integer',
-            'reseller_price' => 'integer',
             'strike_price' => 'integer',
             'is_active' => 'boolean',
         ];
@@ -69,18 +66,6 @@ class Product extends Model
     }
 
     /**
-     * Harga jual sesuai role pembeli (guest/member pakai harga normal).
-     */
-    public function priceFor(?User $user): int
-    {
-        if ($user?->role === UserRole::Reseller && $this->reseller_price !== null) {
-            return $this->reseller_price;
-        }
-
-        return $this->price;
-    }
-
-    /**
      * Harga jual dari harga modal: markup persen atau Rupiah tetap, dibulatkan ke atas ke kelipatan tertentu.
      *
      * @param  'percent'|'fixed'  $mode
@@ -113,6 +98,6 @@ class Product extends Model
     #[Scope]
     protected function active(Builder $query): void
     {
-        $query->where('is_active', true)->orderBy('sort')->orderBy('price');
+        $query->where('is_active', true)->orderBy('price');
     }
 }

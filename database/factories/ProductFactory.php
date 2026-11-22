@@ -30,9 +30,7 @@ class ProductFactory extends Factory
             'supplier_sku' => fake()->unique()->bothify('SKU-####??'),
             'base_price' => $basePrice,
             'price' => (int) round($basePrice * 1.05),
-            'reseller_price' => (int) round($basePrice * 1.02),
             'is_active' => true,
-            'sort' => 0,
         ];
     }
 

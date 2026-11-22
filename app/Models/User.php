@@ -32,7 +32,6 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
-            'balance' => 'decimal:2',
         ];
     }
 

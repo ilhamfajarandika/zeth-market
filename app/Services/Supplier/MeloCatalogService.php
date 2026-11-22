@@ -4,6 +4,7 @@ namespace App\Services\Supplier;
 
 use App\Enums\ProductType;
 use App\Models\Game;
+use App\Models\MeloProduct;
 use App\Models\Product;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
@@ -19,8 +20,8 @@ use Throwable;
 /**
  * Sinkron master katalog dari Melo: daftar brand (untuk menautkan game) dan item/produk per brand.
  *
- * Hanya memakai MeloService::brands() dan priceList(). Harga jual, gambar, dan deskripsi produk tidak
- * pernah ditimpa; admin yang mengisinya. Katalog berbagi 20 request/menit di sisi Melo.
+ * Hanya memakai MeloService::brands() dan priceList(). Harga jual produk tidak pernah ditimpa; admin yang
+ * mengisinya. Katalog berbagi 20 request/menit di sisi Melo.
  */
 class MeloCatalogService
 {
@@ -147,12 +148,13 @@ class MeloCatalogService
     }
 
     /**
-     * Impor/perbarui item Melo untuk satu game. Request HTTP selesai dulu; penulisan DB satu transaksi.
+     * Simpan katalog Melo satu game ke `melo_products`, lalu perbarui produk yang sudah dipilih admin.
+     * Request HTTP selesai dulu; penulisan DB satu transaksi.
      *
-     * Produk baru dibuat nonaktif dengan harga jual 0. Produk lama hanya diperbarui nama, grup, harga
-     * modal, dan urutan; produk yang habis/hilang dari katalog dinonaktifkan (tidak diaktifkan kembali).
+     * Tidak membuat produk (admin memilih lewat addProducts()). Produk terpilih hanya diperbarui nama,
+     * grup, dan harga modal; yang habis/hilang dari katalog dinonaktifkan (tidak diaktifkan kembali).
      *
-     * @return array{created: int, updated: int, deactivated: int, skipped: int}
+     * @return array{catalog: int, updated: int, deactivated: int}
      */
     public function syncProducts(Game $game): array
     {
@@ -164,47 +166,42 @@ class MeloCatalogService
         if ($items->isEmpty()) {
             throw new RuntimeException('Katalog brand Melo kosong; sync dibatalkan agar produk tidak ikut dinonaktifkan.');
         }
-        $result = ['created' => 0, 'updated' => 0, 'deactivated' => 0, 'skipped' => 0];
+        $skus = $items->pluck('sku_code');
+        $result = ['catalog' => $items->count(), 'updated' => 0, 'deactivated' => 0];
 
-        DB::transaction(function () use ($game, $items, &$result): void {
-            $existing = Product::query()
+        DB::transaction(function () use ($game, $items, $skus, &$result): void {
+            $now = now();
+            MeloProduct::upsert($items->map(fn (array $item): array => [
+                'game_id' => $game->id,
+                'sku_code' => (string) $item['sku_code'],
+                'name' => (string) $item['name'],
+                'type_name' => $item['type_name'] ?? null,
+                'price' => (int) ceil((float) $item['price']),
+                'status' => (string) ($item['status'] ?? ''),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])->all(), ['sku_code'], ['game_id', 'name', 'type_name', 'price', 'status', 'updated_at']);
+            $game->meloProducts()->whereNotIn('sku_code', $skus)->delete();
+
+            $existing = $game->products()
                 ->where('supplier', 'melo')
-                ->whereIn('supplier_sku', $items->pluck('sku_code'))
+                ->whereIn('supplier_sku', $skus)
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('supplier_sku');
 
             foreach ($items as $item) {
-                $attributes = [
+                $product = $existing->get($item['sku_code']);
+                if ($product === null) {
+                    continue;
+                }
+
+                $isActive = ($item['status'] ?? null) === 'active';
+                $product->fill([
                     'name' => (string) $item['name'],
                     'group' => $item['type_name'] ?? null,
                     'base_price' => (int) ceil((float) $item['price']),
-                    'sort' => (int) ($item['type_order'] ?? 0),
-                ];
-                $isActive = ($item['status'] ?? null) === 'active';
-                $product = $existing->get($item['sku_code']);
-
-                if ($product === null) {
-                    Product::create($attributes + [
-                        'game_id' => $game->id,
-                        'type' => ProductType::Topup,
-                        'supplier' => 'melo',
-                        'supplier_sku' => $item['sku_code'],
-                        'price' => 0,
-                        'is_active' => false,
-                    ]);
-                    $result['created']++;
-
-                    continue;
-                }
-
-                if ($product->game_id !== $game->id) {
-                    $result['skipped']++;
-
-                    continue;
-                }
-
-                $product->fill($attributes);
+                ]);
                 if (! $isActive && $product->is_active) {
                     $product->is_active = false;
                     $result['deactivated']++;
@@ -218,11 +215,41 @@ class MeloCatalogService
             $result['deactivated'] += $game->products()
                 ->where('supplier', 'melo')
                 ->where('is_active', true)
-                ->whereNotIn('supplier_sku', $items->pluck('sku_code'))
+                ->whereNotIn('supplier_sku', $skus)
                 ->update(['is_active' => false]);
         });
 
         return $result;
+    }
+
+    /**
+     * Jadikan item katalog Melo terpilih sebagai produk top up: nonaktif, harga jual 0 (admin yang mengisi).
+     * SKU yang sudah menjadi produk dilewati.
+     *
+     * @param  iterable<MeloProduct>  $meloProducts
+     * @return int Jumlah produk baru.
+     */
+    public function addProducts(iterable $meloProducts): int
+    {
+        $created = 0;
+
+        foreach ($meloProducts as $item) {
+            $product = Product::firstOrCreate(
+                ['supplier' => 'melo', 'supplier_sku' => $item->sku_code],
+                [
+                    'game_id' => $item->game_id,
+                    'type' => ProductType::Topup,
+                    'name' => $item->name,
+                    'group' => $item->type_name,
+                    'base_price' => $item->price,
+                    'price' => 0,
+                    'is_active' => false,
+                ],
+            );
+            $created += (int) $product->wasRecentlyCreated;
+        }
+
+        return $created;
     }
 
     /**

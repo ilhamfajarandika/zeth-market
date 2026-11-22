@@ -222,9 +222,7 @@ function stockBadgeVariant(product) {
                                     <template v-if="product.isAccount">
                                         <BaseBadge :variant="stockBadgeVariant(product)" class="mt-2.5">
                                             {{ isOutOfStock(product) ? 'Stok habis' : `Stok: ${product.stock}` }}
-                                        </BaseBadge>
-                                        <span v-if="product.description" class="mt-2 line-clamp-2 text-xs text-muted">{{ product.description }}</span>
-                                    </template>
+                                        </BaseBadge>                                    </template>
 
                                     <svg
                                         v-if="isSelected(product)"

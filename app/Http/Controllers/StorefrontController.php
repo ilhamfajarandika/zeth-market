@@ -96,6 +96,7 @@ class StorefrontController extends Controller
                     'value' => $order->status->value,
                     'label' => $order->status->getLabel(),
                     'color' => $order->status->getColor(),
+                    'isFinal' => $order->status->isFinal(),
                 ],
                 'gameName' => $order->game->name,
                 'productName' => $order->product_name,
@@ -145,7 +146,7 @@ class StorefrontController extends Controller
     }
 
     /**
-     * @return array{id: int, name: string, description: ?string, price: string, strikePrice: ?string, isAccount: bool, stock: ?int}
+     * @return array{id: int, name: string, price: string, strikePrice: ?string, isAccount: bool, stock: ?int}
      */
     private function productCard(Product $product): array
     {
@@ -154,7 +155,6 @@ class StorefrontController extends Controller
         return [
             'id' => $product->id,
             'name' => $product->name,
-            'description' => $product->isAccount() ? $product->description : null,
             'price' => $this->rupiah($product->price),
             'strikePrice' => $hasStrikePrice ? $this->rupiah($product->strike_price) : null,
             'isAccount' => $product->isAccount(),

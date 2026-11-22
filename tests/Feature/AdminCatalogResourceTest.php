@@ -10,10 +10,12 @@ use App\Filament\Resources\GameAccounts\Pages\EditGameAccount;
 use App\Filament\Resources\Games\Pages\CreateGame;
 use App\Filament\Resources\Games\Pages\EditGame;
 use App\Filament\Resources\Games\Pages\ListGames;
+use App\Filament\Resources\Games\RelationManagers\MeloProductsRelationManager;
 use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Game;
 use App\Models\GameAccount;
+use App\Models\MeloProduct;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
@@ -244,7 +246,24 @@ class AdminCatalogResourceTest extends TestCase
             ->callAction('syncMeloProducts')
             ->assertNotified('Sync Melo selesai');
 
+        $this->assertDatabaseHas('melo_products', ['game_id' => $game->id, 'sku_code' => 'ML86', 'price' => 19000]);
+        $this->assertDatabaseCount('products', 0);
+    }
+
+    public function test_admin_picks_melo_items_to_become_products(): void
+    {
+        $game = Game::factory()->create(['melo_brand_id' => 10]);
+        $picked = MeloProduct::factory()->for($game)->create(['sku_code' => 'ML86', 'price' => 19000]);
+        $other = MeloProduct::factory()->for($game)->create(['sku_code' => 'ML172']);
+
+        Livewire::test(MeloProductsRelationManager::class, ['ownerRecord' => $game, 'pageClass' => EditGame::class])
+            ->assertCanSeeTableRecords([$picked, $other])
+            ->selectTableRecords([$picked->getKey()])
+            ->callAction(TestAction::make('addProducts')->table()->bulk())
+            ->assertNotified('1 produk ditambahkan');
+
         $this->assertDatabaseHas('products', ['game_id' => $game->id, 'supplier_sku' => 'ML86', 'base_price' => 19000, 'price' => 0, 'is_active' => false]);
+        $this->assertDatabaseMissing('products', ['supplier_sku' => 'ML172']);
     }
 
     public function test_sync_action_is_hidden_for_game_without_melo_brand_and_reports_failure(): void
@@ -277,7 +296,6 @@ class AdminCatalogResourceTest extends TestCase
             'base_price' => 19000,
             'price' => 20000,
             'is_active' => true,
-            'sort' => 0,
         ];
     }
 

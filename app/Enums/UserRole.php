@@ -9,14 +9,12 @@ enum UserRole: string implements HasColor, HasLabel
 {
     case Admin = 'admin';
     case Member = 'member';
-    case Reseller = 'reseller';
 
     public function getLabel(): string
     {
         return match ($this) {
             self::Admin => 'Admin',
             self::Member => 'Member',
-            self::Reseller => 'Reseller',
         };
     }
 
@@ -25,7 +23,6 @@ enum UserRole: string implements HasColor, HasLabel
         return match ($this) {
             self::Admin => 'danger',
             self::Member => 'gray',
-            self::Reseller => 'success',
         };
     }
 }

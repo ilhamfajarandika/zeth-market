@@ -162,7 +162,6 @@ class StorefrontTest extends TestCase
         $game = Game::factory()->create();
         Product::factory()->for($game)->create([
             'base_price' => 11111,
-            'reseller_price' => 22222,
             'supplier_sku' => 'SECRET-SKU-123',
         ]);
 
@@ -170,7 +169,6 @@ class StorefrontTest extends TestCase
 
         $response->assertInertia(fn (Assert $page) => $page
             ->missing('productGroups.0.products.0.base_price')
-            ->missing('productGroups.0.products.0.reseller_price')
             ->missing('productGroups.0.products.0.supplier_sku'));
         $response->assertDontSee('SECRET-SKU-123');
     }
@@ -217,6 +215,19 @@ class StorefrontTest extends TestCase
         $this->get(route('invoice.show', $order))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('order.payment', null));
+    }
+
+    public function test_invoice_marks_final_status_so_page_stops_polling(): void
+    {
+        $order = Order::factory()->create();
+
+        $this->get(route('invoice.show', $order))
+            ->assertInertia(fn (Assert $page) => $page->where('order.status.isFinal', false));
+
+        $order->update(['status' => OrderStatus::Expired]);
+
+        $this->get(route('invoice.show', $order))
+            ->assertInertia(fn (Assert $page) => $page->where('order.status.isFinal', true));
     }
 
     public function test_invoice_has_no_qr_image_for_virtual_account(): void

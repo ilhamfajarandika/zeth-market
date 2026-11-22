@@ -37,33 +37,33 @@ class DatabaseSeeder extends Seeder
             'name' => 'Valorant', 'slug' => 'valorant', 'publisher' => 'Riot Games', 'user_id_label' => 'Riot ID', 'user_id_regex' => null,
         ]);
 
-        foreach ([[86, 19000], [172, 38000], [257, 57000], [706, 152000]] as $sort => [$amount, $basePrice]) {
+        foreach ([[86, 19000], [172, 38000], [257, 57000], [706, 152000]] as [$amount, $basePrice]) {
             Product::factory()->for($mlbb)->create([
                 'name' => "{$amount} Diamonds", 'supplier_sku' => "ML{$amount}",
-                'base_price' => $basePrice, 'price' => (int) round($basePrice * 1.05), 'reseller_price' => (int) round($basePrice * 1.02), 'sort' => $sort,
+                'base_price' => $basePrice, 'price' => (int) round($basePrice * 1.05),
             ]);
         }
 
-        foreach ([[70, 9500], [140, 19000], [355, 47000]] as $sort => [$amount, $basePrice]) {
+        foreach ([[70, 9500], [140, 19000], [355, 47000]] as [$amount, $basePrice]) {
             Product::factory()->for($freeFire)->create([
                 'name' => "{$amount} Diamonds", 'supplier_sku' => "FF{$amount}",
-                'base_price' => $basePrice, 'price' => (int) round($basePrice * 1.05), 'reseller_price' => (int) round($basePrice * 1.02), 'sort' => $sort,
+                'base_price' => $basePrice, 'price' => (int) round($basePrice * 1.05),
             ]);
         }
 
         Product::factory()->for($valorant)->create([
             'name' => '475 VP', 'group' => 'Valorant Points', 'supplier_sku' => 'VAL475',
-            'base_price' => 55000, 'price' => 58000, 'reseller_price' => 56500,
+            'base_price' => 55000, 'price' => 58000,
         ]);
 
         // Produk jual akun + stok
         $mythicAccount = Product::factory()->account()->for($mlbb)->create([
-            'name' => 'Akun MLBB Mythic Glory', 'base_price' => 250000, 'price' => 350000, 'reseller_price' => 325000,
+            'name' => 'Akun MLBB Mythic Glory', 'base_price' => 250000, 'price' => 350000,
         ]);
         GameAccount::factory()->count(5)->for($mythicAccount)->create();
 
         $ffAccount = Product::factory()->account()->for($freeFire)->create([
-            'name' => 'Akun FF Sultan', 'base_price' => 150000, 'price' => 200000, 'reseller_price' => 185000,
+            'name' => 'Akun FF Sultan', 'base_price' => 150000, 'price' => 200000,
         ]);
         GameAccount::factory()->count(2)->for($ffAccount)->create();
     }

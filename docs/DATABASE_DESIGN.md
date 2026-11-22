@@ -12,15 +12,17 @@
 | `categories`    | Pengelompokan game (Mobile, PC, Voucher, ...) | `000200`                 |
 | `games`         | Game yang dijual + aturan input User/Zone ID  | `000300`                 |
 | `products`      | Item yang dijual (top up atau akun) + harga   | `000400`                 |
+| `melo_products` | Katalog Melo hasil sync, dipilih admin (3)    | `2026_11_22_120006`      |
 | `orders`        | Transaksi pembelian + data payment & supplier | `000500`                 |
 | `game_accounts` | Stok akun game (1 baris = 1 akun)             | `000600`                 |
 | `api_logs`      | Log request/callback payment & supplier       | `000700`                 |
 | `settings`      | Pengaturan key-value (nama situs, dll.)       | `000800`                 |
 
 Catatan:
-1. Nama lengkap file: `database/migrations/2026_11_11_<nomor>_*.php`. Kolom `role`, `whatsapp`, dan `balance` di `users` ditambahkan oleh `2026_11_11_000100_add_role_to_users_table.php`.
+1. Nama lengkap file: `database/migrations/2026_11_11_<nomor>_*.php`. Kolom `role` dan `whatsapp` di `users` ditambahkan oleh `2026_11_11_000100_add_role_to_users_table.php` (`balance` juga, lalu dihapus oleh `2026_11_22_120007`).
 - Tabel bawaan Laravel (`0001_01_01_*`): `sessions`, `password_reset_tokens`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`.
 2. Tabel `notifications` (migration `2026_11_16_202857_create_notifications_table.php`, standar Laravel via `make:notifications-table`): menyimpan notifikasi lonceng panel admin (Filament database notifications), saat ini untuk peringatan saldo Melo. Bukan tabel domain.
+3. Ditambahkan atas persetujuan PO 2026-11-22 (pengecualian prinsip "tidak ada tabel baru").
 
 ## 2. ERD
 
@@ -29,6 +31,7 @@ erDiagram
     users ||--o{ orders : "membuat (opsional)"
     categories ||--o{ games : memiliki
     games ||--o{ products : memiliki
+    games ||--o{ melo_products : "katalog Melo"
     games ||--o{ orders : "dirujuk"
     products ||--o{ orders : "dibeli di"
     products ||--o{ game_accounts : "stok"
@@ -37,8 +40,7 @@ erDiagram
     users { bigint id PK
         string email UK
         string role
-        string whatsapp
-        decimal balance }
+        string whatsapp }
     categories { bigint id PK
         string slug UK }
     games { bigint id PK
@@ -50,6 +52,10 @@ erDiagram
         bigint game_id FK
         string type
         string supplier_sku
+        bigint price }
+    melo_products { bigint id PK
+        bigint game_id FK
+        string sku_code UK
         bigint price }
     orders { bigint id PK
         string invoice UK
@@ -80,11 +86,10 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | `email_verified_at` | TIMESTAMP N     | Verifikasi email pelanggan = [TBD]    |
 | `password`          | VARCHAR         | Hash (cast `hashed`)                  |
 | `role`              | VARCHAR(20) IDX | Default `member` (1)                  |
-| `balance`           | DECIMAL(15,2)   | Default 0. **Ditinjau, out of scope** |
 | `remember_token`    | VARCHAR N       |                                       |
 | timestamps          |                 |                                       |
 
-1. Nilai: `admin` / `member` (pelanggan). Nilai `reseller` ada di enum → **ditinjau, out of scope**.
+1. Nilai: `admin` / `member` (pelanggan). Role `reseller` dan kolom `balance` dihapus 2026-11-22 (`2026_11_22_120007`, user `reseller` lama diubah jadi `member`).
 
 ### `categories`
 
@@ -127,20 +132,34 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | `type`           | VARCHAR(20) IDX | `topup` / `account`                    |
 | `name`           | VARCHAR         |                                        |
 | `group`          | VARCHAR N       | Pengelompokan tampilan (Diamond, dll.) |
-| `image`          | VARCHAR N       |                                        |
-| `description`    | TEXT N          |                                        |
 | `supplier`       | VARCHAR N       | `melo` (khusus `topup`)                |
 | `supplier_sku`   | VARCHAR N IDX   | `sku_code` Melo                        |
 | `base_price`     | BIGINT UNSIGNED | Harga modal, Rupiah penuh (2)          |
 | `price`          | BIGINT UNSIGNED | Harga jual, Rupiah penuh. `0` = belum diatur (2) |
-| `reseller_price` | DECIMAL(15,2) N | **Ditinjau, out of scope**             |
 | `strike_price`   | BIGINT UNSIGNED N | Harga coret, Rupiah penuh            |
 | `is_active`      | BOOLEAN         |                                        |
-| `sort`           | INT UNSIGNED    |                                        |
 
 1. `ON DELETE CASCADE`.
-2. Sejak 2026-11-16 kolom uang `products` dan `orders` berupa integer (Rupiah penuh, tanpa sen); lihat `CURRENT_STATUS.md` §6. `reseller_price` dibiarkan DECIMAL (out of scope).
-- Index tambahan: UQ(`supplier`, `supplier_sku`) untuk mencegah SKU ganda. Dipakai sebagai kunci upsert sync Melo.
+2. Sejak 2026-11-16 kolom uang `products` dan `orders` berupa integer (Rupiah penuh, tanpa sen); lihat `CURRENT_STATUS.md` §6.
+3. Kolom `reseller_price`, `sort`, `image`, `description` dihapus 2026-11-22 (`2026_11_22_120007`, keputusan PO). Urutan tampil storefront = `price`.
+- Index tambahan: UQ(`supplier`, `supplier_sku`) untuk mencegah SKU ganda. Dipakai untuk mencocokkan produk dengan `melo_products.sku_code`.
+
+### `melo_products`
+
+Katalog Melo per game hasil sync (`MeloCatalogService::syncProducts()`). Admin memilih item di sini untuk dijadikan `products` (`addProducts()`). Migration `2026_11_22_120006`.
+
+| Kolom       | Tipe            | Keterangan                                          |
+| ----------- | --------------- | --------------------------------------------------- |
+| `id`        | BIGINT PK       |                                                     |
+| `game_id`   | FK              | → `games.id`, cascade                               |
+| `sku_code`  | VARCHAR UQ      | `sku_code` Melo; produk terpilih = `products.supplier_sku` (`supplier = melo`) |
+| `name`      | VARCHAR         |                                                     |
+| `type_name` | VARCHAR N       | Menjadi `products.group` saat dipilih               |
+| `price`     | BIGINT UNSIGNED | Harga modal Melo, `ceil`, Rupiah penuh              |
+| `status`    | VARCHAR(20)     | Status Melo (`active` / `out_of_stock`)             |
+| timestamps  |                 |                                                     |
+
+- Baris game yang hilang dari katalog Melo dihapus saat sync.
 
 ### `orders`
 
@@ -249,7 +268,7 @@ Diimplementasikan di `app/Services/AccountStockService.php`:
 
 | Item                        | Status                              |
 | --------------------------- | ----------------------------------- |
-| Kolom & role reseller (1)   | Out of scope. Hapus/biarkan = [TBD] |
+| Kolom & role reseller (1)   | Dihapus 2026-11-22 (`2026_11_22_120007`) |
 | Verifikasi email pelanggan  | [TBD]                               |
 | Masa simpan `api_logs`      | [TBD]                               |
 | Kolom tambahan untuk refund | [TBD], tunggu alur refund           |

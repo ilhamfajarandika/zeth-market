@@ -55,6 +55,14 @@ class Game extends Model
     }
 
     /**
+     * @return HasMany<MeloProduct, $this>
+     */
+    public function meloProducts(): HasMany
+    {
+        return $this->hasMany(MeloProduct::class);
+    }
+
+    /**
      * @return HasMany<Order, $this>
      */
     public function orders(): HasMany
