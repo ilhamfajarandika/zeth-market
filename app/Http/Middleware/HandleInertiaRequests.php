@@ -36,15 +36,26 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'appName' => config('app.name'),
             'logoUrl' => Storage::disk('public')->exists('logo/logo.webp')
                 ? Storage::disk('public')->url('logo/logo.webp')
                 : null,
+            'auth' => [
+                'user' => $user ? [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ] : null,
+            ],
             'links' => [
                 'home' => route('home'),
                 'invoiceBase' => url('invoice'),
+                'login' => route('login'),
+                'register' => route('register'),
+                'logout' => route('logout'),
             ],
         ];
     }
