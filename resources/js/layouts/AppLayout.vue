@@ -1,14 +1,19 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import BrandLogo from '../components/BrandLogo.vue';
 
 const page = usePage();
 const appName = computed(() => page.props.appName ?? 'Zeth Market');
+const authUser = computed(() => page.props.auth?.user ?? null);
 const links = computed(() => page.props.links);
 const isHome = computed(() => page.component === 'Home');
 const orderLookupUrl = computed(() => `${links.value.home}#cek-pesanan`);
 const year = new Date().getFullYear();
+
+function logout() {
+    router.post(links.value.logout);
+}
 </script>
 
 <template>
@@ -33,6 +38,25 @@ const year = new Date().getFullYear();
                     >
                         Cek pesanan
                     </a>
+                    <template v-if="authUser">
+                        <span class="max-w-32 truncate font-mono text-[11px] uppercase tracking-[0.12em] text-text">
+                            {{ authUser.name }}
+                        </span>
+                        <button
+                            type="button"
+                            class="focus-ring cursor-pointer rounded-md border border-border px-3.5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted transition-colors hover:border-brand/60 hover:text-brand-highlight"
+                            @click="logout"
+                        >
+                            Keluar
+                        </button>
+                    </template>
+                    <Link
+                        v-else
+                        :href="links.login"
+                        class="focus-ring rounded-md border border-brand/50 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-highlight transition-colors hover:bg-brand hover:text-text"
+                    >
+                        Masuk
+                    </Link>
                 </nav>
             </div>
         </header>

@@ -15,7 +15,7 @@
 
 ## 3. Lanjut Setelah Kontrak Backend Siap
 - [ ] **`fe/checkout-form`** — Sambungkan form checkout `Game.vue` (`useForm` ke `checkout.store` + channel Duitku).
-- [ ] **`fe/auth-pages`** — Buat halaman login & register pelanggan.
+- [x] **`fe/auth-pages`** — Buat halaman login & register pelanggan.
 - [ ] **`fe/order-history`** — Buat halaman riwayat transaksi pelanggan.
 - [ ] **`fe/invoice-payment`** — Tampilkan QRIS (pakai `chillerlan/php-qrcode` dari Backend), kode VA/e-wallet, & countdown `expiresAt` di `Invoice.vue`.
 - [ ] **`fe/invoice-polling`** — Tambah polling status otomatis di `Invoice.vue` (callback Duitku & Melo sudah punya job di Backend).
