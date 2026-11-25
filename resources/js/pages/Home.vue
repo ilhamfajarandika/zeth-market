@@ -3,6 +3,8 @@ import { Head } from '@inertiajs/vue3';
 import { computed, shallowRef } from 'vue';
 import BannerSlideshow from '../components/BannerSlideshow.vue';
 import GameCover from '../components/GameCover.vue';
+import BaseButton from '../components/ui/BaseButton.vue';
+import EmptyState from '../components/ui/EmptyState.vue';
 import LandingLayout from '../layouts/LandingLayout.vue';
 
 const { banners = [], categories } = defineProps({
@@ -282,17 +284,20 @@ function lookupInvoice() {
                     </a>
                 </div>
 
-                <div v-else class="mt-8 rounded-lg border border-dashed border-border px-6 py-16 text-center">
-                    <p class="text-sm text-muted">Tidak ada game yang cocok dengan pencarianmu.</p>
-                    <button
-                        v-if="hasActiveFilter"
-                        type="button"
-                        class="focus-ring mt-5 rounded-md border border-border px-4 py-2 font-display text-sm font-semibold text-text transition-colors hover:border-brand/60 hover:text-brand-highlight"
-                        @click="resetFilters"
-                    >
+                <EmptyState
+                    v-else
+                    class="mt-8"
+                    :title="hasActiveFilter ? 'Game tidak ditemukan' : 'Katalog belum tersedia'"
+                    :description="
+                        hasActiveFilter
+                            ? 'Tidak ada game yang cocok dengan pencarian atau kategori yang dipilih.'
+                            : 'Daftar game akan tampil di sini setelah ditambahkan oleh admin.'
+                    "
+                >
+                    <BaseButton v-if="hasActiveFilter" variant="secondary" @click="resetFilters">
                         Reset filter
-                    </button>
-                </div>
+                    </BaseButton>
+                </EmptyState>
             </div>
         </section>
 
