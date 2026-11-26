@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-26, oleh AI agent (warna & favicon panel admin disesuaikan landing page). Sebelumnya: 2026-11-22 (katalog Melo dipilih dulu + hapus kolom reseller/tidak terpakai). Sebelumnya: 2026-11-21 (pilih metode bayar + checkout), 2026-11-21 (upload thumbnail game), 2026-11-17 (pemrosesan callback Duitku & Melo), 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
+> **Terakhir diperbarui:** 2026-11-26, oleh AI agent (jenis dan QR code metode bayar). Sebelumnya: 2026-11-26 (tampilan detail pesanan di panel admin), 2026-11-26 (warna & favicon panel admin disesuaikan landing page), 2026-11-22 (katalog Melo dipilih dulu + hapus kolom reseller/tidak terpakai). Sebelumnya: 2026-11-21 (pilih metode bayar + checkout), 2026-11-21 (upload thumbnail game), 2026-11-17 (pemrosesan callback Duitku & Melo), 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -10,11 +10,11 @@
 | Fase          | Skeleton selesai, supplier Melo terpasang, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat `IMPLEMENTATION_PLAN.md`                                |
 | Tanggal H1    | [TBD]                                                                          |
-| Test          | **151 lulus, 8 gagal** (1)                                                      |
+| Test          | **156 lulus, 8 gagal** (1)                                                      |
 | Versi         | Laravel 13, Filament 5, PHP 8.4, MySQL 8.0.30 (2)                              |
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
-1. `INERTIA_SSR_ENABLED=false php artisan test --compact`, 159 test, SQLite in-memory, 2026-11-26. Sebelum perubahan 2026-11-26: 149 lulus, 9 gagal. Perlu `npm run build` dulu agar `ExampleTest` lulus.
+1. `INERTIA_SSR_ENABLED=false php artisan test --compact`, 164 test, SQLite in-memory, 2026-11-26. Sebelum perubahan warna/favicon 2026-11-26: 149 lulus, 9 gagal. Perlu `npm run build` dulu agar `ExampleTest` lulus.
 2. Ditambah Tailwind 4 dan Vite 8, Vue 3.5 Inertia 3 (`inertiajs/inertia-laravel`, `@inertiajs/vue3`), MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
@@ -60,7 +60,7 @@ Lokasi & detail:
 
 - Registrasi/login pelanggan dan riwayat transaksi.
 - Aksi admin pada Pelanggan (blokir dll., keputusan #10) dan batasan form Pesanan (M3).
-- Nama metode bayar di invoice (masih kode, mis. `SP`); tampilan nomor VA di invoice.
+- Nama metode bayar (nama Duitku, mis. `SHOPEEPAY QRIS`) belum disimpan di order. Invoice dan detail admin kini menampilkan kode + jenis (lihat riwayat 2026-11-26); tampilan nomor VA di invoice.
 - Cek status supplier terjadwal / reconcile `transactionStatus()`; penandaan order `pending` kedaluwarsa menjadi `expired`.
 - Sinkron harga Melo, import CSV akun game.
 - Notifikasi.
@@ -295,6 +295,24 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - `resources/views/filament/brand-logo.blade.php`: gambar logo kini `favicon-32x32.png`; kotak fallback "Z" dihapus.
 - Test: `AdminPanelAccessTest::test_admin_login_page_uses_the_logo_favicon` (kini memeriksa link favicon dan `src` logo) dan `test_admin_login_page_uses_the_landing_colors_in_dark_mode` (baru). Suite penuh: 159 test, 151 lulus, 8 gagal (sebelumnya 158 / 149 / 9; yang diperbaiki hanya test favicon, sisanya sama).
 - Belum dicek di browser. Verifikasi baru lewat HTML yang dirender dan test. Favicon 32 px di header bisa terlihat sedikit kabur di layar retina; alternatifnya `apple-touch-icon.png` (180 px, berisi tulisan "ZETH MARKET").
+
+### 2026-11-26 — Tampilan detail pesanan di panel admin
+
+- Permintaan PO: halaman detail pesanan (`ViewOrder`) dibuat lebih rapi. Hanya presentasi: `OrderInfolist` (read-only) kini dikelompokkan ke bagian Ringkasan, Rincian harga, Produk & tujuan, Pembeli, Pembayaran, dan Supplier (Melo), masing-masing dengan ikon dan grid responsif.
+- Total tampil tebal dan berwarna primary. ID, invoice, referensi, kode, dan URL pembayaran bisa disalin (`copyable`) dan memakai font mono. Label yang masih bahasa Inggris dialihkan ke Indonesia. Field yang kosong menampilkan `-`.
+- Tidak ada perubahan data, route, atau aksi. Kolom "Nama produk saat pesan" (snapshot) dan "Produk saat ini" (relasi) tetap ditampilkan keduanya.
+- Test baru: `AdminOrderViewTest` (2 test: bagian dan nilai tampil, placeholder untuk field kosong). Suite penuh: 161 test, 153 lulus, 8 gagal (sama dengan sebelumnya, semua M15 b/c dan `MeloServiceTest` `max_price`).
+- Belum dicek di browser; verifikasi lewat render Livewire dan test. Tombol salin dan lebar URL pembayaran yang panjang belum diuji secara visual.
+
+### 2026-11-26 — Jenis dan QR code metode bayar
+
+- Permintaan PO: metode bayar tampil bersama jenisnya (QRIS, Virtual Account, E-Wallet, atau Lainnya). Untuk order QRIS, kode pembayaran di detail admin tampil sebagai QR code.
+- Jenis diambil dari `DuitkuService::channelGroup()` (kode, bukan nama Duitku), tanpa kolom baru dan tanpa migration. Data yang tersimpan (`orders.payment_method`, `orders.payment_code`) tidak diubah, dan request ke Duitku tidak berubah.
+- Invoice: prop `order.paymentMethod` kini `SP (QRIS)` (kode + jenis). `DuitkuService::qrisImage()` dipindah dari `StorefrontController` agar invoice dan detail admin memakai satu fungsi.
+- Detail admin (`OrderInfolist`): entri baru "Jenis" (badge). Untuk order QRIS, "Kode pembayaran" diganti "QR code"; metode lain tetap teks kode.
+- Dari log API (`api_logs`, respons `getpaymentmethod` sandbox 2026-11-26): daftar Duitku memuat SP (SHOPEEPAY QRIS) dan NQ (NOBU QRIS) di grup QRIS, serta FT, VC, DN, IR, dan lainnya yang masuk "Lainnya". Order uji yang ada semuanya SP.
+- Belum: nama Duitku per metode belum disimpan di order (butuh kolom baru, perlu persetujuan PO). Pengelompokan FT (Retail), VC (Kartu kredit), DN (PayLater), IR (Indomaret) masih "Lainnya", dan perlu keputusan PO.
+- Test: `AdminOrderViewTest` (+2: QRIS tampil QR tanpa kode mentah; non-QRIS tampil teks kode dan jenis), `StorefrontTest::test_invoice_shows_payment_method_code_with_its_type` (+1). Suite penuh: 164 test, 156 lulus, 8 gagal (sama dengan sebelumnya).
 
 ## 7. Pekerjaan Berikutnya
 
