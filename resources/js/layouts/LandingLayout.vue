@@ -94,9 +94,12 @@ onBeforeUnmount(() => {
 
                 <div class="hidden items-center gap-3 md:ml-2 md:flex">
                     <template v-if="authUser">
-                        <span class="max-w-32 truncate font-mono text-[11px] uppercase tracking-[0.12em] text-text">
-                            {{ authUser.name }}
-                        </span>
+                        <Link
+                            :href="links.orders"
+                            class="focus-ring rounded-md border border-border px-3.5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text transition-colors hover:border-brand/60 hover:text-brand-highlight"
+                        >
+                            Riwayat
+                        </Link>
                         <button
                             type="button"
                             class="focus-ring cursor-pointer rounded-md border border-border px-3.5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted transition-colors hover:border-brand/60 hover:text-brand-highlight"
@@ -174,13 +177,25 @@ onBeforeUnmount(() => {
                     <p class="mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-muted">
                         Masuk sebagai <span class="text-text">{{ authUser.name }}</span>
                     </p>
-                    <button
-                        type="button"
-                        class="focus-ring flex w-full cursor-pointer items-center justify-between rounded-md border border-border bg-surface px-5 py-4 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-text transition-colors hover:border-brand/60 hover:text-brand-highlight"
-                        @click="logout"
-                    >
-                        Keluar
-                    </button>
+                    <div class="flex flex-col gap-2.5">
+                        <Link
+                            :href="links.orders"
+                            class="focus-ring flex items-center justify-between rounded-md bg-brand px-5 py-4 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-text transition-colors hover:bg-brand-hover"
+                            @click="closeMenu"
+                        >
+                            Riwayat transaksi
+                            <svg class="size-4" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12l-7.5 7.5M21 12H3" />
+                            </svg>
+                        </Link>
+                        <button
+                            type="button"
+                            class="focus-ring flex w-full cursor-pointer items-center justify-center rounded-md border border-border bg-surface px-5 py-3.5 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-text transition-colors hover:border-brand/60 hover:text-brand-highlight"
+                            @click="logout"
+                        >
+                            Keluar
+                        </button>
+                    </div>
                 </template>
                 <div v-else class="flex flex-col gap-2.5">
                     <Link

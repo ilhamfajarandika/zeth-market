@@ -53,6 +53,7 @@ class HandleInertiaRequests extends Middleware
             'links' => [
                 'home' => route('home'),
                 'invoiceBase' => url('invoice'),
+                'orders' => route('orders.index'),
                 'login' => route('login'),
                 'register' => route('register'),
                 'logout' => route('logout'),

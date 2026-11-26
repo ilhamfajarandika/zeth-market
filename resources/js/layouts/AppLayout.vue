@@ -39,9 +39,12 @@ function logout() {
                         Cek pesanan
                     </a>
                     <template v-if="authUser">
-                        <span class="max-w-32 truncate font-mono text-[11px] uppercase tracking-[0.12em] text-text">
-                            {{ authUser.name }}
-                        </span>
+                        <Link
+                            :href="links.orders"
+                            class="focus-ring rounded-md border border-border px-3.5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text transition-colors hover:border-brand/60 hover:text-brand-highlight"
+                        >
+                            Riwayat
+                        </Link>
                         <button
                             type="button"
                             class="focus-ring cursor-pointer rounded-md border border-border px-3.5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted transition-colors hover:border-brand/60 hover:text-brand-highlight"
