@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Filament\Support\Colors\Color;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,9 +25,21 @@ class AdminPanelAccessTest extends TestCase
 
     public function test_admin_login_page_uses_the_logo_favicon(): void
     {
+        $favicon = asset('favicon-32x32.png');
+
         $this->get(self::ADMIN_PATH.'/login')
             ->assertOk()
-            ->assertSee('favicon-32x32.png', false);
+            ->assertSee('rel="icon" href="'.$favicon.'"', false)
+            ->assertSee('src="'.$favicon.'"', false);
+    }
+
+    public function test_admin_login_page_uses_the_landing_colors_in_dark_mode(): void
+    {
+        $this->get(self::ADMIN_PATH.'/login')
+            ->assertOk()
+            ->assertSee('--default-theme-mode: dark', false)
+            ->assertSee('--primary-600:'.Color::convertToOklch('#e8174a'), false)
+            ->assertSee('--gray-950:'.Color::convertToOklch('#09050f'), false);
     }
 
     public function test_guest_is_redirected_to_login_on_the_configured_admin_path(): void

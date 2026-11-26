@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-22, oleh AI agent (katalog Melo dipilih dulu + hapus kolom reseller/tidak terpakai). Sebelumnya: 2026-11-21 (pilih metode bayar + checkout), 2026-11-21 (upload thumbnail game), 2026-11-17 (pemrosesan callback Duitku & Melo), 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
+> **Terakhir diperbarui:** 2026-11-26, oleh AI agent (warna & favicon panel admin disesuaikan landing page). Sebelumnya: 2026-11-22 (katalog Melo dipilih dulu + hapus kolom reseller/tidak terpakai). Sebelumnya: 2026-11-21 (pilih metode bayar + checkout), 2026-11-21 (upload thumbnail game), 2026-11-17 (pemrosesan callback Duitku & Melo), 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -10,11 +10,11 @@
 | Fase          | Skeleton selesai, supplier Melo terpasang, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat `IMPLEMENTATION_PLAN.md`                                |
 | Tanggal H1    | [TBD]                                                                          |
-| Test          | **104 lulus, 0 gagal** (1)                                                      |
+| Test          | **151 lulus, 8 gagal** (1)                                                      |
 | Versi         | Laravel 13, Filament 5, PHP 8.4, MySQL 8.0.30 (2)                              |
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
-1. `php artisan test --compact`, 328 assertion, MySQL `topup_game_test`, 2026-11-16. Perlu `npm run build` dulu agar `ExampleTest` lulus.
+1. `INERTIA_SSR_ENABLED=false php artisan test --compact`, 159 test, SQLite in-memory, 2026-11-26. Sebelum perubahan 2026-11-26: 149 lulus, 9 gagal. Perlu `npm run build` dulu agar `ExampleTest` lulus.
 2. Ditambah Tailwind 4 dan Vite 8, Vue 3.5 Inertia 3 (`inertiajs/inertia-laravel`, `@inertiajs/vue3`), MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
@@ -64,7 +64,7 @@ Lokasi & detail:
 - Cek status supplier terjadwal / reconcile `transactionStatus()`; penandaan order `pending` kedaluwarsa menjadi `expired`.
 - Sinkron harga Melo, import CSV akun game.
 - Notifikasi.
-- Desain storefront final dan branding admin.
+- Desain storefront final.
 - Deployment.
 
 ## 4. Masalah Ditemukan
@@ -286,6 +286,15 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - File berubah: `app/Services/Supplier/MeloCatalogService.php` (1 baris).
 - Test berubah: 2 test yang assert `price = 0` diubah assert `price = base_price` (`AdminCatalogResourceTest`, `MeloCatalogServiceTest`).
 - Suite penuh (`INERTIA_SSR_ENABLED=false`): 152 test, 145 lulus, 7 gagal (M15 b/c dan `MeloServiceTest` `max_price`, sama dengan sebelumnya).
+
+### 2026-11-26 — Warna & favicon panel admin mengikuti landing page
+
+- Permintaan PO: warna panel admin disamakan dengan landing page, dan logo di header admin memakai favicon.
+- `AdminPanelProvider`: `primary` (brand `#e8174a` di 600, highlight `#ff2bd6` di 400 dan 500) dan `gray` (text `#f4f6fb` di 50, muted `#9aa3b8` di 400, surface-raised `#21103a` di 800, surface `#140a22` di 900, ground `#09050f` di 950) diambil dari `@theme` di `resources/css/app.css`. Shade lain dihitung manual. Success, warning, dan danger tetap bawaan Filament. Tema default gelap (`ThemeMode::Dark`), admin tetap bisa mengganti ke terang.
+- Favicon panel: `favicon(fn () => asset('favicon-32x32.png'))`. Dibungkus closure agar URL dibuat saat render, bukan saat boot (`asset()` men-cache skema URL dan bisa mengunci `http://` sebelum trusted proxy aktif). Sebelumnya menunjuk `storage/app/public/logo/logo.webp` yang tidak ada (logo sudah pindah ke `public/images/logo.png` pada 2026-11-22), sehingga tab tanpa ikon dan header memakai kotak "Z" merah `#e50914`.
+- `resources/views/filament/brand-logo.blade.php`: gambar logo kini `favicon-32x32.png`; kotak fallback "Z" dihapus.
+- Test: `AdminPanelAccessTest::test_admin_login_page_uses_the_logo_favicon` (kini memeriksa link favicon dan `src` logo) dan `test_admin_login_page_uses_the_landing_colors_in_dark_mode` (baru). Suite penuh: 159 test, 151 lulus, 8 gagal (sebelumnya 158 / 149 / 9; yang diperbaiki hanya test favicon, sisanya sama).
+- Belum dicek di browser. Verifikasi baru lewat HTML yang dirender dan test. Favicon 32 px di header bisa terlihat sedikit kabur di layar retina; alternatifnya `apple-touch-icon.png` (180 px, berisi tulisan "ZETH MARKET").
 
 ## 7. Pekerjaan Berikutnya
 
