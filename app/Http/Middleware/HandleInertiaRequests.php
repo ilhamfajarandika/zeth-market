@@ -35,6 +35,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'appName' => config('app.name'),
@@ -42,6 +44,10 @@ class HandleInertiaRequests extends Middleware
             'links' => [
                 'home' => route('home'),
                 'invoiceBase' => url('invoice'),
+                'orders' => route('orders.index'),
+                'login' => route('login'),
+                'register' => route('register'),
+                'logout' => route('logout'),
             ],
         ];
     }
