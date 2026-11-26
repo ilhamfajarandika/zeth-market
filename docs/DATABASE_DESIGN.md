@@ -14,7 +14,7 @@
 | `products`      | Item top up yang dijual + harga               | `000400`                 |
 | `melo_products` | Katalog Melo hasil sync, dipilih admin (3)    | `2026_11_22_120006`      |
 | `orders`        | Transaksi pembelian + data payment & supplier | `000500`                 |
-| `game_accounts` | Akun game yang dijual (1 baris = 1 akun), tanpa kredensial | `2026_11_22_204917` (menggantikan `000600`) |
+| `game_accounts` | Akun game yang dijual (1 baris = 1 akun), tanpa kredensial | `2026_11_22_204917` (menggantikan `000600`), kolom `images` di `2026_11_27_053142` |
 | `api_logs`      | Log request/callback payment & supplier       | `000700`                 |
 | `settings`      | Pengaturan key-value (nama situs, dll.)       | `000800`                 |
 
@@ -67,6 +67,7 @@ erDiagram
         bigint game_id FK
         string name
         bigint price
+        json images
         string status }
 ```
 
@@ -200,6 +201,7 @@ Akun game yang dijual, terpisah dari `products` (keputusan PO 2026-11-22, migrat
 | `name`        | VARCHAR         | Nama akun, contoh "Akun Mythic Glory"        |
 | `price`       | BIGINT UNSIGNED | Harga jual, Rupiah penuh, diisi admin        |
 | `public_info` | TEXT N          | Boleh tampil publik (rank, skin)             |
+| `images`      | JSON N          | Path gambar WebP di disk `public`, maks 5 (`2026_11_27_053142`) |
 | `status`      | VARCHAR(20)     | Default `available`. `available` / `sold` / `disabled` (1) |
 | `sold_at`     | TIMESTAMP N     | Diisi otomatis saat status jadi `sold` (2)   |
 | timestamps    |                 |                                              |

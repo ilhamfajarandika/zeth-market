@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-26, oleh AI agent (jenis dan QR code metode bayar). Sebelumnya: 2026-11-26 (tampilan detail pesanan di panel admin), 2026-11-26 (warna & favicon panel admin disesuaikan landing page), 2026-11-22 (katalog Melo dipilih dulu + hapus kolom reseller/tidak terpakai). Sebelumnya: 2026-11-21 (pilih metode bayar + checkout), 2026-11-21 (upload thumbnail game), 2026-11-17 (pemrosesan callback Duitku & Melo), 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
+> **Terakhir diperbarui:** 2026-11-27, oleh AI agent (gambar stok akun, maks 5 WebP). Sebelumnya: 2026-11-26 (jenis dan QR code metode bayar), 2026-11-26 (tampilan detail pesanan di panel admin), 2026-11-26 (warna & favicon panel admin disesuaikan landing page), 2026-11-22 (katalog Melo dipilih dulu + hapus kolom reseller/tidak terpakai). Sebelumnya: 2026-11-21 (pilih metode bayar + checkout), 2026-11-21 (upload thumbnail game), 2026-11-17 (pemrosesan callback Duitku & Melo), 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -10,11 +10,11 @@
 | Fase          | Skeleton selesai, supplier Melo terpasang, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat `IMPLEMENTATION_PLAN.md`                                |
 | Tanggal H1    | [TBD]                                                                          |
-| Test          | **156 lulus, 8 gagal** (1)                                                      |
+| Test          | **159 lulus, 8 gagal** (1)                                                      |
 | Versi         | Laravel 13, Filament 5, PHP 8.4, MySQL 8.0.30 (2)                              |
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
-1. `INERTIA_SSR_ENABLED=false php artisan test --compact`, 164 test, SQLite in-memory, 2026-11-26. Sebelum perubahan warna/favicon 2026-11-26: 149 lulus, 9 gagal. Perlu `npm run build` dulu agar `ExampleTest` lulus.
+1. `INERTIA_SSR_ENABLED=false php artisan test --compact`, 167 test, SQLite in-memory, 2026-11-27. Sebelum perubahan gambar stok akun 2026-11-27: 164 test, 156 lulus, 8 gagal. Sebelum perubahan warna/favicon 2026-11-26: 149 lulus, 9 gagal. Perlu `npm run build` dulu agar `ExampleTest` lulus.
 2. Ditambah Tailwind 4 dan Vite 8, Vue 3.5 Inertia 3 (`inertiajs/inertia-laravel`, `@inertiajs/vue3`), MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
@@ -25,7 +25,7 @@
 | Skema DB            | 9 tabel aplikasi (+ `melo_products`) + bawaan Laravel; kolom uang integer; `games.melo_brand_id` | — |
 | Model & enum        | 9 model (+ `MeloProduct`), 4 enum              | —                         |
 | Factory & seeder    | Admin contoh, 3 kategori, 17 game (+ ikon), produk top up, 7 akun game | — |
-| Akun game           | `game_accounts` (tabel terpisah, tanpa reservasi, tanpa kredensial) | `AdminCatalogResourceTest`, `StorefrontTest` |
+| Akun game           | `game_accounts` (tabel terpisah, tanpa reservasi, tanpa kredensial, gambar maks 5 WebP) | `AdminCatalogResourceTest`, `StorefrontTest` |
 | Scheduler           | `melo:check-balance` tiap 10 menit            | `MeloBalanceDashboardTest` |
 | Kredensial          | tidak disimpan di sistem (dihapus 2026-11-22) | `test_game_accounts_table_has_no_credentials_column` |
 | Admin panel         | 6 resource + widget, hanya admin              | `AdminPanelAccessTest`, `AdminCatalogResourceTest`, `AdminCustomerResourceTest` |
@@ -87,6 +87,7 @@ Lokasi & detail:
 | M14 | Thumbnail game dari Melo (URL absolut) jadi gambar rusak | Gambar game tidak tampil | Selesai (2026-11-21), data lama perlu upload ulang |
 | M15 | 17 test gagal saat dev server (`public/hot`) aktif / admin 404 | Hasil test tidak bisa dipercaya | Terbuka |
 | M16 | `php artisan test` memakai DB dev jika config di-cache | Data `topup_game` terhapus | Terbuka |
+| M17 | `CustomerAuthTest::test_customer_can_login_and_logout` dan `MeloServiceTest::test_topup_sends_...` gagal, di luar M15 | Login pelanggan dan kirim top up tidak terverifikasi | Terbuka |
 
 Detail:
 - **M1:** `StorefrontController::invoice`. Kredensial akun tidak ada lagi di sistem (2026-11-22). Yang masih terbuka: nomor SN dan data pesanan.
@@ -105,6 +106,7 @@ Detail:
 - **M14:** Ditemukan saat uji manual di browser (2026-11-21). `GameForm` mengisi `games.thumbnail` dengan URL CDN Melo (`https://cdn.melostore.id/...`), lalu `StorefrontController::gameSummary()` (`thumbnailUrl`) membungkusnya dengan `Storage::disk('public')->url()` sehingga menjadi `/storage/https://...`. Gambar rusak di beranda dan halaman game. Selesai 2026-11-21: field thumbnail diganti upload file (lihat Riwayat), isi otomatis thumbnail dari Melo dihapus. Game yang sudah tersimpan dengan URL CDN tetap rusak sampai admin meng-upload ulang thumbnail-nya.
 - **M15:** Ditemukan 2026-11-21, gagal juga tanpa perubahan hari itu (130 test, 113 lulus). (a) 11 test storefront/`ExampleTest` error 500 `StrayRequestException` ke `http://[::1]:5173/__inertia_ssr`: saat `composer run dev` jalan, `public/hot` ada sehingga Inertia mencoba SSR ke Vite. Terkonfirmasi 2026-11-21: dengan `INERTIA_SSR_ENABLED=false php artisan test --compact` semua test storefront lulus kecuali (e). (b) Halaman admin (`AdminCatalogResourceTest`, `AdminCustomerResourceTest`, `AdminPanelAccessTest`, `MeloBalanceDashboardTest`) mengembalikan 404, bukan 200/403; penyebab belum diselidiki. (c) ~~`test_admin_marking_account_sold_...` gagal karena `credentials` wajib di form edit~~ (hilang 2026-11-22, kolom dihapus). (d) `MeloBalanceDashboardTest::test_command_notifies_admins_once_per_level_and_escalates` flaky (2 dari 3 run lulus): notifikasi `menipis` dan `hampir habis` kemungkinan dibuat di detik yang sama sehingga urutan `notifications` tidak pasti. (e) ~~`StorefrontTest::test_invoice_shows_own_qris_image_only_while_pending` mencari data URI di HTML~~ diperbaiki 2026-11-21 (QR QRIS di invoice).
 - **M16:** Ditemukan 2026-11-21. Jika `bootstrap/cache/config.php` ada (`php artisan optimize`/`config:cache`), env dari `phpunit.xml` diabaikan sehingga test berjalan di `topup_game` dan `RefreshDatabase` mengosongkannya (terjadi 2026-11-21, data dev hilang). Jalankan `php artisan optimize:clear` sebelum test. Usulan pengaman (belum dibuat): cek nama database di `TestCase::setUp()`.
+- **M17:** Ditemukan 2026-11-27 saat suite penuh. Belum diselidiki dan tidak diubah di task gambar stok akun. Jumlah kegagalan sama dengan 2026-11-26, jadi kemungkinan sudah ada sebelumnya.
 
 ## 5. Keputusan yang Menunggu (PO/Klien)
 
@@ -313,6 +315,16 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - Dari log API (`api_logs`, respons `getpaymentmethod` sandbox 2026-11-26): daftar Duitku memuat SP (SHOPEEPAY QRIS) dan NQ (NOBU QRIS) di grup QRIS, serta FT, VC, DN, IR, dan lainnya yang masuk "Lainnya". Order uji yang ada semuanya SP.
 - Belum: nama Duitku per metode belum disimpan di order (butuh kolom baru, perlu persetujuan PO). Pengelompokan FT (Retail), VC (Kartu kredit), DN (PayLater), IR (Indomaret) masih "Lainnya", dan perlu keputusan PO.
 - Test: `AdminOrderViewTest` (+2: QRIS tampil QR tanpa kode mentah; non-QRIS tampil teks kode dan jenis), `StorefrontTest::test_invoice_shows_payment_method_code_with_its_type` (+1). Suite penuh: 164 test, 156 lulus, 8 gagal (sama dengan sebelumnya).
+
+### 2026-11-27 — Gambar stok akun (maks 5, WebP)
+
+- Permintaan user: form Stok Akun (`GameAccountForm`) punya upload gambar, maksimal 5 file per akun.
+- Migration baru `2026_11_27_053142_add_images_to_game_accounts_table.php`: kolom `game_accounts.images` (JSON, nullable) berisi path di disk `public` (`game-accounts/images/*.webp`). Tanpa tabel baru.
+- Setiap file diubah ke WebP kualitas 80 lewat GD (`imagewebp`, tanpa package baru) di `GameAccountForm::storeAsWebp()`. Batas 2 MB per file, sama dengan thumbnail game. Batas ini mengikuti `upload_max_filesize` PHP (2M di CLI lokal). Naikkan batasnya hanya jika `upload_max_filesize` di server juga dinaikkan.
+- Model `GameAccount`: `images` di fillable dan cast `array`.
+- Belum: gambar belum tampil di storefront (halaman game hanya nama, harga, dan info publik). File yang dilepas dari form atau akun yang dihapus tetap ada di disk. Resize dan koreksi rotasi EXIF tidak dikerjakan (lihat komentar `shortcut` di `GameAccountForm`).
+- Bug yang ditemukan lewat test sebelum rilis: PNG berbentuk palette (mode indeks, umum pada screenshot terkompresi) membuat `imagewebp()` gagal dan request error 500. Diperbaiki dengan `imagepalettetotruecolor()` dan penolakan hasil encode kosong.
+- Test: `AdminCatalogResourceTest` (+3: gambar tersimpan sebagai WebP di disk `public`; maks 5 gambar; PNG palette tersimpan sebagai WebP). Suite penuh: 167 test, 159 lulus, 8 gagal. Enam kegagalan adalah 404 halaman admin (M15 b), dua lainnya tercatat sebagai M17.
 
 ## 7. Pekerjaan Berikutnya
 

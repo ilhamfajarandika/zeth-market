@@ -486,4 +486,79 @@ class AdminCatalogResourceTest extends TestCase
         $this->assertSame(AccountStatus::Available, $account->refresh()->status);
         $this->assertNull($account->sold_at);
     }
+
+    public function test_account_images_are_stored_as_webp_on_public_disk(): void
+    {
+        Storage::fake('public');
+        $game = Game::factory()->create();
+
+        Livewire::test(CreateGameAccount::class)
+            ->fillForm([
+                'game_id' => $game->id,
+                'name' => 'Akun Mythic',
+                'price' => 350000,
+                'status' => AccountStatus::Available->value,
+                'images' => [UploadedFile::fake()->image('a.png', 300, 300), UploadedFile::fake()->image('b.jpg', 300, 300)],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $images = GameAccount::query()->where('name', 'Akun Mythic')->firstOrFail()->images;
+
+        $this->assertCount(2, $images);
+
+        foreach ($images as $path) {
+            $this->assertStringStartsWith('game-accounts/images/', $path);
+            $this->assertStringEndsWith('.webp', $path);
+            Storage::disk('public')->assertExists($path);
+            $this->assertSame('WEBP', substr(Storage::disk('public')->get($path), 8, 4));
+        }
+    }
+
+    public function test_account_images_are_limited_to_five(): void
+    {
+        Storage::fake('public');
+        $game = Game::factory()->create();
+
+        Livewire::test(CreateGameAccount::class)
+            ->fillForm([
+                'game_id' => $game->id,
+                'name' => 'Akun Mythic',
+                'price' => 350000,
+                'status' => AccountStatus::Available->value,
+                'images' => array_map(fn (int $number): UploadedFile => UploadedFile::fake()->image("img{$number}.png", 100, 100), range(1, 6)),
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['images']);
+
+        $this->assertDatabaseMissing('game_accounts', ['name' => 'Akun Mythic']);
+    }
+
+    public function test_account_image_with_palette_png_is_stored_as_webp(): void
+    {
+        Storage::fake('public');
+        $game = Game::factory()->create();
+
+        $palette = imagecreate(20, 20);
+        imagecolorallocate($palette, 200, 0, 0);
+        ob_start();
+        imagepng($palette);
+        $png = ob_get_clean();
+
+        Livewire::test(CreateGameAccount::class)
+            ->fillForm([
+                'game_id' => $game->id,
+                'name' => 'Akun Mythic',
+                'price' => 350000,
+                'status' => AccountStatus::Available->value,
+                'images' => [UploadedFile::fake()->createWithContent('palette.png', $png)],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $path = GameAccount::query()->where('name', 'Akun Mythic')->firstOrFail()->images[0];
+
+        Storage::disk('public')->assertExists($path);
+        $this->assertSame('WEBP', substr(Storage::disk('public')->get($path), 8, 4));
+    }
 }

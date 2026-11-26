@@ -45,6 +45,7 @@
 - Metode bayar harus ada di daftar Duitku untuk nominal itu; harga, fee, dan total tidak diterima dari input. ✅
 - Upload gambar produk hanya tipe gambar (`FileUpload::image()` di `ProductForm`). ✅
 - Thumbnail game (`games.thumbnail`) di-upload dengan `FileUpload::image()` (WebP/JPEG/PNG, maks 2 MB) di `GameForm`. ✅
+- Gambar stok akun (`game_accounts.images`) di-upload dengan `FileUpload::image()` (WebP/JPEG/PNG, maks 2 MB, maks 5 file) di `GameAccountForm`, lalu disimpan sebagai WebP. ✅
 - Banner game (`games.banner`) masih berupa input teks path, belum upload. Jika diubah menjadi upload, wajib `FileUpload::image()`. ⚠️ ditinjau
 
 ## 4. Proteksi Endpoint
