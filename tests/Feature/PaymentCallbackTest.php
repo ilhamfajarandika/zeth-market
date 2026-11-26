@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\OrderStatus;
 use App\Jobs\SendTopupToMelo;
 use App\Models\Order;
-use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -105,16 +104,6 @@ class PaymentCallbackTest extends TestCase
 
         $this->assertSame(OrderStatus::Expired, $order->fresh()->status);
         $this->assertSame('Pembayaran masuk untuk order yang sudah ditutup', $this->admin->notifications()->sole()->data['title']);
-        Bus::assertNotDispatched(SendTopupToMelo::class);
-    }
-
-    public function test_account_order_is_ignored(): void
-    {
-        $order = Order::factory()->for(Product::factory()->account())->create();
-
-        $this->sendCallback($order)->assertOk();
-
-        $this->assertSame(OrderStatus::Pending, $order->fresh()->status);
         Bus::assertNotDispatched(SendTopupToMelo::class);
     }
 }

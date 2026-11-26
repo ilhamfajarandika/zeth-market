@@ -56,7 +56,7 @@ const trustItems = [
         icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
     },
     {
-        label: 'Stok akun real-time',
+        label: 'Akun tersedia',
         detail: 'Mengikuti data toko',
         icon: 'm21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9',
     },
@@ -94,8 +94,8 @@ const facts = [
     },
     {
         label: 'Dari toko',
-        title: 'Stok real-time',
-        text: 'Jumlah akun tersedia mengikuti stok yang tercatat di toko.',
+        title: 'Akun tersedia',
+        text: 'Akun yang masih dijual tampil di halaman game.',
     },
 ];
 
@@ -110,7 +110,7 @@ const faqs = [
     },
     {
         question: 'Apakah bisa membeli akun game?',
-        answer: 'Bisa. Stok akun tampil di halaman game dan berkurang otomatis saat akun terjual.',
+        answer: 'Bisa. Akun yang masih dijual tampil di halaman game; pembeliannya dibantu admin.',
     },
     {
         question: 'Bagaimana cara cek pesanan?',
@@ -223,7 +223,7 @@ function lookupInvoice() {
                         </p>
                         <h2 id="katalog-title" class="mt-3 font-display text-3xl font-bold tracking-tight sm:text-4xl">Pilih game.</h2>
                         <p class="mt-3 max-w-md text-sm leading-relaxed text-muted">
-                            {{ totalGames }} game tersedia. Stok akun mengikuti data toko; harga dan biaya tampil di invoice sebelum pembayaran.
+                            {{ totalGames }} game tersedia. Akun yang dijual tampil di halaman game; harga dan biaya tampil di invoice sebelum pembayaran.
                         </p>
                     </div>
 

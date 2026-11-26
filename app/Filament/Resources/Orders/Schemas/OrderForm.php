@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Enums\OrderStatus;
-use App\Enums\ProductType;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -25,9 +24,6 @@ class OrderForm
                     ->required(),
                 Select::make('product_id')
                     ->relationship('product', 'name')
-                    ->required(),
-                Select::make('product_type')
-                    ->options(ProductType::class)
                     ->required(),
                 TextInput::make('product_name')
                     ->required(),

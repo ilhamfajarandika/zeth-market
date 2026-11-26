@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Products\Tables;
 
-use App\Enums\ProductType;
 use App\Models\Product;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -13,7 +12,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\TextInputColumn;
 use Filament\Tables\Columns\ToggleColumn;
@@ -29,18 +27,14 @@ class ProductsTable
     {
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with('game'))
-            ->defaultSort('sort')
+            ->defaultSort('price')
             ->columns([
-                ImageColumn::make('image')
-                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('game.name')
                     ->label('Game')
                     ->sortable(),
                 TextColumn::make('name')
                     ->label('Produk')
                     ->searchable(),
-                TextColumn::make('type')
-                    ->badge(),
                 TextColumn::make('group')
                     ->toggleable(),
                 TextColumn::make('supplier_sku')
@@ -56,11 +50,6 @@ class ProductsTable
                     ->type('number')
                     ->rules(['required', 'integer', 'min:0'])
                     ->sortable(),
-                TextColumn::make('reseller_price')
-                    ->label('Harga reseller')
-                    ->money('IDR', locale: 'id', decimalPlaces: 0)
-                    ->sortable()
-                    ->toggleable(),
                 ToggleColumn::make('is_active')
                     ->label('Aktif')
                     ->sortable(),
@@ -70,8 +59,6 @@ class ProductsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('type')
-                    ->options(ProductType::class),
                 Filter::make('active_only')
                     ->label('Aktif saja')
                     ->query(fn (Builder $query): Builder => $query->where('is_active', true))

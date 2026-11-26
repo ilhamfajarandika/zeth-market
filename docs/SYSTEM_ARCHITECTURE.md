@@ -13,7 +13,7 @@ flowchart TB
     subgraph Laravel["Aplikasi Laravel 13"]
         R[Routes + Controllers + Inertia]
         F[Filament Resources]
-        SV[Services<br/>AccountStockService<br/>DuitkuService<br/>MeloService]
+        SV[Services<br/>DuitkuService<br/>MeloService]
         J[Queue Jobs]
         SC[Scheduler]
         M[Eloquent Models]
@@ -51,11 +51,11 @@ flowchart TB
 | Tailwind CSS 4 | Styling storefront (`resources/css/app.css`) (5)         | ✅     |
 | Services       | Logika bisnis & integrasi eksternal (6)                  | ✅     |
 | Queue Jobs     | Callback payment, kirim ke Melo, notifikasi         | ➕     |
-| Scheduler      | `accounts:release-expired` tiap menit                    | ✅     |
+| Scheduler      | `melo:check-balance` tiap 10 menit                       | ✅     |
 
 ✅ ada di kode · ➕ direkomendasikan, belum dibuat.
 
-1. CRUD katalog, stok akun, pesanan, dashboard. Akses dibatasi `User::canAccessPanel()` (role admin).
+1. CRUD katalog, akun game, pesanan, dashboard. Akses dibatasi `User::canAccessPanel()` (role admin).
 2. Middleware `App\Http\Middleware\HandleInertiaRequests` (grup `web`) membagikan `appName` dan `links`. Checkout nanti dikirim sebagai form Inertia ke controller.
 3. `resources/js/pages/*.vue`, `resources/js/layouts/AppLayout.vue`, `resources/js/components/*.vue`. Props dari controller berupa array eksplisit (lihat `SECURITY_RULES.md` §11).
 4. Filament tetap memakai Livewire/Blade miliknya sendiri; storefront tidak memakai Livewire.
@@ -82,7 +82,7 @@ flowchart TB
 | Session   | `database`            | `database` / Redis [TBD] |
 | Mail      | `log`                 | SMTP / Resend [TBD]      |
 
-1. Database `topup_game`; test memakai `topup_game_test`.
+1. Database `topup_game`; test memakai SQLite in-memory.
 2. Worker: `php artisan queue:work --tries=3`. Horizon = [TBD] (dependency baru).
 
 ## 5. Integrasi Eksternal
@@ -98,9 +98,7 @@ Status: ✅ ada di kode · ➕ direkomendasikan untuk dibuat (lokasi yang harus 
 
 ```
 app/
-├── Console/Commands/ReleaseExpiredAccounts.php      ✅ accounts:release-expired
-├── Enums/                                          ✅ ProductType, OrderStatus, AccountStatus, UserRole
-├── Exceptions/OutOfStockException.php               ✅
+├── Enums/                                          ✅ OrderStatus, AccountStatus, UserRole
 ├── Filament/
 │   ├── Resources/                                  ✅ Categories, Games, Products, GameAccounts, Orders
 │   │   └── Users/ (Pelanggan)                      ➕
@@ -119,7 +117,6 @@ app/
 ├── Notifications/ atau Mail/                       ➕ jika notifikasi disetujui
 ├── Providers/Filament/AdminPanelProvider.php       ✅
 └── Services/
-    ├── AccountStockService.php                     ✅
     ├── Payment/DuitkuService.php                   ✅
     └── Supplier/MeloService.php                    ✅
 database/
@@ -135,7 +132,7 @@ resources/views/app.blade.php                       ✅ root view Inertia
 routes/
 ├── web.php                                         ✅ storefront + webhook
 └── console.php                                     ✅ scheduler
-tests/Feature/                                      ✅ AccountStockService, WebhookSignature, Storefront, AdminPanelAccess, MeloService
+tests/Feature/                                      ✅ WebhookSignature, Storefront, AdminPanelAccess, MeloService
 ```
 
 Aturan: jangan membuat folder dasar baru di luar daftar ini tanpa persetujuan.
@@ -167,7 +164,7 @@ php artisan key:generate
 php artisan migrate --seed    # admin contoh: admin@example.com / password (khusus lokal)
 npm run build                 # atau: composer run dev
 php artisan serve
-php artisan schedule:work     # terminal terpisah, untuk release stok akun
+php artisan schedule:work     # terminal terpisah, untuk jadwal (cek saldo Melo)
 php artisan queue:work        # terminal terpisah, setelah job dibuat
 php artisan test --compact
 ```

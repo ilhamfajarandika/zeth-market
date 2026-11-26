@@ -19,7 +19,7 @@ class SyncMeloProductsAction
             ->color('info')
             ->visible(fn (Game $record): bool => $record->melo_brand_id !== null)
             ->requiresConfirmation()
-            ->modalDescription('Item baru dibuat nonaktif dengan harga jual 0. Harga jual, gambar, dan status aktif item lama tidak diubah.')
+            ->modalDescription('Katalog Melo disimpan di tab Item Melo untuk dipilih. Produk yang sudah dipilih hanya diperbarui nama, grup, dan harga modal; yang habis dinonaktifkan.')
             ->action(function (Game $record): void {
                 try {
                     $result = app(MeloCatalogService::class)->syncProducts($record);
@@ -37,7 +37,7 @@ class SyncMeloProductsAction
 
                 Notification::make()
                     ->title('Sync Melo selesai')
-                    ->body("Baru: {$result['created']}, diperbarui: {$result['updated']}, dinonaktifkan: {$result['deactivated']}, dilewati: {$result['skipped']}.")
+                    ->body("Item katalog: {$result['catalog']}, produk diperbarui: {$result['updated']}, dinonaktifkan: {$result['deactivated']}.")
                     ->success()
                     ->send();
             });

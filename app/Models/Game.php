@@ -55,6 +55,30 @@ class Game extends Model
     }
 
     /**
+     * @return HasMany<GameAccount, $this>
+     */
+    public function gameAccounts(): HasMany
+    {
+        return $this->hasMany(GameAccount::class);
+    }
+
+    /**
+     * @return HasMany<MeloProduct, $this>
+     */
+    public function meloProducts(): HasMany
+    {
+        return $this->hasMany(MeloProduct::class);
+    }
+
+    /**
+     * @return HasMany<Order, $this>
+     */
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    /**
      * @param  Builder<Game>  $query
      */
     #[Scope]

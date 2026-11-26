@@ -75,7 +75,7 @@ Rate limit: katalog (reguler, Smart, kategori) berbagi 20 request/menit. Jika 42
 
 ### 2.2 Daftar produk & harga
 - `priceList()` mengambil katalog reguler (default `limit=500`, paginasi `cursor`). Item berisi `sku_code`, `name`, `price`, `status` (`active` / `out_of_stock`, hanya `active` yang bisa dipesan).
-- **Sync katalog (sudah ada, belum diuji ke API asli):** `App\Services\Supplier\MeloCatalogService`. Admin menautkan game ke brand Melo (`games.melo_brand_id`, Select dari `brands()`), lalu aksi "Sync item dari Melo" memanggil `priceList(['brand_id' => …, 'format' => 'compact'])` mengikuti `next_cursor`. Upsert `products` dengan kunci (`supplier = melo`, `supplier_sku = sku_code`): `name`, `group` (= `type_name`), `base_price` (= `ceil(price)`), `sort` diperbarui; produk baru dibuat nonaktif dengan `price = 0`; `price`, `strike_price`, `image`, `description`, dan status aktif item lama **tidak** ditimpa; item `out_of_stock` atau hilang dari katalog dinonaktifkan (tidak diaktifkan kembali otomatis). Penulisan DB satu transaksi; gagal HTTP/429 berarti tidak ada perubahan. Label/zone game diisi dari `meta.inquiry_forms` (`customer_target_zone`). Mapping field berasal dari `melostore-h2h.json`, bukan respons nyata.
+- **Sync katalog (sudah ada, belum diuji ke API asli):** `App\Services\Supplier\MeloCatalogService`. Admin menautkan game ke brand Melo (`games.melo_brand_id`, Select dari `brands()`), lalu aksi "Sync item dari Melo" memanggil `priceList(['brand_id' => …, 'format' => 'compact'])` mengikuti `next_cursor`. Sejak 2026-11-22 sync **tidak membuat produk**: semua item disimpan ke `melo_products` (upsert kunci `sku_code`: `name`, `type_name`, `price` = `ceil(price)`, `status`; baris game itu yang hilang dari katalog dihapus). Admin memilih item di tab "Item Melo" (Edit Game) lalu aksi massal "Jadikan produk" (`addProducts()`) membuat `products` nonaktif dengan `price = 0` (SKU yang sudah jadi produk dilewati). Produk terpilih milik game itu (`supplier = melo`, `supplier_sku = sku_code`) tetap diperbarui `name`, `group` (= `type_name`), `base_price` saat sync; `price`, `strike_price`, dan status aktif **tidak** ditimpa; item `out_of_stock` atau hilang dari katalog dinonaktifkan (tidak diaktifkan kembali otomatis). Penulisan DB satu transaksi; gagal HTTP/429 berarti tidak ada perubahan. Label/zone game diisi dari `meta.inquiry_forms` (`customer_target_zone`). Thumbnail game diambil dari `meta.brands[].thumbnail` lalu diunduh ke disk `public` (`games/thumbnails/`) oleh `storeThumbnail()`: hanya https, maks 2 MB, isi harus WebP/JPEG/PNG; gagal berarti field dibiarkan kosong. Mapping field berasal dari `melostore-h2h.json`, bukan respons nyata.
 - Harga jual **tidak** diubah otomatis. Admin mengatur lewat edit inline atau aksi massal "Atur harga jual" (markup % / Rupiah tetap + pembulatan); aturan markup tersimpan = [TBD] (A10).
 
 ### 2.3 Pengiriman transaksi
@@ -135,15 +135,16 @@ Kode error HTTP (dokumentasi Duitku): 400 Bad Request (termasuk "Amount is diffe
 Alur singkat pembayaran (detail status order di [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) §4–5):
 
 ```
-Checkout (belum ada) → createTransaction() → storePaymentDetails() → invoice menampilkan QR dari payment_code
+CheckoutController → createTransaction() → storePaymentDetails() → invoice menampilkan QR dari payment_code
 Pembeli bayar → Duitku POST /webhook/duitku → verifikasi signature → api_logs → job HandlePaymentCallback
 Tidak ada callback sampai expired_at → tandai expired lewat scheduler / transactionStatus() (belum ada)
 ```
 
 ### 3.1 Metode pembayaran
 `POST {baseUrl}/paymentmethod/getpaymentmethod` → `paymentMethods($amount)`. Opsional (dokumentasi Duitku): memberi daftar metode aktif proyek. Body JSON: `merchantcode`, `amount`, `datetime` (`Y-m-d H:i:s`), `signature` = `HMAC-SHA256(merchantCode + amount + datetime, apiKey)`. Respons: `paymentFee[]` berisi `paymentMethod` (kode), `paymentName`, `paymentImage`, `totalFee`, serta `responseCode` `00` dan `responseMessage`. `totalFee` adalah fee per metode untuk nominal itu, dasar pengisian `orders.fee`. Kode QRIS: `SP`, `NQ`, `SQ`; daftar lengkap ada di dokumentasi Duitku.
-- Metode yang ditampilkan ke pembeli: [TBD] (rekomendasi: QRIS + beberapa VA + e-wallet populer).
-- Cache daftar metode agar tidak memanggil API setiap halaman dibuka. [REKOMENDASI]
+- Metode yang ditampilkan ke pembeli: **semua** metode aktif yang dikembalikan Duitku (keputusan PO 2026-11-21). `DuitkuService::paymentChannels($amount)` menormalkan ke `code`, `name`, `group`, `iconUrl`, `fee` (`ceil(totalFee)`); `group` dari peta kode di `channelGroup()` (QRIS / Virtual Account / E-Wallet / Lainnya; peta kode belum dicocokkan dengan dokumentasi resmi Duitku, kode baru otomatis masuk "Lainnya").
+- Di-cache 10 menit per nominal (`duitku.channels.{amount}`); respons gagal tidak di-cache dan menghasilkan daftar kosong. Dicoba ke sandbox 2026-11-21: 23 metode, semua `totalFee` 0 (fee asli baru terlihat di production).
+- Checkout memakai daftar yang sama untuk menghitung `orders.fee` dan menolak kode metode yang tidak ada di daftar.
 
 ### 3.2 Pembuatan transaksi (inquiry)
 `POST /v2/inquiry` (JSON) → `createTransaction($order, $method)`. ✅ ada + dites + dicoba di sandbox (2026-11-21, `SP`, Rp9.000: HTTP 200, `statusCode` `00`, `qrString` diterima).
@@ -162,7 +163,7 @@ Tidak ada callback sampai expired_at → tandai expired lewat scheduler / transa
 | `expiryPeriod`                | menit sampai `orders.expired_at` (min 1, default 15) (2) |
 | `signature`                   | `HMAC-SHA256(merchantCode + merchantOrderId + paymentAmount, apiKey)` |
 
-1. Fallback email jika guest tidak mengisi email: [TBD]. Sementara kode memakai `noreply@example.com`.
+1. Email opsional di checkout (WhatsApp wajib, keputusan PO 2026-11-21). Jika kosong, kode memakai fallback `noreply@example.com`; alamat fallback final masih [TBD].
 2. Contoh di dokumentasi Duitku menyebut 5, 10, atau 60 menit. Apakah 15 menit diterima belum diverifikasi [TBD].
 
 Respons sukses: `reference`, `paymentUrl`, `qrString` (metode QR) atau `vaNumber` (VA), opsional `appUrl` (deeplink e-wallet), `amount`, `statusCode` `00`, `statusMessage`. `DuitkuService::storePaymentDetails($order, $response)` menyimpan `reference` → `payment_reference`, `paymentUrl` → `payment_url`, `qrString` ?? `vaNumber` → `payment_code`; tidak mengubah apa pun jika `statusCode` ≠ `00`. `payment_method` diisi pemanggil.
@@ -181,17 +182,19 @@ Redirect `returnUrl`: Duitku menambahkan `merchantOrderId`, `reference`, `result
 - Urutan field callback (`merchantCode + amount + merchantOrderId`) berbeda dari inquiry (`merchantCode + merchantOrderId + paymentAmount`). Sudah dicocokkan dengan callback nyata dari sandbox (2026-11-21).
 - IP outgoing Duitku (sandbox `182.23.85.11`, `182.23.85.12`, `103.177.101.187`, `103.177.101.188`; production ada di dokumentasi Duitku) **tidak** di-whitelist; verifikasi cukup lewat signature (keputusan 2026-11-21).
 
-| Callback Duitku             | Status order                                          | Aksi stok akun |
-| --------------------------- | ----------------------------------------------------- | -------------- |
-| `resultCode` = `00`         | `paid`, lalu `processing` (top up) / `success` (akun) | `markSold()`   |
-| `resultCode` = `02`         | `failed`                                              | `release()`    |
-| kedaluwarsa (tanpa callback) | `expired`                                            | `release()`    |
+| Callback Duitku             | Status order                                          |
+| --------------------------- | ----------------------------------------------------- |
+| `resultCode` = `00`         | `paid`, lalu `processing` (top up)                    |
+| `resultCode` = `02`         | `failed`                                              |
+| kedaluwarsa (tanpa callback) | `expired`                                            |
+
+Sejak 2026-11-22 tidak ada aksi stok akun di callback (akun game dijual manual, `game_accounts` tidak terhubung ke order).
 
 Duitku tidak mengirim callback kedaluwarsa: tandai dari `orders.expired_at` dan/atau `transactionStatus()`. Refund: [TBD].
 
 Kode callback (dokumentasi Duitku): `00` sukses, `02` gagal. `01` hanya ada di redirect; callback dengan kode lain tidak mengubah status (log warning).
 
-Pemrosesan status: ✅ job `App\Jobs\HandlePaymentCallback`. Field callback: `merchantCode`, `amount`, `merchantOrderId`, `productDetail`, `additionalParam`, `paymentCode`, `resultCode`, `merchantUserId`, `reference`, `signature`, `publisherOrderId`, `spUserHash`, `settlementDate`, `issuerCode`, `customerName` (dan field kartu kredit). Yang dipakai: `merchantOrderId`, `amount`, `resultCode`, `reference`. Hanya order top up `pending` yang berubah (order `account` dilewati, K1). `00` + nominal = `total` → `paid`, `paid_at`, `payment_reference`, dispatch `SendTopupToMelo`; `02` → `failed`. Nominal beda, atau lunas untuk order `expired`/`failed` → status tidak diubah + lonceng admin. Callback ulang tidak mengirim top up dua kali.
+Pemrosesan status: ✅ job `App\Jobs\HandlePaymentCallback`. Field callback: `merchantCode`, `amount`, `merchantOrderId`, `productDetail`, `additionalParam`, `paymentCode`, `resultCode`, `merchantUserId`, `reference`, `signature`, `publisherOrderId`, `spUserHash`, `settlementDate`, `issuerCode`, `customerName` (dan field kartu kredit). Yang dipakai: `merchantOrderId`, `amount`, `resultCode`, `reference`. Semua order adalah top up, jadi order `pending` yang diproses. `00` + nominal = `total` → `paid`, `paid_at`, `payment_reference`, dispatch `SendTopupToMelo`; `02` → `failed`. Nominal beda, atau lunas untuk order `expired`/`failed` → status tidak diubah + lonceng admin. Callback ulang tidak mengirim top up dua kali.
 
 Validasi tambahan [REKOMENDASI]: cocokkan `amount` callback dengan `orders.total` sebelum menandai lunas.
 

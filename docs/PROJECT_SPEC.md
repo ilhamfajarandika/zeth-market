@@ -10,7 +10,7 @@
 
 ## 1. Deskripsi Proyek
 
-Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** milik toko. Top up diproses otomatis lewat supplier Melo. Akun game dijual dari stok yang dikelola admin. Pembayaran dilakukan lewat satu payment gateway.
+Website untuk membeli **top up game** (diamond, UC, VP, dll.) dan **akun game** milik toko. Top up diproses otomatis lewat supplier Melo. Akun game dijual manual di luar sistem, daftarnya tampil di halaman game dan dikelola admin. Pembayaran dilakukan lewat satu payment gateway.
 
 ## 2. Tujuan & Ruang Lingkup
 
@@ -33,17 +33,19 @@ Catatan:
 
 ## 4. Jenis Produk
 
-| Jenis       | Nilai `products.type` | Sumber pemenuhan                        | Status  |
-| ----------- | --------------------- | --------------------------------------- | ------- |
-| Top up game | `topup`               | Dikirim otomatis ke Melo (SKU)          | [FINAL] |
-| Akun game   | `account`             | Stok `game_accounts`, tampil di halaman (display). Dijual manual di luar sistem; admin mengubah status akun (mis. terjual) di admin panel. Tanpa checkout/order/pembayaran (keputusan 2026-11-17) | [FINAL] |
+Semua produk di `products` adalah top up. Akun game **bukan** produk (keputusan 2026-11-22).
+
+| Jenis       | Tabel          | Sumber pemenuhan                        | Status  |
+| ----------- | -------------- | --------------------------------------- | ------- |
+| Top up game | `products`     | Dikirim otomatis ke Melo (SKU)          | [FINAL] |
+| Akun game   | `game_accounts`| Daftar di halaman game (display), tanpa kredensial di sistem. Dijual manual di luar sistem; admin mengubah status (mis. terjual). Tanpa checkout/order/pembayaran (keputusan 2026-11-17, tabel terpisah 2026-11-22) | [FINAL] |
 
 ## 5. Fitur Pelanggan / Guest
 
 | #   | Fitur                                      | Status        |
 | --- | ------------------------------------------ | ------------- |
 | P1  | Beranda: daftar game per kategori          | [FINAL]       |
-| P2  | Halaman game: produk, harga, stok akun (1) | [FINAL]       |
+| P2  | Halaman game: produk top up, harga, daftar akun tersedia (1) | [FINAL]       |
 | P3  | Form order: User ID (+ Zone ID) (2)        | [FINAL]       |
 | P4  | Pilih metode bayar & checkout              | [FINAL]       |
 | P5  | Halaman invoice (3)                        | [FINAL]       |
@@ -54,7 +56,7 @@ Catatan:
 | P10 | Checkbox "ID sudah benar"                  | [REKOMENDASI] |
 
 Catatan:
-1. Produk akun dengan stok habis tidak bisa dibeli.
+1. Akun game hanya ditampilkan (status `available`) dan tidak bisa dibeli di storefront.
 2. Zone/Server ID hanya jika game membutuhkan. Validasi **format** saja, tanpa cek nickname.
 3. Menampilkan status order, instruksi bayar, dan hasil (SN top up / detail akun).
 - P9: kanal notifikasi dan apakah masuk scope belum diputuskan.
@@ -66,7 +68,7 @@ Catatan:
 | A1  | Login admin (hanya `role = admin`)   | [FINAL]              |
 | A2  | Kelola kategori & game (1)           | [FINAL]              |
 | A3  | Kelola produk & harga (2)            | [FINAL]              |
-| A4  | Kelola stok akun (3)                 | [FINAL]              |
+| A4  | Kelola akun game (3)                 | [FINAL]              |
 | A5  | Import stok akun massal (CSV)        | [REKOMENDASI]        |
 | A6  | Kelola pesanan (5)                   | [FINAL] · aksi [TBD] |
 | A7  | Kelola pelanggan                     | [FINAL] · aksi [TBD] |
@@ -77,7 +79,7 @@ Catatan:
 Catatan:
 1. Termasuk label dan regex untuk User ID & Zone ID.
 2. Harga modal, harga jual, harga coret, aktif/nonaktif.
-3. Tambah, nonaktifkan, lihat status reserved/sold.
+3. Tambah, ubah harga, nonaktifkan, tandai terjual. Tanpa kolom kredensial (2026-11-22).
 4. Omzet hari ini, order perlu diproses, stok akun.
 5. Lihat detail, status, dan log payment/supplier. Status hanya diubah lewat aksi khusus yang disetujui, bukan edit bebas (lihat `SECURITY_RULES.md` §9).
 - A7: cakupan aksi belum diputuskan (mis. lihat saja atau bisa blokir).
@@ -177,3 +179,4 @@ Catatan:
 | 2026-11-12 | Supplier diganti dari Digiflazz ke Melo H2H     | PO     |
 | 2026-11-12 | Timeline diubah menjadi 1 bulan; nilai kontrak tidak dicantumkan di dokumen | PO |
 | 2026-11-17 | Akun game hanya display, dijual manual di luar sistem; admin mengubah status akun (terjual dll.) di admin panel. Checkout, order, dan callback hanya untuk top up (K1) | PO |
+| 2026-11-22 | Semua produk adalah top up (kolom `products.type` dan `orders.product_type` dihapus). Akun game dipisah ke tabel `game_accounts` yang berdiri sendiri, tanpa kredensial di sistem. Stok/reservasi akun (`AccountStockService`, `accounts:release-expired`) dihapus | PO |

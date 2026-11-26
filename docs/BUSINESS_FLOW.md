@@ -22,22 +22,21 @@ Status final tidak boleh diubah oleh callback (`OrderStatus::isFinal()`). [FINAL
 
 ### Status akun (`game_accounts.status`)
 
+Akun game tidak punya alur order. Status hanya diubah manual oleh admin (sejak 2026-11-22).
+
 | Nilai       | Arti                                        |
 | ----------- | ------------------------------------------- |
-| `available` | Bisa dibeli, dihitung sebagai stok          |
-| `reserved`  | Ditahan untuk satu order yang belum dibayar |
-| `sold`      | Sudah terjual                               |
-| `disabled`  | Dinonaktifkan admin, tidak dihitung stok    |
+| `available` | Ditampilkan di halaman game                 |
+| `sold`      | Sudah terjual di luar sistem (`sold_at` terisi) |
+| `disabled`  | Disembunyikan / dinonaktifkan admin         |
 
 ```mermaid
 stateDiagram-v2
     [*] --> available: admin tambah akun
-    available --> reserved: checkout (reserve)
-    reserved --> sold: pembayaran sukses (markSold)
-    reserved --> available: expired / gagal (release)
+    available --> sold: admin tandai terjual
     available --> disabled: admin
     disabled --> available: admin
-    sold --> [*]
+    sold --> available: admin (koreksi)
 ```
 
 ## 2. Alur Pembelian Top Up [FINAL]
@@ -51,7 +50,7 @@ stateDiagram-v2
 
 ## 3. Alur Pembelian Akun Game [DIGANTI 2026-11-17]
 
-> **Tidak berlaku lagi** (keputusan PO 2026-11-17, `PROJECT_SPEC.md` §13): akun game hanya display dan dijual manual di luar sistem; admin mengubah status akun di admin panel saat terjual. Tidak ada order, `reserve()`, atau callback untuk produk `account`. Alur di bawah dipertahankan sebagai riwayat.
+> **Tidak berlaku lagi** (keputusan PO 2026-11-17 dan 2026-11-22, `PROJECT_SPEC.md` §13): akun game hanya display dan dijual manual di luar sistem. Tidak ada order, `reserve()`, `markSold()`, atau callback untuk akun game; tabelnya `game_accounts` terpisah dari `products`. Alur di bawah dipertahankan sebagai riwayat.
 
 1. Pembeli memilih produk akun. Produk dengan stok 0 tidak bisa dipilih.
 2. Sistem membuat order `pending`, lalu memanggil `AccountStockService::reserve()` untuk menahan satu akun (`reserved_until` = sekarang + 15 menit [REKOMENDASI]).
@@ -93,8 +92,9 @@ sequenceDiagram
     PG->>W: callback status (lihat §5)
 ```
 
-- Biaya admin payment ditanggung pembeli atau toko: [TBD] (kolom `orders.fee` sudah tersedia).
-- Pilihan metode yang ditampilkan: [TBD] (QRIS, VA, e-wallet).
+- Biaya admin payment **ditanggung pembeli** (keputusan PO 2026-11-21): `orders.fee` = `totalFee` Duitku untuk metode dan nominal itu, `orders.total` = harga + fee.
+- Metode yang ditampilkan: **semua metode aktif dari Duitku** untuk nominal itu, dikelompokkan QRIS / E-Wallet / Virtual Account / Lainnya (keputusan PO 2026-11-21).
+- Kontak guest: **WhatsApp wajib**, email opsional (keputusan PO 2026-11-21).
 
 ## 5. Alur Callback Payment Gateway [FINAL]
 
@@ -107,10 +107,10 @@ sequenceDiagram
 | Status gateway (Duitku)       | Status order | Tindakan lanjut               |
 | ----------------------------- | ------------ | ----------------------------- |
 | callback `resultCode` = `00`  | `paid`       | Isi `paid_at`, lalu lihat (1) |
-| callback `resultCode` = `02`  | `failed`     | Akun → `release()`            |
-| kedaluwarsa (tanpa callback) (2) | `expired` | Akun → `release()`            |
+| callback `resultCode` = `02`  | `failed`     | —                             |
+| kedaluwarsa (tanpa callback) (2) | `expired` | —                             |
 
-1. Top up → kirim ke Melo (§6). Akun → `markSold()`, lalu order `success`.
+1. Top up → kirim ke Melo (§6).
 2. Duitku tidak mengirim callback kedaluwarsa. Ditandai dari `orders.expired_at` (scheduler) dan/atau `DuitkuService::transactionStatus()`.
 
 ## 6. Alur Pengiriman ke Melo [FINAL]
@@ -147,12 +147,11 @@ sequenceDiagram
 ## 8. Alur Transaksi Berhasil [FINAL]
 
 - **Top up:** status `success`, `serial_number` diisi SN dari supplier, `completed_at` diisi.
-- **Akun:** akun `sold`, order `success`, detail akun tampil di invoice.
 - Notifikasi ke pembeli: [TBD] (email/WA).
 
 ## 9. Alur Transaksi Gagal
 
-- **Pembayaran gagal:** order `failed`, akun di-`release()`. [FINAL]
+- **Pembayaran gagal:** order `failed`. [FINAL]
 - **Supplier gagal setelah dibayar:** order `failed`, pembeli sudah membayar. Saldo Melo yang ditahan dikembalikan otomatis ke toko; yang perlu diputuskan adalah pengembalian ke pembeli. Penanganannya [TBD]:
   - kirim ulang ke supplier (retry manual oleh admin)?
   - refund manual oleh admin di luar sistem?
@@ -164,13 +163,10 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     A[Order pending] -->|callback EXPIRED| B[status expired]
-    A -->|scheduler tiap menit: reserved_until lewat| C[akun dilepas ke available]
-    B --> D[release akun milik order]
 ```
 
-- Scheduler `accounts:release-expired` (`routes/console.php`) berjalan tiap menit dan memanggil `AccountStockService::releaseExpired()`.
 - Order `pending` yang lewat `expired_at` tanpa callback juga wajib ditandai `expired` [FINAL, `PROJECT_SPEC.md` §12 no. 3]. Mekanismenya (mis. scheduler) [REKOMENDASI]. Belum ada di kode.
-- **Masalah terbuka:** `releaseExpired()` saat ini tidak mengecek status order. Jika callback lunas datang setelah reservasi habis, akun bisa sudah dilepas. Lihat [`CURRENT_STATUS.md`](CURRENT_STATUS.md).
+- Scheduler `accounts:release-expired` dan `AccountStockService` dihapus 2026-11-22 (akun tidak lagi direservasi).
 
 ## 11. Alur Refund [TBD]
 

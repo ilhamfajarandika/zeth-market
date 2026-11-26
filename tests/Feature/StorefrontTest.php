@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AccountStatus;
 use App\Enums\OrderStatus;
 use App\Models\Banner;
 use App\Models\Game;
@@ -9,6 +10,8 @@ use App\Models\GameAccount;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Number;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -86,22 +89,84 @@ class StorefrontTest extends TestCase
         $this->get(route('game.show', $game))->assertNotFound();
     }
 
-    public function test_game_page_shows_account_stock(): void
+    public function test_storefront_shares_the_brand_logo(): void
+    {
+        $this->get(route('home'))
+            ->assertInertia(fn (Assert $page) => $page->where('logoUrl', asset('images/logo.png')));
+    }
+
+    public function test_storefront_pages_link_the_logo_favicon(): void
+    {
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('favicon-32x32.png', false)
+            ->assertSee('apple-touch-icon.png', false);
+    }
+
+    public function test_game_page_lists_only_available_accounts(): void
     {
         $game = Game::factory()->create();
-        $inStock = Product::factory()->account()->for($game)->create(['name' => 'Akun Ready', 'price' => 100000]);
-        GameAccount::factory()->count(2)->for($inStock)->create();
-        GameAccount::factory()->sold()->for($inStock)->create();
-        Product::factory()->account()->for($game)->create(['name' => 'Akun Kosong', 'price' => 200000]);
+        GameAccount::factory()->for($game)->create(['name' => 'Akun Ready', 'price' => 100000, 'public_info' => 'Rank Mythic']);
+        GameAccount::factory()->sold()->for($game)->create(['name' => 'Akun Terjual']);
+        GameAccount::factory()->for($game)->create(['name' => 'Akun Nonaktif', 'status' => AccountStatus::Disabled]);
+        GameAccount::factory()->for(Game::factory())->create(['name' => 'Akun Game Lain']);
 
         $this->get(route('game.show', $game))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Game')
-                ->where('productGroups.0.products.0.name', 'Akun Ready')
-                ->where('productGroups.0.products.0.stock', 2)
-                ->where('productGroups.0.products.1.name', 'Akun Kosong')
-                ->where('productGroups.0.products.1.stock', 0));
+                ->has('accounts', 1)
+                ->where('accounts.0.name', 'Akun Ready')
+                ->where('accounts.0.publicInfo', 'Rank Mythic')
+                ->where('accounts.0.price', Number::currency(100000, 'IDR', 'id')));
+    }
+
+    public function test_game_page_has_no_payment_channels_until_a_product_is_chosen(): void
+    {
+        Http::fake();
+        $game = Game::factory()->create();
+
+        $this->get(route('game.show', $game))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('paymentChannels', [])
+                ->where('checkoutUrl', route('checkout.store', $game)));
+
+        Http::assertNothingSent();
+    }
+
+    public function test_game_page_lists_payment_channels_with_fee_and_total_for_chosen_topup(): void
+    {
+        config(['services.duitku.merchant_code' => 'D1234', 'services.duitku.api_key' => 'key', 'services.duitku.sandbox' => true]);
+        Http::fake(['*/paymentmethod/getpaymentmethod' => Http::response([
+            'responseCode' => '00',
+            'paymentFee' => [['paymentMethod' => 'SP', 'paymentName' => 'ShopeePay QRIS', 'paymentImage' => 'https://img.test/sp.png', 'totalFee' => '630']],
+        ])]);
+        $game = Game::factory()->create();
+        $product = Product::factory()->for($game)->create(['price' => 9000]);
+
+        $this->get(route('game.show', [$game, 'product' => $product->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('paymentChannels', 1)
+                ->where('paymentChannels.0.code', 'SP')
+                ->where('paymentChannels.0.group', 'QRIS')
+                ->where('paymentChannels.0.fee', Number::currency(630, 'IDR', 'id'))
+                ->where('paymentChannels.0.total', Number::currency(9630, 'IDR', 'id')));
+
+        Http::assertSent(fn ($request): bool => $request['amount'] === 9000);
+    }
+
+    public function test_game_page_offers_no_payment_for_foreign_products(): void
+    {
+        Http::fake();
+        $game = Game::factory()->create();
+        $foreign = Product::factory()->create();
+
+        $this->get(route('game.show', [$game, 'product' => $foreign->id]))
+            ->assertInertia(fn (Assert $page) => $page->where('paymentChannels', []));
+
+        Http::assertNothingSent();
     }
 
     public function test_game_page_props_never_expose_internal_product_columns(): void
@@ -109,16 +174,14 @@ class StorefrontTest extends TestCase
         $game = Game::factory()->create();
         Product::factory()->for($game)->create([
             'base_price' => 11111,
-            'reseller_price' => 22222,
             'supplier_sku' => 'SECRET-SKU-123',
         ]);
 
         $response = $this->get(route('game.show', $game))->assertOk();
 
         $response->assertInertia(fn (Assert $page) => $page
-            ->missing('productGroups.0.products.0.base_price')
-            ->missing('productGroups.0.products.0.reseller_price')
-            ->missing('productGroups.0.products.0.supplier_sku'));
+            ->missing('products.0.base_price')
+            ->missing('products.0.supplier_sku'));
         $response->assertDontSee('SECRET-SKU-123');
     }
 
@@ -133,32 +196,40 @@ class StorefrontTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->where('game.requiresZoneId', false));
     }
 
-    public function test_invoice_hides_account_credentials_until_order_succeeds(): void
-    {
-        $product = Product::factory()->account()->create();
-        $order = Order::factory()->for($product)->create();
-        GameAccount::factory()->reserved()->for($product)->create(['order_id' => $order->id, 'credentials' => 'secret-login']);
-
-        $this->get(route('invoice.show', $order))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Invoice')->where('order.credentials', null))
-            ->assertDontSee('secret-login');
-
-        $order->update(['status' => OrderStatus::Success]);
-
-        $this->get(route('invoice.show', $order))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('order.credentials', 'secret-login'));
-    }
-
     public function test_invoice_shows_own_qris_image_only_while_pending(): void
     {
         $order = Order::factory()->create(['payment_method' => 'SP', 'payment_code' => '00020101021226610016ID.CO.SHOPEE.WWW']);
 
-        $this->get(route('invoice.show', $order))->assertOk()->assertSee('data:image/svg+xml;base64,', false);
+        $this->get(route('invoice.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('order.payment.qrImage', fn (string $image) => str_starts_with($image, 'data:image/svg+xml;base64,')));
 
         $order->update(['status' => OrderStatus::Paid]);
 
-        $this->get(route('invoice.show', $order))->assertOk()->assertDontSee('data:image/svg+xml;base64,', false);
+        $this->get(route('invoice.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('order.payment', null));
+    }
+
+    public function test_invoice_marks_final_status_so_page_stops_polling(): void
+    {
+        $order = Order::factory()->create();
+
+        $this->get(route('invoice.show', $order))
+            ->assertInertia(fn (Assert $page) => $page->where('order.status.isFinal', false));
+
+        $order->update(['status' => OrderStatus::Expired]);
+
+        $this->get(route('invoice.show', $order))
+            ->assertInertia(fn (Assert $page) => $page->where('order.status.isFinal', true));
+    }
+
+    public function test_invoice_has_no_qr_image_for_virtual_account(): void
+    {
+        $order = Order::factory()->create(['payment_method' => 'BC', 'payment_code' => '8808123456789']);
+
+        $this->get(route('invoice.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('order.payment.qrImage', null)->where('order.payment.code', '8808123456789'));
     }
 }

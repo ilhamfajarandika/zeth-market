@@ -9,16 +9,16 @@
     --font-display: 'Space Grotesk', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
     --font-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Code', 'Roboto Mono', Menlo, monospace;
 
-    --color-ground: #0b0b0d;
-    --color-surface: #141416;
-    --color-surface-raised: #1e1e22;
-    --color-brand: #e50914;
-    --color-brand-hover: #b80710;
-    --color-brand-highlight: #ff3038;
-    --color-text: #f5f5f5;
-    --color-muted: #a1a1aa;
+    --color-ground: #09050f;
+    --color-surface: #140a22;
+    --color-surface-raised: #21103a;
+    --color-brand: #e8174a;
+    --color-brand-hover: #b80f38;
+    --color-brand-highlight: #ff2bd6;
+    --color-text: #f4f6fb;
+    --color-muted: #9aa3b8;
     --color-border: rgba(255, 255, 255, 0.1);
-    --color-border-active: #e50914;
+    --color-border-active: #1fb6ff;
     --color-success: #22c55e;
     --color-warning: #f59e0b;
     --color-danger: #f87171;
@@ -62,7 +62,7 @@
 @utility bg-brand-hatch {
     background-image: repeating-linear-gradient(
         135deg,
-        rgba(229, 9, 20, 0.22) 0 1px,
+        rgba(232, 23, 74, 0.22) 0 1px,
         transparent 1px 14px
     );
 }
@@ -83,7 +83,7 @@
 }
 
 @utility text-glow-brand {
-    text-shadow: 0 0 22px rgba(229, 9, 20, 0.35);
+    text-shadow: 0 0 22px rgba(232, 23, 74, 0.35);
 }
 
 @utility focus-ring {

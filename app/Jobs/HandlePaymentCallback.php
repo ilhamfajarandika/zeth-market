@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Enums\OrderStatus;
-use App\Enums\ProductType;
 use App\Enums\UserRole;
 use App\Models\Order;
 use App\Models\User;
@@ -32,9 +31,8 @@ class HandlePaymentCallback implements ShouldQueue
             $invoice = (string) ($this->payload['merchantOrderId'] ?? '');
             $order = Order::query()->where('invoice', $invoice)->lockForUpdate()->first();
 
-            // Akun game dijual manual via WhatsApp (K1), jadi hanya order top up yang diproses.
-            if ($order === null || $order->product_type !== ProductType::Topup) {
-                Log::warning('Callback Duitku untuk order tidak dikenal atau bukan top up.', ['invoice' => $invoice]);
+            if ($order === null) {
+                Log::warning('Callback Duitku untuk order tidak dikenal.', ['invoice' => $invoice]);
 
                 return;
             }

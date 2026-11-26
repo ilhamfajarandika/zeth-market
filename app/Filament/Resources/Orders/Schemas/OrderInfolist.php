@@ -19,8 +19,6 @@ class OrderInfolist
                     ->label('Game'),
                 TextEntry::make('product.name')
                     ->label('Product'),
-                TextEntry::make('product_type')
-                    ->badge(),
                 TextEntry::make('product_name'),
                 TextEntry::make('target_user_id')
                     ->placeholder('-'),

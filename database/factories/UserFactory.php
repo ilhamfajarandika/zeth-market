@@ -39,11 +39,6 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => ['role' => UserRole::Admin]);
     }
 
-    public function reseller(): static
-    {
-        return $this->state(fn (array $attributes) => ['role' => UserRole::Reseller]);
-    }
-
     /**
      * Indicate that the model's email address should be unverified.
      */

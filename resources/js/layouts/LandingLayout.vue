@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
                 <div>
                     <BrandLogo size="lg" />
                     <p class="mt-4 max-w-sm text-sm leading-relaxed text-muted">
-                        Top up game dan beli akun game dengan proses otomatis. Pilih game, masukkan ID, bayar, lalu pantau status pesanan.
+                        Top up game dengan proses otomatis. Pilih game, masukkan ID, bayar, lalu pantau status pesanan.
                     </p>
                     <div class="mt-5 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
                         <span class="h-px w-6 bg-brand"></span>
@@ -255,7 +255,7 @@ onBeforeUnmount(() => {
                         <li>Guest checkout tanpa akun</li>
                         <li>Status pesanan transparan</li>
                         <li>Invoice dan bukti pembayaran</li>
-                        <li>Stok akun mengikuti data toko</li>
+                        <li>Akun game dijual dibantu admin</li>
                     </ul>
                 </div>
             </div>

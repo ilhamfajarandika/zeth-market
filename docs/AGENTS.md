@@ -81,7 +81,7 @@ Catatan: panduan Boost menyarankan Laravel Cloud untuk deploy. Proyek ini **tida
 ## 7. Aturan Testing
 
 - Setiap perilaku baru atau perubahan perilaku harus punya feature test (PHPUnit), di `tests/Feature/`.
-- Test memakai database `topup_game_test` (lihat `phpunit.xml`). Jangan arahkan test ke `topup_game`.
+- Test memakai SQLite in-memory (lihat `phpunit.xml`, keputusan PO 2026-11-21). Jangan arahkan test ke `topup_game`. Jika config di-cache, jalankan `php artisan optimize:clear` dulu (lihat M16 di `CURRENT_STATUS.md`).
 - HTTP ke Duitku/Melo di test harus di-fake (`Http::fake()`). Jangan memanggil API asli dari test.
 - Jalankan test tersempit dulu, lalu `php artisan test --compact` sebelum melapor selesai.
 - **Pekerjaan belum dianggap selesai jika test belum dijalankan dan lulus.**

@@ -1,5 +1,5 @@
 <script setup>
-import { useId } from 'vue';
+import { computed, useAttrs, useId } from 'vue';
 
 defineOptions({ inheritAttrs: false });
 
@@ -12,6 +12,10 @@ const { label = null, id = null, hint = null, error = null } = defineProps({
     error: { type: String, default: null },
 });
 
+const attrs = useAttrs();
+// Atribut `required` (juga `required=""`) menampilkan tanda * merah di label.
+const isRequired = computed(() => attrs.required !== undefined && attrs.required !== false);
+
 const generatedId = useId();
 const inputId = id ?? generatedId;
 </script>
@@ -19,7 +23,7 @@ const inputId = id ?? generatedId;
 <template>
     <div class="flex flex-col gap-1.5">
         <label v-if="label" :for="inputId" class="font-mono text-[11px] uppercase tracking-[0.12em] text-muted">
-            {{ label }}
+            {{ label }}<span v-if="isRequired" class="ml-0.5 text-danger" aria-hidden="true">*</span>
         </label>
         <input
             :id="inputId"

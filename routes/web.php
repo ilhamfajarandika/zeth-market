@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\OrderHistoryController;
 use App\Http\Controllers\StorefrontController;
@@ -13,6 +14,10 @@ Route::controller(StorefrontController::class)->group(function () {
     Route::get('/invoice/{order}', 'invoice')->name('invoice.show');
 });
 
+// Throttle: setiap checkout membuat transaksi Duitku.
+Route::post('/game/{game}/checkout', [CheckoutController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('checkout.store');
 Route::middleware('guest')->controller(CustomerAuthController::class)->group(function () {
     Route::get('/login', 'showLogin')->name('login');
     Route::post('/login', 'login')->middleware('throttle:5,1')->name('login.store');

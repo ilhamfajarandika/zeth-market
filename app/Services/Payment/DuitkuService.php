@@ -6,7 +6,9 @@ use App\Models\ApiLog;
 use App\Models\Order;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Integrasi Duitku (API langsung): daftar metode bayar, buat transaksi (inquiry), cek status,
@@ -39,6 +41,58 @@ class DuitkuService
         ];
 
         return $this->send('/paymentmethod/getpaymentmethod', $payload, reference: null);
+    }
+
+    /**
+     * Metode bayar aktif untuk nominal tertentu, siap tampil di storefront. Di-cache 10 menit per nominal
+     * karena fee Duitku bergantung pada nominal. Kosong (dan tidak di-cache) jika Duitku gagal.
+     *
+     * @return list<array{code: string, name: string, group: string, iconUrl: ?string, fee: int}>
+     */
+    public function paymentChannels(int $amount): array
+    {
+        $key = "duitku.channels.{$amount}";
+
+        if (Cache::has($key)) {
+            return Cache::get($key);
+        }
+
+        $response = $this->paymentMethods($amount);
+
+        if (! $response->successful() || $response->json('responseCode') !== '00') {
+            Log::warning('Gagal memuat metode bayar Duitku.', ['amount' => $amount, 'status' => $response->status()]);
+
+            return [];
+        }
+
+        $channels = collect($response->json('paymentFee') ?? [])
+            ->filter(fn (mixed $method): bool => is_array($method) && filled($method['paymentMethod'] ?? null))
+            ->map(fn (array $method): array => [
+                'code' => (string) $method['paymentMethod'],
+                'name' => (string) ($method['paymentName'] ?? $method['paymentMethod']),
+                'group' => self::channelGroup((string) $method['paymentMethod']),
+                'iconUrl' => $method['paymentImage'] ?? null,
+                'fee' => (int) ceil((float) ($method['totalFee'] ?? 0)),
+            ])
+            ->values()
+            ->all();
+
+        Cache::put($key, $channels, 600);
+
+        return $channels;
+    }
+
+    /**
+     * Kelompok tampilan per kode metode Duitku; kode yang tidak dikenal masuk "Lainnya".
+     */
+    public static function channelGroup(string $code): string
+    {
+        return match (true) {
+            in_array($code, ['SP', 'NQ', 'SQ', 'DQ', 'GQ'], true) => 'QRIS',
+            in_array($code, ['BC', 'M2', 'VA', 'I1', 'B1', 'BT', 'A1', 'AG', 'NC', 'BR', 'S1', 'DM', 'BV'], true) => 'Virtual Account',
+            in_array($code, ['OV', 'SA', 'LF', 'LA', 'DA', 'SL', 'OL', 'JP'], true) => 'E-Wallet',
+            default => 'Lainnya',
+        };
     }
 
     /**

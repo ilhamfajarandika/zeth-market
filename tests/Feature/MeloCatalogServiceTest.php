@@ -2,14 +2,16 @@
 
 namespace Tests\Feature;
 
-use App\Enums\ProductType;
 use App\Models\Game;
+use App\Models\MeloProduct;
 use App\Models\Product;
 use App\Services\Supplier\MeloCatalogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -108,46 +110,108 @@ class MeloCatalogServiceTest extends TestCase
         ], app(MeloCatalogService::class)->inquiryDefaults(10));
     }
 
-    public function test_sync_creates_inactive_products_without_selling_price(): void
+    public function test_store_thumbnail_downloads_image_to_public_disk(): void
+    {
+        Storage::fake('public');
+        $png = UploadedFile::fake()->image('ff.png', 10, 10)->getContent();
+        Http::fake(['https://cdn.melo.test/ff.png' => Http::response($png, 200, ['Content-Type' => 'text/plain'])]);
+
+        $path = app(MeloCatalogService::class)->storeThumbnail('https://cdn.melo.test/ff.png');
+
+        $this->assertMatchesRegularExpression('#^games/thumbnails/\w{40}\.png$#', $path);
+        $this->assertSame($png, Storage::disk('public')->get($path));
+    }
+
+    public function test_store_thumbnail_rejects_non_image_failed_or_insecure_url(): void
+    {
+        Storage::fake('public');
+        $png = UploadedFile::fake()->image('ff.png', 10, 10)->getContent();
+        Http::fake([
+            'https://cdn.melo.test/fake.png' => Http::response('<?php echo 1;', 200, ['Content-Type' => 'image/png']),
+            'https://cdn.melo.test/missing.png' => Http::response($png, 404),
+            'http://cdn.melo.test/*' => Http::response($png),
+        ]);
+        $catalog = app(MeloCatalogService::class);
+
+        $this->assertNull($catalog->storeThumbnail('https://cdn.melo.test/fake.png'));
+        $this->assertNull($catalog->storeThumbnail('https://cdn.melo.test/missing.png'));
+        $this->assertNull($catalog->storeThumbnail('http://cdn.melo.test/ff.png'));
+        $this->assertSame([], Storage::disk('public')->allFiles());
+    }
+
+    public function test_sync_stores_catalogue_without_creating_products(): void
     {
         Http::fake([self::BASE_URL.'/pricelists*' => Http::response($this->page([
             $this->item('A1', ['price' => 1000.2, 'name' => '86 Diamonds']),
-            $this->item('A2'),
+            $this->item('A2', ['status' => 'out_of_stock']),
         ]))]);
         $game = Game::factory()->create(['melo_brand_id' => 10]);
+        $stale = MeloProduct::factory()->for($game)->create(['sku_code' => 'GONE']);
 
         $result = app(MeloCatalogService::class)->syncProducts($game);
 
-        $this->assertSame(['created' => 2, 'updated' => 0, 'deactivated' => 0, 'skipped' => 0], $result);
-        $product = Product::where('supplier_sku', 'A1')->first();
-        $this->assertSame($game->id, $product->game_id);
-        $this->assertSame(ProductType::Topup, $product->type);
-        $this->assertSame('melo', $product->supplier);
-        $this->assertSame('86 Diamonds', $product->name);
-        $this->assertSame('Diamonds', $product->group);
-        $this->assertSame(1001, $product->base_price);
-        $this->assertSame(0, $product->price);
-        $this->assertFalse($product->is_active);
+        $this->assertSame(['catalog' => 2, 'updated' => 0, 'deactivated' => 0], $result);
+        $this->assertSame(0, Product::count());
+        $item = MeloProduct::where('sku_code', 'A1')->first();
+        $this->assertSame($game->id, $item->game_id);
+        $this->assertSame('86 Diamonds', $item->name);
+        $this->assertSame('Diamonds', $item->type_name);
+        $this->assertSame(1001, $item->price);
+        $this->assertSame('active', $item->status);
+        $this->assertSame('out_of_stock', MeloProduct::where('sku_code', 'A2')->value('status'));
+        $this->assertModelMissing($stale);
         Http::assertSent(fn ($request) => str_contains($request->url(), 'brand_id=10') && str_contains($request->url(), 'limit=500'));
     }
 
-    public function test_sync_keeps_selling_price_and_active_flag_of_existing_products(): void
+    public function test_sync_updates_catalogue_rows_on_resync(): void
+    {
+        Http::fake([self::BASE_URL.'/pricelists*' => Http::response($this->page([$this->item('A1', ['price' => 2000])]))]);
+        $game = Game::factory()->create(['melo_brand_id' => 10]);
+        MeloProduct::factory()->for($game)->create(['sku_code' => 'A1', 'price' => 1000]);
+
+        app(MeloCatalogService::class)->syncProducts($game);
+
+        $this->assertSame(1, MeloProduct::count());
+        $this->assertSame(2000, MeloProduct::first()->price);
+    }
+
+    public function test_sync_keeps_selling_price_and_active_flag_of_picked_products(): void
     {
         Http::fake([self::BASE_URL.'/pricelists*' => Http::response($this->page([$this->item('A1', ['price' => 2000])]))]);
         $game = Game::factory()->create(['melo_brand_id' => 10]);
         $product = Product::factory()->for($game)->create([
-            'supplier_sku' => 'A1', 'base_price' => 1000, 'price' => 1500, 'strike_price' => 1800, 'image' => 'x.png', 'is_active' => true,
+            'supplier_sku' => 'A1', 'base_price' => 1000, 'price' => 1500, 'strike_price' => 1800, 'is_active' => true,
         ]);
 
         $result = app(MeloCatalogService::class)->syncProducts($game);
 
-        $this->assertSame(['created' => 0, 'updated' => 1, 'deactivated' => 0, 'skipped' => 0], $result);
+        $this->assertSame(['catalog' => 1, 'updated' => 1, 'deactivated' => 0], $result);
         $product->refresh();
         $this->assertSame(2000, $product->base_price);
         $this->assertSame(1500, $product->price);
         $this->assertSame(1800, $product->strike_price);
-        $this->assertSame('x.png', $product->image);
         $this->assertTrue($product->is_active);
+    }
+
+    public function test_add_products_creates_inactive_unpriced_products_once(): void
+    {
+        $game = Game::factory()->create();
+        $picked = MeloProduct::factory()->for($game)->create(['sku_code' => 'A1', 'name' => '86 Diamonds', 'type_name' => 'Diamonds', 'price' => 1001]);
+        $existing = MeloProduct::factory()->for($game)->create(['sku_code' => 'A2']);
+        Product::factory()->for($game)->create(['supplier_sku' => 'A2', 'price' => 5000]);
+
+        $created = app(MeloCatalogService::class)->addProducts([$picked, $existing]);
+
+        $this->assertSame(1, $created);
+        $product = Product::where('supplier_sku', 'A1')->first();
+        $this->assertSame($game->id, $product->game_id);
+        $this->assertSame('melo', $product->supplier);
+        $this->assertSame('86 Diamonds', $product->name);
+        $this->assertSame('Diamonds', $product->group);
+        $this->assertSame(1001, $product->base_price);
+        $this->assertSame(1001, $product->price);
+        $this->assertFalse($product->is_active);
+        $this->assertSame(5000, Product::where('supplier_sku', 'A2')->value('price'));
     }
 
     public function test_sync_deactivates_out_of_stock_and_missing_products(): void
@@ -165,21 +229,21 @@ class MeloCatalogServiceTest extends TestCase
         $this->assertSame(2, $result['deactivated']);
         $this->assertFalse($outOfStock->refresh()->is_active);
         $this->assertFalse($missing->refresh()->is_active);
-        $this->assertFalse(Product::where('supplier_sku', 'A2')->first()->is_active);
+        $this->assertFalse(Product::where('supplier_sku', 'A2')->exists());
     }
 
-    public function test_sync_does_not_touch_manual_or_account_products(): void
+    public function test_sync_does_not_touch_manual_products(): void
     {
         Http::fake([self::BASE_URL.'/pricelists*' => Http::response($this->page([$this->item('A1')]))]);
         $game = Game::factory()->create(['melo_brand_id' => 10]);
-        $account = Product::factory()->account()->for($game)->create(['is_active' => true]);
+        $manual = Product::factory()->for($game)->create(['supplier' => null, 'supplier_sku' => null, 'is_active' => true]);
 
         app(MeloCatalogService::class)->syncProducts($game);
 
-        $this->assertTrue($account->refresh()->is_active);
+        $this->assertTrue($manual->refresh()->is_active);
     }
 
-    public function test_sync_skips_sku_that_belongs_to_another_game(): void
+    public function test_sync_does_not_touch_products_of_another_game(): void
     {
         Http::fake([self::BASE_URL.'/pricelists*' => Http::response($this->page([$this->item('A1', ['name' => 'Renamed'])]))]);
         $game = Game::factory()->create(['melo_brand_id' => 10]);
@@ -187,7 +251,7 @@ class MeloCatalogServiceTest extends TestCase
 
         $result = app(MeloCatalogService::class)->syncProducts($game);
 
-        $this->assertSame(1, $result['skipped']);
+        $this->assertSame(0, $result['updated']);
         $this->assertSame('Original', $other->refresh()->name);
     }
 
@@ -200,7 +264,7 @@ class MeloCatalogServiceTest extends TestCase
 
         $result = app(MeloCatalogService::class)->syncProducts($game);
 
-        $this->assertSame(2, $result['created']);
+        $this->assertSame(2, $result['catalog']);
         Http::assertSentCount(2);
         Http::assertSent(fn ($request) => str_contains($request->url(), 'cursor=c2'));
     }
@@ -216,7 +280,7 @@ class MeloCatalogServiceTest extends TestCase
             app(MeloCatalogService::class)->syncProducts($game);
             $this->fail('Sync seharusnya gagal saat Melo membalas 429.');
         } catch (RequestException) {
-            $this->assertSame(0, Product::count());
+            $this->assertSame(0, MeloProduct::count());
         }
     }
 

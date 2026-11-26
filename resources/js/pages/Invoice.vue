@@ -1,6 +1,6 @@
 <script setup>
-import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Head, Link, usePage, usePoll } from '@inertiajs/vue3';
+import { computed, watch } from 'vue';
 import CopyButton from '../components/CopyButton.vue';
 import StatusBadge from '../components/StatusBadge.vue';
 import BaseAlert from '../components/ui/BaseAlert.vue';
@@ -13,6 +13,13 @@ const { order } = defineProps({
 });
 
 const page = usePage();
+
+// Status berubah lewat callback Duitku/Melo di server; cek ulang tiap 5 detik sampai status final.
+const { stop } = usePoll(1000, { only: ['order'] }, { autoStart: !order.status.isFinal });
+watch(
+    () => order.status.isFinal,
+    (isFinal) => isFinal && stop(),
+);
 
 const progressSteps = ['Pesanan dibuat', 'Dibayar', 'Diproses', 'Selesai'];
 const stepByStatus = { pending: 0, paid: 1, processing: 2, success: 3 };
@@ -30,6 +37,7 @@ const details = computed(() =>
 </script>
 
 <template>
+
     <Head :title="`Invoice ${order.invoice}`" />
 
     <AppLayout>
@@ -49,14 +57,16 @@ const details = computed(() =>
                 <ol v-if="currentStep !== null" class="mt-6 grid grid-cols-4 gap-2">
                     <li v-for="(stepLabel, index) in progressSteps" :key="stepLabel" class="flex flex-col gap-2">
                         <span class="h-1 rounded-xs" :class="index <= currentStep ? 'bg-brand' : 'bg-border'"></span>
-                        <span class="font-mono text-[10px] uppercase tracking-[0.06em] sm:text-[11px]" :class="index <= currentStep ? 'text-text' : 'text-muted'">
+                        <span class="font-mono text-[10px] uppercase tracking-[0.06em] sm:text-[11px]"
+                            :class="index <= currentStep ? 'text-text' : 'text-muted'">
                             {{ stepLabel }}
                         </span>
                     </li>
                 </ol>
 
                 <BaseAlert v-else variant="danger" class="mt-5">
-                    Pesanan ini berstatus <strong>{{ order.status.label }}</strong>. Hubungi admin jika kamu sudah melakukan pembayaran.
+                    Pesanan ini berstatus <strong>{{ order.status.label }}</strong>. Hubungi admin jika kamu sudah
+                    melakukan pembayaran.
                 </BaseAlert>
             </BaseCard>
 
@@ -90,20 +100,19 @@ const details = computed(() =>
                     Bayar sebelum <strong class="text-text">{{ order.expiresAt }}</strong>.
                 </p>
 
-                <div v-if="order.payment.code" class="mt-4 flex items-center justify-between gap-3 rounded-md border border-border bg-ground p-4">
+                <div v-if="order.payment.qrImage" class="mt-4 flex flex-col items-center gap-2">
+                    <img :src="order.payment.qrImage" alt="Kode QRIS" class="size-64 rounded-md bg-white p-3" />
+                    <p class="text-sm text-muted">Scan dengan aplikasi e-wallet atau m-banking yang mendukung QRIS.</p>
+                </div>
+
+                <div v-else-if="order.payment.code"
+                    class="mt-4 flex items-center justify-between gap-3 rounded-md border border-border bg-ground p-4">
                     <code class="font-mono text-lg break-all text-text">{{ order.payment.code }}</code>
                     <CopyButton :text="order.payment.code" />
                 </div>
 
-                <BaseButton
-                    v-if="order.payment.url"
-                    :href="order.payment.url"
-                    target="_blank"
-                    rel="noopener"
-                    block
-                    size="lg"
-                    class="mt-4"
-                >
+                <BaseButton v-if="order.payment.url" :href="order.payment.url" target="_blank" rel="noopener" block
+                    size="lg" class="mt-4">
                     Bayar sekarang
                 </BaseButton>
 
@@ -116,29 +125,17 @@ const details = computed(() =>
                 <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-success">Selesai</p>
                 <h2 class="mt-1 font-display text-lg font-bold text-text">Top up berhasil</h2>
                 <p class="mt-1.5 text-sm text-muted">Nomor referensi (SN):</p>
-                <div class="mt-3 flex items-center justify-between gap-3 rounded-md border border-border bg-ground p-3.5">
+                <div
+                    class="mt-3 flex items-center justify-between gap-3 rounded-md border border-border bg-ground p-3.5">
                     <code class="font-mono text-sm break-all text-text">{{ order.serialNumber }}</code>
                     <CopyButton :text="order.serialNumber" />
                 </div>
             </BaseCard>
 
-            <BaseCard v-if="order.credentials" variant="success" padding="lg">
-                <div class="flex items-center justify-between gap-3">
-                    <div>
-                        <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-success">Akun game</p>
-                        <h2 class="mt-1 font-display text-lg font-bold text-text">Detail akun</h2>
-                    </div>
-                    <CopyButton :text="order.credentials" label="Salin semua" />
-                </div>
-                <pre class="mt-4 rounded-md border border-border bg-ground p-4 font-mono text-sm whitespace-pre-wrap text-text">{{ order.credentials }}</pre>
-                <p class="mt-3 text-xs text-muted">Segera ganti password dan amankan akun setelah login.</p>
-            </BaseCard>
-
-            <Link
-                :href="page.props.links.home"
-                class="focus-ring mx-auto inline-flex items-center gap-1.5 rounded-sm font-mono text-xs uppercase tracking-[0.14em] text-muted transition-colors hover:text-brand-highlight"
-            >
-                <svg class="size-3.5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <Link :href="page.props.links.home"
+                class="focus-ring mx-auto inline-flex items-center gap-1.5 rounded-sm font-mono text-xs uppercase tracking-[0.14em] text-muted transition-colors hover:text-brand-highlight">
+                <svg class="size-3.5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                    stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
                 </svg>
                 Kembali ke beranda

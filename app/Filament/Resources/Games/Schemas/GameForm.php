@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Games\Schemas;
 
 use App\Services\Supplier\MeloCatalogService;
 use Closure;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -44,7 +45,18 @@ class GameForm
                     ->alphaDash()
                     ->unique(ignoreRecord: true),
                 TextInput::make('publisher'),
-                TextInput::make('thumbnail'),
+                FileUpload::make('thumbnail')
+                    ->image()
+                    ->disk('public')
+                    ->directory('games/thumbnails')
+                    ->visibility('public')
+                    ->acceptedFileTypes(['image/webp', 'image/jpeg', 'image/png'])
+                    ->maxSize(2048)
+                    ->imageAspectRatio('1:1')
+                    ->automaticallyCropImagesToAspectRatio()
+                    ->automaticallyResizeImagesToWidth('512')
+                    ->automaticallyResizeImagesToHeight('512')
+                    ->helperText('Persegi 1:1, otomatis dipotong dan diubah ke 512×512 px. WebP disarankan agar ringan.'),
                 TextInput::make('banner'),
                 Textarea::make('description')
                     ->columnSpanFull(),
@@ -80,6 +92,7 @@ class GameForm
 
     /**
      * Isi nama, slug, thumbnail, dan label input dari brand Melo yang dipilih (tidak menimpa isian admin).
+     * Thumbnail Melo diunduh ke storage karena field-nya upload file, bukan URL.
      */
     private static function fillFromMeloBrand(?string $brandId, Get $get, Set $set): void
     {
@@ -101,7 +114,12 @@ class GameForm
             blank($get('slug')) && $set('slug', Str::slug($brand['slug'] ?: $brand['name']));
         }
 
-        blank($get('thumbnail')) && filled($defaults['thumbnail']) && $set('thumbnail', $defaults['thumbnail']);
+        if (blank($get('thumbnail')) && filled($defaults['thumbnail'])) {
+            $path = $catalog->storeThumbnail($defaults['thumbnail']);
+            // State FileUpload berbentuk [uuid => path].
+            $path && $set('thumbnail', [(string) Str::uuid() => $path]);
+        }
+
         $set('requires_zone_id', $defaults['requires_zone_id']);
         filled($defaults['user_id_label']) && $set('user_id_label', $defaults['user_id_label']);
         filled($defaults['zone_id_label']) && $set('zone_id_label', $defaults['zone_id_label']);

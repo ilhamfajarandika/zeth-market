@@ -23,9 +23,9 @@ class GameAccountResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Katalog';
 
-    protected static ?string $modelLabel = 'Stok Akun';
+    protected static ?string $modelLabel = 'Akun Game';
 
-    protected static ?string $pluralModelLabel = 'Stok Akun';
+    protected static ?string $pluralModelLabel = 'Akun Game';
 
     protected static ?int $navigationSort = 4;
 

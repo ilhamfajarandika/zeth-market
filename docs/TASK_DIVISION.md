@@ -67,17 +67,17 @@ Route pelanggan (login, register, riwayat), checkout, dan cek status order: ⏳ 
 | `Home`    | `categories[]`  | `slug`, `name`, `games[]` → `slug`, `name`, `publisher`, `url`, `thumbnailUrl`, `isPopular`                    |
 | `Game`    | `game`          | field game di atas + `bannerUrl`, `instruction`, `requiresZoneId`, `userIdLabel`, `zoneIdLabel`               |
 | `Game`    | `productGroups[]` | `label`, `products[]` → `id`, `name`, `description`, `price`, `strikePrice`, `isAccount`, `stock`           |
-| `Invoice` | `order`         | `invoice`, `status{value,label,color}`, `gameName`, `productName`, `target`, `paymentMethod`, `createdAt`, `expiresAt`, `price`, `fee`, `total`, `payment{code,url}` (hanya `pending`), `serialNumber` & `credentials` (hanya `success`) |
+| `Game`    | `paymentChannels[]` | `code`, `name`, `group` (`QRIS`/`E-Wallet`/`Virtual Account`/`Lainnya`), `iconUrl`, `fee`, `total` (rupiah terformat). Kosong kecuali query `?product={id}` menunjuk produk top up aktif milik game ini |
+| `Game`    | `checkoutUrl`   | URL `POST` checkout (`checkout.store`)                                                                        |
+| `Invoice` | `order`         | `invoice`, `status{value,label,color}`, `gameName`, `productName`, `target`, `paymentMethod`, `createdAt`, `expiresAt`, `price`, `fee`, `total`, `payment{code,url,qrImage}` (hanya `pending`; `qrImage` = SVG data URI, hanya metode QRIS), `serialNumber` & `credentials` (hanya `success`) |
 
-### 3.4 Checkout [REKOMENDASI, ⏳ Tahap 3]
+### 3.4 Checkout [FINAL, ✅ 2026-11-21]
 
-Usulan kontrak awal. Backend memfinalkannya sebelum H11, lalu menandai [FINAL] di sini.
-
-- Frontend memakai `useForm()` dari `@inertiajs/vue3` di `Game.vue` dan mengirim `POST` ke route `checkout.store` (URL dikirim Backend sebagai prop).
-- Field form: `product_id`, `target_user_id`, `target_zone_id` (hanya jika `requiresZoneId`), `email`, `whatsapp` (aturan wajibnya [TBD]), `payment_method`, `id_confirmed`.
-- Backend memvalidasi lewat Form Request, menghitung total, membuat order, `reserve()` untuk akun, lalu redirect ke `invoice.show`.
-- Error validasi kembali ke `form.errors.<nama_field>`. Stok habis dikembalikan sebagai error pada `product_id`.
-- Prop tambahan untuk `Game`: `paymentChannels[]` (`code`, `name`, `group`, `iconUrl`) dan `checkoutUrl`.
+- `Game.vue` memakai `useForm()` dan mengirim `POST /game/{game}/checkout` (route `checkout.store`, throttle 10/menit; URL dari prop `checkoutUrl`).
+- Saat item top up dipilih, Frontend memanggil `router.reload({ only: ['paymentChannels'], data: { product: id } })`. Backend mengisi `paymentChannels` dari Duitku (`DuitkuService::paymentChannels()`, cache 10 menit per nominal) dengan fee dan total untuk harga produk itu.
+- Field form: `product_id`, `target_user_id`, `target_zone_id` (hanya jika `requiresZoneId`, selain itu ditolak), `whatsapp` (**wajib**, `08…`/`628…`/`+628…`), `email` (opsional), `payment_method` (kode Duitku), `id_confirmed`.
+- Backend (`CheckoutRequest` + `CheckoutController`) memvalidasi; produk harus aktif, milik game ini, dan bertipe `topup` (K1: akun dijual manual). Metode harus ada di daftar Duitku untuk nominal itu. Fee ditanggung pembeli: `total = price + fee`. Order `pending` dibuat dengan snapshot dan `expired_at` 15 menit, lalu `createTransaction()` + `storePaymentDetails()`, kemudian redirect ke `invoice.show`.
+- Error validasi kembali ke `form.errors.<nama_field>`. Jika Duitku gagal membuat transaksi: order ditandai `failed` dan error dikembalikan pada `payment_method`.
 
 ## 4. Tugas per Tahap
 
