@@ -35,7 +35,7 @@
 | Webhook             | Verifikasi signature Duitku & Melo            | `WebhookSignatureTest`    |
 | Pemrosesan callback | Job `HandlePaymentCallback`, `SendTopupToMelo`, `HandleSupplierCallback` (test lulus 2026-11-27, lihat §6; konkurensi lock di MySQL belum diuji) | `PaymentCallbackTest`, `SupplierCallbackTest` |
 | Service integrasi   | Duitku & Melo (**belum ke API asli**)         | `DuitkuServiceTest`, `MeloServiceTest` |
-| Cek nickname pelanggan | Tombol Beli Sekarang membuka dialog yang cek ID ke Melo dulu (`POST /game/{game}/nickname`, throttle 10/menit, cache 1 hari, purge tiap jam). Sandbox tidak memanggil Melo. **Belum ke API asli; build frontend gagal, lihat M19** | `NicknameCheckTest`, `PruneNicknameCacheTest` |
+| Cek nickname pelanggan | Tombol Beli Sekarang membuka dialog yang cek ID ke Melo dulu (`POST /game/{game}/nickname`, throttle 10/menit, cache 1 hari, purge tiap jam). Dibuka lewat `MELO_NICKNAME_LIVE` (default mati; `MELO_SANDBOX` hanya untuk top up). **Belum diuji ke API Melo asli** | `NicknameCheckTest`, `PruneNicknameCacheTest` |
 | Konfigurasi         | MySQL, Asia/Jakarta, locale `id`, key `.env`  | —                         |
 
 Lokasi & detail:
@@ -90,7 +90,7 @@ Lokasi & detail:
 | M16 | `php artisan test` memakai DB dev jika config di-cache | Data `topup_game` terhapus | Terbuka |
 | M17 | `CustomerAuthTest::test_customer_can_login_and_logout` gagal, di luar M15 (`MeloServiceTest::test_topup_...` sudah diperbaiki 2026-11-27) | Login pelanggan tidak terverifikasi | Terbuka |
 | M18 | Format rupiah (titik ribuan) belum ada di form harga Produk (`base_price`, `price`, `strike_price`) dan Order (`price`) | Admin input harga tanpa format, rawan salah baca nominal | Terbuka |
-| M19 | `resources/js/pages/Game.vue`: string literal di template (`' · '` dan `'Belum pilih item'`) terpecah baris | `npm run build` gagal, bundle baru tidak bisa dibuat | Terbuka |
+| M19 | `resources/js/pages/Game.vue`: string literal di template (`' · '` dan `'Belum pilih item'`) terpecah baris | `npm run build` gagal, bundle baru tidak bisa dibuat | Selesai 2026-11-28 (string sudah digabung, `npm run build` lulus) |
 
 Detail:
 - **M1:** `StorefrontController::invoice`. Kredensial akun tidak ada lagi di sistem (2026-11-22). Yang masih terbuka: nomor SN dan data pesanan.
@@ -132,11 +132,11 @@ Semua diputuskan oleh PO. Kolom "Dibutuhkan sebelum" diturunkan dari `IMPLEMENTA
 | 11  | Coolify vs Laravel Forge; domain & VPS                          | H27 (Tahap 6, E6)    |
 | 12  | Konfirmasi 1 bulan = 30 hari (H1–H30)                           | H1                   |
 | 13  | Tanggal mulai H1                                                | Sebelum mulai        |
-| 14  | Widget kuota cek nickname di dashboard (`nicknamePlan()`, M10, PROJECT_SPEC §10 [FINAL]). Dibuat atas permintaan user 2026-11-27, disetujui PO untuk pelanggan 2026-11-27, bagian dari cek nickname (`docs/PERSETUJUAN_CEK_NICKNAME.md`) | ✅ selesai |
-| 15  | Pemetaan game ke `game_code` Melo: **opsi A dipakai** (kolom `games.melo_game_code`, dipilih dari dropdown `GET /check-nickname/games` di form Game, atas permintaan user 2026-11-27). Persetujuan PO untuk kolom baru belum tercatat. Opsi B (`games.slug`) tidak dipakai: spesifikasi menyebut game_code terpisah dari slug brand. `PERSETUJUAN_CEK_NICKNAME.md` §9 no. 1 | Endpoint cek nickname pelanggan |
+| 14  | Widget kuota cek nickname di dashboard (`nicknamePlan()`, M10, PROJECT_SPEC §10 [FINAL]). Dibuat atas permintaan user 2026-11-27, disetujui PO untuk pelanggan 2026-11-27, bagian dari cek nickname | ✅ selesai |
+| 15  | Pemetaan game ke `game_code` Melo: **opsi A dipakai** (kolom `games.melo_game_code`, dipilih dari dropdown `GET /check-nickname/games` di form Game, atas permintaan user 2026-11-27). Persetujuan PO untuk kolom baru belum tercatat. Opsi B (`games.slug`) tidak dipakai: spesifikasi menyebut game_code terpisah dari slug brand. | Endpoint cek nickname pelanggan |
 | 16  | Batas pemakaian cek nickname per IP (usulan 10/menit), §9 no. 2. Diterapkan 2026-11-28 sesuai usulan (`throttle:10,1`) | Konfirmasi PO (endpoint sudah dibuat) |
 | 17  | Cek nickname opsional atau wajib sebelum checkout (usulan: opsional), §9 no. 3. Diterapkan 2026-11-28 sesuai usulan: hasil cek hanya ditampilkan, "Lanjut bayar" tetap ada | Konfirmasi PO (endpoint sudah dibuat) |
-| 18  | Konfirmasi "tidak ditemukan" tidak di-cache dengan premis yang dikoreksi (§9 no. 4); gerbang sandbox (§9 no. 5). Diterapkan: 404 tidak di-cache (jawaban PO), gerbang sandbox aktif (usulan) | Konfirmasi PO (endpoint sudah dibuat) |
+| 18  | Konfirmasi "tidak ditemukan" tidak di-cache dengan premis yang dikoreksi (§9 no. 4); gerbang sandbox (§9 no. 5). Diterapkan: 404 tidak di-cache (jawaban PO), gerbang sandbox diganti flag `MELO_NICKNAME_LIVE` (default mati; izin PO untuk tes ke Melo asli dikonfirmasi user 2026-11-28) | Konfirmasi PO (endpoint sudah dibuat) |
 
 ## 6. Riwayat Perubahan Penting
 
@@ -340,7 +340,7 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 
 - Permintaan user: tampilkan kuota cek nickname (`GET /check-nickname/plan`) di dashboard admin. Respons berisi batas gratis per hari (`free_daily_limit`), batas gratis per menit (`free_minute_limit`), tarif berbayar (`paid_price_mc`), batas berbayar per menit (`paid_minute_limit`), dan jam reset (`resets_at`).
 - Widget baru `MeloNicknamePlanOverview` (`app/Filament/Widgets/`) memakai `MeloService::nicknamePlan()` yang sudah ada. Tanpa migration, tanpa tabel, tanpa service baru. Cache 10 menit (`melo.nickname_plan`), gagal tidak di-cache, polling dimatikan. Bila Melo gagal atau respons tidak lengkap, widget menampilkan "Tidak dapat dimuat".
-- **Keputusan terbuka:** fitur cek nickname di luar scope (PROJECT_SPEC §10 [FINAL]). Persetujuan PO belum tertulis, lihat §5 no. 14 dan `docs/PERSETUJUAN_CEK_NICKNAME.md`. Widget hanya membaca kuota, tidak memanggil `checkNickname()` dan tidak ada pencarian nickname untuk pelanggan.
+- **Keputusan terbuka:** fitur cek nickname di luar scope (PROJECT_SPEC §10 [FINAL]). Persetujuan PO belum tertulis, lihat §5 no. 14. Widget hanya membaca kuota, tidak memanggil `checkNickname()` dan tidak ada pencarian nickname untuk pelanggan.
 - **Belum:** respons plan hanya berisi batas, bukan jumlah yang sudah dipakai hari ini. Sisa kuota per hari hanya ada di header `X-Nickname-RateLimit-Remaining` pada respons `POST /check-nickname` (belum dipakai). Satuan "MC" dan arti `*_minute_limit` belum dikonfirmasi di spesifikasi; widget menampilkannya sebagai "per menit" dan "MC".
 - Respons divalidasi dengan `Validator` (4 batas harus integer, `resets_at` string). Nilai `null` atau bukan angka ditolak dan widget menampilkan "Tidak dapat dimuat", tidak error.
 - Test: `MeloNicknamePlanOverviewTest` (+4: tampil dan di-cache; gagal dari Melo; respons tidak lengkap; batas bernilai null). Suite penuh: 171 test, 163 lulus, 8 gagal (8 kegagalan sama dengan sebelumnya: M15 b dan M17).
@@ -354,8 +354,8 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 
 ### 2026-11-27 — Cek nickname pelanggan: keputusan PO dan cache
 
-- Keputusan PO (`docs/PERSETUJUAN_CEK_NICKNAME.md` §8): disetujui untuk pelanggan; hasil 200 di-cache 1 hari; hasil 404 tidak di-cache; tidak ada batas biaya (rekap biaya di dokumen yang sama).
-- Koreksi premis PO: "tidak ditemukan" tidak gratis. Spesifikasi Melo menulis hasil tidak ditemukan memakai jatah, lalu 1 MC per cek setelah jatah harian 40 habis (`PERSETUJUAN_CEK_NICKNAME.md` §3). Keputusan 404 perlu dikonfirmasi ulang PO (§9 no. 4).
+- Keputusan PO: disetujui untuk pelanggan; hasil 200 di-cache 1 hari; hasil 404 tidak di-cache; tidak ada batas biaya (rekap biaya di dokumen yang sama).
+- Koreksi premis PO: "tidak ditemukan" tidak gratis. Spesifikasi Melo menulis hasil tidak ditemukan memakai jatah, lalu 1 MC per cek setelah jatah harian 40 habis. Keputusan 404 perlu dikonfirmasi ulang PO (§5 no. 18).
 - Kode: `MeloService::cachedNickname()` (key `melo.nickname.*`, TTL 86.400 detik, hanya 200, tanpa panggilan Melo saat `MELO_SANDBOX=true`). `MeloService::logOutgoing()` menerima `redact:`, sehingga `data.username` dan `data.region` tidak masuk `api_logs` untuk `/check-nickname`.
 - Tidak ada migration, tabel, atau endpoint baru. Endpoint dan UI pelanggan belum dibuat, menunggu §5 no. 15–18.
 - Dokumen yang diperbarui: `PROJECT_SPEC.md` (§5 P11, catatan 2 dan 4, §10), `CLAUDE.md`, `docs/AGENTS.md` §4, `TECH_STACK.md`, `BUSINESS_FLOW.md`, `FRONTEND_PLAN.md`, `DATABASE_DESIGN.md`, `API_INTEGRATION.md`, `SECURITY_RULES.md` §13.
@@ -381,7 +381,7 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 
 ### 2026-11-27 — Kode game Melo untuk cek nickname
 
-- Permintaan user: tambahkan `game_code` supaya akun bisa dicek. Dipakai opsi A dari `PERSETUJUAN_CEK_NICKNAME.md` §9 no. 1. Spesifikasi (`GET /check-nickname/games`, `games[].game_code`) menyebut kode ini terpisah dari slug brand, jadi `games.slug` tidak dipakai.
+- Permintaan user: tambahkan `game_code` supaya akun bisa dicek. Dipakai opsi A. Spesifikasi (`GET /check-nickname/games`, `games[].game_code`) menyebut kode ini terpisah dari slug brand, jadi `games.slug` tidak dipakai.
 - Migration baru `2026_11_27_212731_add_melo_game_code_to_games_table.php`: kolom `games.melo_game_code` (VARCHAR, nullable, tidak unik). Dipilih dari dropdown (`Select` di `GameForm`) berisi `games[].game_code` dan nama dari `GET /check-nickname/games` lewat `MeloCatalogService::nicknameGameOptions()` (cache 1 jam, galat tidak di-cache). Kode yang sudah tersimpan tetap ada di pilihan walau Melo tidak terjangkau, supaya tidak terhapus saat simpan. Kosong = game tidak dicek nickname. `Game` ikut `#[Fillable]`.
 - `nicknameGames()` kini dipakai dropdown ini (M10). Endpointnya publik dan tanpa biaya, tetapi persetujuan PO tertulis untuk pemakaian ini belum ada.
 - Tidak ada endpoint atau UI cek nickname. Keputusan §5 no. 16–18 belum ada.
@@ -392,21 +392,26 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 
 - Permintaan user: sebelum bayar, username pembeli dicek dulu. Setelah klik **Beli Sekarang**, dialog "Konfirmasi pesanan" muncul, mengecek ID ke Melo, lalu menampilkan nickname dan region bila ditemukan. Dialog juga memuat item, metode, dan total.
 - Endpoint baru `POST /game/{game}/nickname` (`NicknameCheckController`, `NicknameCheckRequest`, route `nickname.check`) dengan throttle `10,1`. Memanggil `MeloService::cachedNickname()` (tanpa method baru). Respons hanya `username` dan `region`; data billing Melo tidak dikirim. Game tanpa `melo_game_code` → 404 tanpa panggilan Melo. Hasil tidak ditemukan, galat Melo, dan mode sandbox menghasilkan `username: null` (pesan "tidak dapat dipastikan"), bukan error.
-- Keputusan yang diterapkan dari usulan di `PERSETUJUAN_CEK_NICKNAME.md` §9, belum dikonfirmasi PO (§5 no. 16–18): throttle 10/menit per IP; cek bersifat informasi, "Lanjut bayar" tetap ada walau cek gagal; hasil 404 tidak di-cache (sesuai jawaban PO).
+- Keputusan yang diterapkan dari usulan, belum dikonfirmasi PO (§5 no. 16–18): throttle 10/menit per IP; cek bersifat informasi, "Lanjut bayar" tetap ada walau cek gagal; hasil 404 tidak di-cache (sesuai jawaban PO).
 - Retensi: command `melo:prune-nickname-cache` (jadwal tiap jam) menghapus baris cache `melo.nickname.*` yang kedaluwarsa. Prasyarat di `SECURITY_RULES.md` §13 sudah terpenuhi.
 - `Game.vue`: `<dialog>` native dengan `showModal()` dan `closedby="any"`. Pemanggilan memakai `useHttp` Inertia (CSRF otomatis). Hasil cek sebelumnya dibatalkan (`cancel()`) bila pembeli mengecek ulang dengan ID lain. Tombol Batal memakai handler JS, bukan atribut `command`, karena Safari sebelum 26.2 tidak mendukungnya.
 - Trait `ValidatesGameIdPattern` dipakai bersama `CheckoutRequest` dan `NicknameCheckRequest`. Logika regex tidak berubah.
 - `StorefrontController::game()` menambah prop `nicknameUrl` (null bila game tidak punya kode cek nickname).
 - Tanpa migration.
 - Test: `NicknameCheckTest` (9), `PruneNicknameCacheTest` (2). Suite penuh (`INERTIA_SSR_ENABLED=false`): 203 test, 196 lulus, 7 gagal (M15 b ×6 dan M17, sama seperti sebelumnya).
-- **Belum diverifikasi:** dialog belum dicek di browser. `npm run build` gagal karena M19, jadi bundle baru belum bisa dibuat. Sandbox Melo asli belum dites (di sandbox lokal hasil selalu "tidak dapat dipastikan"). Konfirmasi PO §5 no. 16–18 belum ada.
+- Gerbang cek nickname dipisah dari `MELO_SANDBOX` lewat flag `MELO_NICKNAME_LIVE` (default `false`, `.env.example`). `cachedNickname()` memeriksa flag itu, bukan `MELO_SANDBOX`, jadi top up tetap sandbox. Izin PO untuk tes ke Melo asli dikonfirmasi user 2026-11-28. Untuk tes, set `MELO_NICKNAME_LIVE=true` di `.env` lokal, lalu kembalikan ke `false` setelah tes. Cek di Melo memakai jatah atau saldo akun H2H sungguhan.
+- `Game.vue`: WhatsApp, email, dan centang konfirmasi ID disimpan di `localStorage` (kunci `checkout-contact`) agar tidak diisi ulang. ID pembeli tidak disimpan. Tombol Beli Sekarang kini juga menuntut User ID (dan zona bila game punya zona) terisi. Akses storage dibungkus `try/catch`. Data ini tersimpan di perangkat sebagai teks biasa. Belum dicek di browser.
+- Dialog: blok nickname dipindah ke atas ringkasan pesanan, dan baris Region tidak ditampilkan. Endpoint tetap mengembalikan `region`. Belum dicek di browser.
+- UI `Game.vue`: loading cek nickname ditampilkan di tombol Beli Sekarang ("Mengecek…", tombol terkunci), dialog terbuka setelah hasilnya ada. Status loading di dialog dihapus. User ID dan WhatsApp hanya angka (huruf dan simbol dibuang saat diketik atau ditempel). Akibatnya `+62` tidak bisa diketik lagi, tetapi server tetap menerima `62…` dan `0…`. Tidak ada perubahan PHP. `npm run build` lulus. Belum dicek di browser.
+- Test yang berubah: `MeloServiceTest` (+1, gerbang flag dan kombinasi `MELO_SANDBOX=true` + flag hidup), `NicknameCheckTest`, `PruneNicknameCacheTest` (setup memakai `services.melo.nickname_live`).
+- **Belum diverifikasi:** dialog belum dicek di browser dengan `MELO_NICKNAME_LIVE=true`. Tes ke Melo asli belum dijalankan. Konfirmasi PO §5 no. 16–18 belum ada.
 
 ## 7. Pekerjaan Berikutnya
 
 0. Jawab pertanyaan di [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §5 (review core system 2026-11-16). Dokumen itu juga mencatat keputusan baru yang belum masuk `PROJECT_SPEC.md` §13: akun dijual manual via WhatsApp (K1), kolom uang jadi integer dengan pengecualian edit migration (K2), dan pengujian pembayaran tanpa tampilan (K3).
 1. PO me-review dan merevisi dokumen `docs/`.
 2. Putuskan keputusan §5 yang dibutuhkan sebelum Tahap 1–2 (no. 4, 5, 10, 12, 13).
-2a. Cek nickname pelanggan: endpoint, dialog, dan purge sudah dibuat 2026-11-28 (lihat riwayat). Sisa: perbaiki M19 agar `npm run build` lulus, cek dialog di browser, uji sandbox Melo asli, dan konfirmasi PO §5 no. 16–18 (`PERSETUJUAN_CEK_NICKNAME.md` §9).
+2a. Cek nickname pelanggan: endpoint, dialog, dan purge sudah dibuat 2026-11-28 (lihat riwayat). Sisa: cek dialog di browser dengan `MELO_NICKNAME_LIVE=true`, dan konfirmasi PO §5 no. 16–18.
 3. Daftar akun sandbox Duitku & Melo (risiko E1/E2), lalu verifikasi signature callback dan format body `transactionStatus` (lihat `API_INTEGRATION.md` §3.3–3.4). Di sandbox Melo, uji juga idempotensi: `buyer_trx_id` yang sama membalas 200 tanpa debit ganda, dan body berbeda membalas 409 (`API_INTEGRATION.md` §4).
 4. Uji `MeloService` ke sandbox Melo, termasuk format target per SKU (M9).
 5. Lanjutkan Tahap 2: batasi form pesanan (M3), import CSV akun game; lalu core system sesuai `CORE_SYSTEM_REVIEW.md` §4.

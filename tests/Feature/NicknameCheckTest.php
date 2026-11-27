@@ -20,7 +20,7 @@ class NicknameCheckTest extends TestCase
     {
         parent::setUp();
 
-        config(['services.melo.sandbox' => false]);
+        config(['services.melo.nickname_live' => true]);
 
         $this->game = Game::factory()->withZone()->create(['melo_game_code' => 'mobile-legends']);
     }
@@ -106,9 +106,9 @@ class NicknameCheckTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_sandbox_mode_sends_nothing_and_returns_null_fields(): void
+    public function test_nickname_live_off_sends_nothing_and_returns_null_fields(): void
     {
-        config(['services.melo.sandbox' => true]);
+        config(['services.melo.nickname_live' => false]);
 
         $this->checkNickname()->assertOk()->assertExactJson(['username' => null, 'region' => null]);
 

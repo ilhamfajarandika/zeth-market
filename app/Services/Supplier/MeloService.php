@@ -288,14 +288,15 @@ class MeloService
 
     /**
      * Cek nickname dengan cache 1 hari (keputusan PO 2026-11-27). Hanya respons 200 yang di-cache; 404 dan galat
-     * tidak. Tidak memanggil Melo saat MELO_SANDBOX aktif, karena billing cek nickname mengikuti mode akun.
+     * tidak. Tidak memanggil Melo kecuali MELO_NICKNAME_LIVE aktif, karena billing cek nickname mengikuti mode akun
+     * (bukan MELO_SANDBOX, yang hanya mengatur top up).
      *
      * @param  array{game_code: string, customer_target: string, customer_target_zone?: ?string}  $payload
-     * @return array<string, mixed>|null data pemain (username, region, ...); null jika sandbox, tidak ditemukan, atau galat
+     * @return array<string, mixed>|null data pemain (username, region, ...); null jika flag mati, tidak ditemukan, atau galat
      */
     public function cachedNickname(array $payload): ?array
     {
-        if (config('services.melo.sandbox')) {
+        if (! config('services.melo.nickname_live')) {
             return null;
         }
 

@@ -47,6 +47,8 @@ return [
         'secret_key' => env('MELO_SECRET_KEY'),
         'webhook_secret' => env('MELO_WEBHOOK_SECRET'),
         'sandbox' => env('MELO_SANDBOX', true),
+        // Cek nickname memakai billing akun H2H (tidak ada sandbox per request). Terpisah dari MELO_SANDBOX agar top up tetap sandbox.
+        'nickname_live' => (bool) env('MELO_NICKNAME_LIVE', false),
         // Peringatan saldo H2H (Rupiah). Di bawah/sama dengan nilai ini = rendah; di bawah/sama setengahnya = kritis.
         'low_balance_threshold' => (int) env('MELO_LOW_BALANCE_THRESHOLD', 500000),
     ],

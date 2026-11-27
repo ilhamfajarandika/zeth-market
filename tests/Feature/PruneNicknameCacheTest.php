@@ -36,7 +36,7 @@ class PruneNicknameCacheTest extends TestCase
     {
         config([
             'cache.default' => 'database',
-            'services.melo.sandbox' => false,
+            'services.melo.nickname_live' => true,
         ]);
         Http::fake(['*/check-nickname' => Http::response([
             'success' => true,

@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, router, useForm, useHttp, usePage } from '@inertiajs/vue3';
-import { computed, shallowRef, useTemplateRef } from 'vue';
+import { computed, shallowRef, useTemplateRef, watch } from 'vue';
 import GameCover from '../components/GameCover.vue';
 import BaseAlert from '../components/ui/BaseAlert.vue';
 import BaseBadge from '../components/ui/BaseBadge.vue';
@@ -31,15 +31,51 @@ const allProducts = products;
 // ?product=ID dipakai partial reload metode bayar; dibaca ulang agar pilihan bertahan saat halaman dimuat ulang.
 const productFromUrl = Number(new URL(page.url, 'http://localhost').searchParams.get('product')) || null;
 
+// Kontak dan centang konfirmasi ID diingat di browser ini agar tidak diisi ulang. ID pembeli sendiri tidak disimpan.
+const CONTACT_STORAGE_KEY = 'checkout-contact';
+
+function loadSavedContact() {
+    try {
+        return JSON.parse(localStorage.getItem(CONTACT_STORAGE_KEY)) ?? {};
+    } catch {
+        return {};
+    }
+}
+
+function saveContact(contact) {
+    try {
+        localStorage.setItem(CONTACT_STORAGE_KEY, JSON.stringify(contact));
+    } catch {
+        // Penyimpanan diblokir (mode privat atau kuota penuh): form tetap jalan, hanya tidak diingat.
+    }
+}
+
+const savedContact = loadSavedContact();
+
 const form = useForm({
     product_id: allProducts.some((product) => product.id === productFromUrl) ? productFromUrl : null,
     target_user_id: '',
     target_zone_id: '',
-    email: '',
-    whatsapp: '',
+    email: savedContact.email ?? '',
+    whatsapp: (savedContact.whatsapp ?? '').replace(/\D/g, ''),
     payment_method: null,
-    id_confirmed: false,
+    id_confirmed: savedContact.id_confirmed === true,
 });
+
+// User ID dan WhatsApp hanya angka; huruf dan simbol (termasuk "+") dibuang saat diketik atau ditempel.
+watch(
+    () => form.target_user_id,
+    (value) => (form.target_user_id = value.replace(/\D/g, '')),
+);
+watch(
+    () => form.whatsapp,
+    (value) => (form.whatsapp = value.replace(/\D/g, '')),
+);
+
+watch(
+    () => [form.whatsapp, form.email, form.id_confirmed],
+    ([whatsapp, email, idConfirmed]) => saveContact({ whatsapp, email, id_confirmed: idConfirmed }),
+);
 
 const isLoadingChannels = shallowRef(false);
 
@@ -57,9 +93,12 @@ const canCheckout = computed(
     () =>
         selectedProduct.value !== null &&
         selectedChannel.value !== null &&
+        form.target_user_id.trim() !== '' &&
+        (!game.requiresZoneId || form.target_zone_id.trim() !== '') &&
         form.whatsapp.trim() !== '' &&
         form.id_confirmed &&
         !form.processing &&
+        !nicknameHttp.processing &&
         !isLoadingChannels.value,
 );
 
@@ -91,28 +130,34 @@ const nicknameHttp = useHttp({ target_user_id: '', target_zone_id: '' });
 const nicknameDialog = useTemplateRef('nicknameDialog');
 const nicknamePlayer = shallowRef(null);
 
+// Loading cek ditampilkan di tombol Beli Sekarang; dialog terbuka setelah hasilnya ada.
+const buyButtonLabel = computed(() => {
+    if (form.processing) {
+        return 'Memproses…';
+    }
+
+    return nicknameHttp.processing ? 'Mengecek…' : 'Beli Sekarang';
+});
+
 async function submit() {
     if (!canCheckout.value) {
         return;
     }
 
     nicknamePlayer.value = null;
+
+    if (nicknameUrl) {
+        nicknameHttp.target_user_id = form.target_user_id;
+        nicknameHttp.target_zone_id = form.target_zone_id;
+
+        try {
+            nicknamePlayer.value = (await nicknameHttp.post(nicknameUrl)) ?? null;
+        } catch {
+            nicknamePlayer.value = null;
+        }
+    }
+
     nicknameDialog.value.showModal();
-
-    if (!nicknameUrl) {
-        return;
-    }
-
-    // Batalkan cek sebelumnya agar hasil ID lama tidak menimpa hasil ID yang baru.
-    nicknameHttp.cancel();
-    nicknameHttp.target_user_id = form.target_user_id;
-    nicknameHttp.target_zone_id = form.target_zone_id;
-
-    try {
-        nicknamePlayer.value = (await nicknameHttp.post(nicknameUrl)) ?? null;
-    } catch {
-        nicknamePlayer.value = null;
-    }
 }
 
 function closeNicknameDialog() {
@@ -297,7 +342,7 @@ function channelCardClass(channel) {
                     </h2>
                     <div class="grid gap-3 sm:grid-cols-2">
                         <BaseInput v-model="form.whatsapp" label="WhatsApp" :error="form.errors.whatsapp" type="tel"
-                            inputmode="tel" autocomplete="tel" required placeholder="08xxxxxxxxxx" />
+                            inputmode="numeric" autocomplete="tel" required placeholder="08xxxxxxxxxx" />
                         <BaseInput v-model="form.email" label="Email" :error="form.errors.email" type="email"
                             autocomplete="email" placeholder="nama@email.com" />
                     </div>
@@ -344,7 +389,7 @@ function channelCardClass(channel) {
                     </dl>
 
                     <BaseButton type="submit" :disabled="!canCheckout" block size="lg" class="mt-5">
-                        {{ form.processing ? 'Memproses…' : 'Beli Sekarang' }}
+                        {{ buyButtonLabel }}
                     </BaseButton>
                 </BaseCard>
             </aside>
@@ -359,7 +404,7 @@ function channelCardClass(channel) {
                             selectedProduct?.price ?? '-' }}</p>
                     </div>
                     <BaseButton type="submit" :disabled="!canCheckout" size="md" class="shrink-0">
-                        {{ form.processing ? 'Memproses…' : 'Beli Sekarang' }}
+                        {{ buyButtonLabel }}
                     </BaseButton>
                 </div>
             </div>
@@ -370,6 +415,16 @@ function channelCardClass(channel) {
             <div class="flex flex-col gap-4 p-5 sm:p-6">
                 <h2 id="nickname-dialog-title" class="font-display text-lg font-bold tracking-tight">Konfirmasi pesanan
                 </h2>
+
+                <BaseAlert v-if="!nicknameUrl">Cek nickname belum tersedia untuk game ini.</BaseAlert>
+                <div v-else-if="nicknamePlayer?.username"
+                    class="rounded-md border border-success/30 bg-success/5 p-3.5">
+                    <p class="font-mono text-[11px] uppercase tracking-[0.12em] text-muted">Nickname</p>
+                    <p class="break-all font-display text-lg font-bold">{{ nicknamePlayer.username }}</p>
+                </div>
+                <BaseAlert v-else variant="warning">
+                    Nickname tidak dapat dipastikan. Periksa kembali {{ game.userIdLabel }} sebelum membayar.
+                </BaseAlert>
 
                 <dl class="grid gap-2.5 rounded-md border border-border bg-ground p-3.5 text-sm">
                     <div class="flex justify-between gap-4">
@@ -394,25 +449,9 @@ function channelCardClass(channel) {
                     </div>
                 </dl>
 
-                <BaseAlert v-if="!nicknameUrl">Cek nickname belum tersedia untuk game ini.</BaseAlert>
-                <p v-else-if="nicknameHttp.processing" role="status"
-                    class="font-mono text-xs uppercase tracking-[0.12em] text-muted">
-                    Mengecek {{ game.userIdLabel }}…
-                </p>
-                <div v-else-if="nicknamePlayer?.username"
-                    class="rounded-md border border-success/30 bg-success/5 p-3.5">
-                    <p class="font-mono text-[11px] uppercase tracking-[0.12em] text-muted">Nickname</p>
-                    <p class="break-all font-display text-lg font-bold">{{ nicknamePlayer.username }}</p>
-                    <p v-if="nicknamePlayer.region" class="mt-1 text-xs text-muted">Region: {{ nicknamePlayer.region }}
-                    </p>
-                </div>
-                <BaseAlert v-else variant="warning">
-                    Nickname tidak dapat dipastikan. Periksa kembali {{ game.userIdLabel }} sebelum membayar.
-                </BaseAlert>
-
                 <div class="grid grid-cols-2 gap-3">
                     <BaseButton variant="secondary" @click="closeNicknameDialog">Batal</BaseButton>
-                    <BaseButton :disabled="nicknameHttp.processing || form.processing" @click="confirmCheckout">Lanjut
+                    <BaseButton :disabled="form.processing" @click="confirmCheckout">Lanjut
                         bayar
                     </BaseButton>
                 </div>

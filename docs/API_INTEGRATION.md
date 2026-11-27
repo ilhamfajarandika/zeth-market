@@ -69,7 +69,7 @@ Method bertanda "—" sudah tersedia di service tetapi **belum dipakai** oleh al
 **Cache cek nickname** (`MeloService::cachedNickname()`, keputusan PO 2026-11-27):
 - Key: SHA-256 dari `game_code|customer_target|zone` dengan prefix `melo.nickname.`. TTL 86.400 detik (1 hari). Driver cache `database`, tanpa tabel baru.
 - Hanya respons 200 yang di-cache. 404, 402, 429, dan 502 tidak di-cache.
-- Saat `MELO_SANDBOX=true`, tidak ada panggilan ke Melo dan hasilnya `null`.
+- Saat `MELO_NICKNAME_LIVE=false` (default), tidak ada panggilan ke Melo dan hasilnya `null`. Flag ini terpisah dari `MELO_SANDBOX`, yang hanya mengatur top up.
 - `api_logs` tidak menyimpan `data.username` dan `data.region` untuk `/check-nickname` (`logOutgoing(..., redact:)`).
 - Baris cache kedaluwarsa dihapus terjadwal tiap jam lewat `melo:prune-nickname-cache`. Lihat `SECURITY_RULES.md` §13.
 - Endpoint pelanggan `POST /game/{game}/nickname`: body `target_user_id` (+ `target_zone_id` bila game punya zona). Respons 200 `{username, region}`. Keduanya `null` jika tidak ditemukan, Melo galat, atau sandbox aktif. Game tanpa `melo_game_code` → 404 tanpa panggilan Melo.

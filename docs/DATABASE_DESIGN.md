@@ -124,7 +124,7 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 1. `ON DELETE SET NULL`.
 2. Validasi format tetap wajib. Cek nickname pelanggan (disetujui 2026-11-27, `PROJECT_SPEC.md` §5 P11) hanya tambahan, bukan pengganti.
 3. NULL = game dibuat manual tanpa sync. Diisi lewat Select "Brand Melo" di form Game (`MeloCatalogService::brands()`).
-4. NULL = game tidak dicek nickname. Tidak unik, karena aturan kode per game belum ada di spesifikasi. Keputusan pemetaan: `PERSETUJUAN_CEK_NICKNAME.md` §9 no. 1 (opsi A).
+4. NULL = game tidak dicek nickname. Tidak unik, karena aturan kode per game belum ada di spesifikasi. Keputusan pemetaan: opsi A (CURRENT_STATUS §5 no. 15).
 
 ### `products`
 

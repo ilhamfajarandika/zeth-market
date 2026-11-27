@@ -1,6 +1,6 @@
 # Perubahan: kode game Melo untuk cek nickname
 
-> Tanggal: 2026-11-27 · Status: belum di-commit · Keputusan terkait: `PERSETUJUAN_CEK_NICKNAME.md` §9 no. 1 (opsi A)
+> Tanggal: 2026-11-27 · Status: belum di-commit · Keputusan terkait: opsi A (CURRENT_STATUS §5 no. 15)
 
 ## 1. Ringkasan
 
@@ -31,7 +31,6 @@ Admin bisa memilih kode game Melo (`game_code`) untuk setiap game dari daftar `G
 | `docs/CURRENT_STATUS.md` | Riwayat, status keputusan no. 15, daftar M10, dan jumlah test. |
 | `docs/DATABASE_DESIGN.md` | Baris `melo_game_code` di tabel `games`, catatan 4, dan ERD. |
 | `docs/API_INTEGRATION.md` | Baris `nicknameGames()` dan catatan method yang sudah dipakai. |
-| `docs/PERSETUJUAN_CEK_NICKNAME.md` | Catatan penerapan opsi A di §9 no. 1. |
 
 Tidak ada perubahan pada `MeloService`, job, atau webhook dalam pekerjaan ini.
 
