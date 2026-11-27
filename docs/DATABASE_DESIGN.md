@@ -14,7 +14,7 @@
 | `products`      | Item top up yang dijual + harga               | `000400`                 |
 | `melo_products` | Katalog Melo hasil sync, dipilih admin (3)    | `2026_11_22_120006`      |
 | `orders`        | Transaksi pembelian + data payment & supplier | `000500`                 |
-| `game_accounts` | Akun game yang dijual (1 baris = 1 akun), tanpa kredensial | `2026_11_22_204917` (menggantikan `000600`) |
+| `game_accounts` | Akun game yang dijual (1 baris = 1 akun), tanpa kredensial | `2026_11_22_204917` (menggantikan `000600`), kolom `images` di `2026_11_27_053142` |
 | `api_logs`      | Log request/callback payment & supplier       | `000700`                 |
 | `settings`      | Pengaturan key-value (nama situs, dll.)       | `000800`                 |
 
@@ -47,6 +47,7 @@ erDiagram
         bigint category_id FK
         string slug UK
         int melo_brand_id UK
+        string melo_game_code N
         bool requires_zone_id }
     products { bigint id PK
         bigint game_id FK
@@ -67,6 +68,7 @@ erDiagram
         bigint game_id FK
         string name
         bigint price
+        json images
         string status }
 ```
 
@@ -109,6 +111,7 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | `name`, `publisher`              | VARCHAR      |                                   |
 | `slug`                           | VARCHAR UQ   | Dipakai di URL `/game/{slug}`     |
 | `melo_brand_id`                  | INT UNSIGNED UQ N | Tautan opsional ke brand Melo untuk sync item (3). Migration `2026_11_16_200655` |
+| `melo_game_code`                 | VARCHAR N    | Kode game untuk cek nickname Melo (`games[].game_code` dari `GET /check-nickname/games`), bukan slug brand. Dipilih dari dropdown kode game Melo di form Game. Migration `2026_11_27_212731` (4) |
 | `thumbnail`, `banner`            | VARCHAR N    | Path file di storage              |
 | `description`, `instruction`     | TEXT N       | `instruction` = cara cari User ID |
 | `requires_zone_id`               | BOOLEAN      | Mis. MLBB = true                  |
@@ -119,8 +122,9 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | `sort`                           | INT UNSIGNED |                                   |
 
 1. `ON DELETE SET NULL`.
-2. Pengganti cek nickname.
+2. Validasi format tetap wajib. Cek nickname pelanggan (disetujui 2026-11-27, `PROJECT_SPEC.md` §5 P11) hanya tambahan, bukan pengganti.
 3. NULL = game dibuat manual tanpa sync. Diisi lewat Select "Brand Melo" di form Game (`MeloCatalogService::brands()`).
+4. NULL = game tidak dicek nickname. Tidak unik, karena aturan kode per game belum ada di spesifikasi. Keputusan pemetaan: `PERSETUJUAN_CEK_NICKNAME.md` §9 no. 1 (opsi A).
 
 ### `products`
 
@@ -200,6 +204,7 @@ Akun game yang dijual, terpisah dari `products` (keputusan PO 2026-11-22, migrat
 | `name`        | VARCHAR         | Nama akun, contoh "Akun Mythic Glory"        |
 | `price`       | BIGINT UNSIGNED | Harga jual, Rupiah penuh, diisi admin        |
 | `public_info` | TEXT N          | Boleh tampil publik (rank, skin)             |
+| `images`      | JSON N          | Path gambar WebP di disk `public`, maks 5 (`2026_11_27_053142`) |
 | `status`      | VARCHAR(20)     | Default `available`. `available` / `sold` / `disabled` (1) |
 | `sold_at`     | TIMESTAMP N     | Diisi otomatis saat status jadi `sold` (2)   |
 | timestamps    |                 |                                              |

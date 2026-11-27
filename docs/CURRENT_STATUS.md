@@ -1,6 +1,6 @@
 # CURRENT_STATUS — Status Proyek
 
-> **Terakhir diperbarui:** 2026-11-26, oleh AI agent (warna & favicon panel admin disesuaikan landing page). Sebelumnya: 2026-11-22 (katalog Melo dipilih dulu + hapus kolom reseller/tidak terpakai). Sebelumnya: 2026-11-21 (pilih metode bayar + checkout), 2026-11-21 (upload thumbnail game), 2026-11-17 (pemrosesan callback Duitku & Melo), 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
+> **Terakhir diperbarui:** 2026-11-27, oleh AI agent (idempotensi callback sesuai SECURITY_RULES §7; format rupiah harga akun game; keputusan cek nickname pelanggan dan `cachedNickname()`; susunan kartu dashboard admin; kuota cek nickname di dashboard; gambar stok akun, maks 5 WebP; kode game Melo untuk cek nickname). Sebelumnya: 2026-11-26 (jenis dan QR code metode bayar), 2026-11-26 (tampilan detail pesanan di panel admin), 2026-11-26 (warna & favicon panel admin disesuaikan landing page), 2026-11-22 (katalog Melo dipilih dulu + hapus kolom reseller/tidak terpakai). Sebelumnya: 2026-11-21 (pilih metode bayar + checkout), 2026-11-21 (upload thumbnail game), 2026-11-17 (pemrosesan callback Duitku & Melo), 2026-11-16, oleh AI agent (implementasi master data admin). Sebelumnya: 2026-11-16 (sinkronisasi Duitku), 2026-11-14 (Tripay diganti Duitku).
 > Klaim di bawah diverifikasi dari source code dan hasil test pada tanggal tersebut.
 
 ## 1. Status Proyek
@@ -10,11 +10,11 @@
 | Fase          | Skeleton selesai, supplier Melo terpasang, dokumentasi `docs/` dalam review PO |
 | Tahap rencana | Tahap 1 (Setup), lihat `IMPLEMENTATION_PLAN.md`                                |
 | Tanggal H1    | [TBD]                                                                          |
-| Test          | **151 lulus, 8 gagal** (1)                                                      |
+| Test          | **185 lulus, 7 gagal** (1)                                                      |
 | Versi         | Laravel 13, Filament 5, PHP 8.4, MySQL 8.0.30 (2)                              |
 | Git           | Remote `origin` (GitHub). Branch `main` dan `branch-ilham` di `da563a7` (3)    |
 
-1. `INERTIA_SSR_ENABLED=false php artisan test --compact`, 159 test, SQLite in-memory, 2026-11-26. Sebelum perubahan 2026-11-26: 149 lulus, 9 gagal. Perlu `npm run build` dulu agar `ExampleTest` lulus.
+1. `INERTIA_SSR_ENABLED=false php artisan test --compact`, 192 test, SQLite in-memory, 2026-11-27 (setelah dropdown kode game Melo; sebelumnya 189 test, 182 lulus, 7 gagal, setelah idempotensi callback; sebelumnya 183 test, 175 lulus, 8 gagal). Sebelum perubahan gambar stok akun 2026-11-27: 164 test, 156 lulus, 8 gagal. Sebelum perubahan warna/favicon 2026-11-26: 149 lulus, 9 gagal. Perlu `npm run build` dulu agar `ExampleTest` lulus.
 2. Ditambah Tailwind 4 dan Vite 8, Vue 3.5 Inertia 3 (`inertiajs/inertia-laravel`, `@inertiajs/vue3`), MySQL dari Laragon.
 3. Merge PR #1 (`init-melo`): Melo H2H menggantikan Digiflazz.
 
@@ -22,10 +22,10 @@
 
 | Area                | Ringkasan                                     | Test                      |
 | ------------------- | --------------------------------------------- | ------------------------- |
-| Skema DB            | 9 tabel aplikasi (+ `melo_products`) + bawaan Laravel; kolom uang integer; `games.melo_brand_id` | — |
+| Skema DB            | 9 tabel aplikasi (+ `melo_products`) + bawaan Laravel; kolom uang integer; `games.melo_brand_id`, `games.melo_game_code` | — |
 | Model & enum        | 9 model (+ `MeloProduct`), 4 enum              | —                         |
 | Factory & seeder    | Admin contoh, 3 kategori, 17 game (+ ikon), produk top up, 7 akun game | — |
-| Akun game           | `game_accounts` (tabel terpisah, tanpa reservasi, tanpa kredensial) | `AdminCatalogResourceTest`, `StorefrontTest` |
+| Akun game           | `game_accounts` (tabel terpisah, tanpa reservasi, tanpa kredensial, gambar maks 5 WebP) | `AdminCatalogResourceTest`, `StorefrontTest` |
 | Scheduler           | `melo:check-balance` tiap 10 menit            | `MeloBalanceDashboardTest` |
 | Kredensial          | tidak disimpan di sistem (dihapus 2026-11-22) | `test_game_accounts_table_has_no_credentials_column` |
 | Admin panel         | 6 resource + widget, hanya admin              | `AdminPanelAccessTest`, `AdminCatalogResourceTest`, `AdminCustomerResourceTest` |
@@ -33,7 +33,7 @@
 | Sync katalog Melo   | Tautan game↔brand, sync ke `melo_products`, pilih item jadi produk (tab "Item Melo" atau Select SKU di form Produk), atur harga massal (**belum ke API asli**) | `MeloCatalogServiceTest`, `AdminCatalogResourceTest` |
 | Storefront dasar    | Home, halaman game, invoice                   | `StorefrontTest`          |
 | Webhook             | Verifikasi signature Duitku & Melo            | `WebhookSignatureTest`    |
-| Pemrosesan callback | Job `HandlePaymentCallback`, `SendTopupToMelo`, `HandleSupplierCallback` (**test belum dijalankan, lihat §6 2026-11-17**) | `PaymentCallbackTest`, `SupplierCallbackTest` |
+| Pemrosesan callback | Job `HandlePaymentCallback`, `SendTopupToMelo`, `HandleSupplierCallback` (test lulus 2026-11-27, lihat §6; konkurensi lock di MySQL belum diuji) | `PaymentCallbackTest`, `SupplierCallbackTest` |
 | Service integrasi   | Duitku & Melo (**belum ke API asli**)         | `DuitkuServiceTest`, `MeloServiceTest` |
 | Konfigurasi         | MySQL, Asia/Jakarta, locale `id`, key `.env`  | —                         |
 
@@ -60,7 +60,7 @@ Lokasi & detail:
 
 - Registrasi/login pelanggan dan riwayat transaksi.
 - Aksi admin pada Pelanggan (blokir dll., keputusan #10) dan batasan form Pesanan (M3).
-- Nama metode bayar di invoice (masih kode, mis. `SP`); tampilan nomor VA di invoice.
+- Nama metode bayar (nama Duitku, mis. `SHOPEEPAY QRIS`) belum disimpan di order. Invoice dan detail admin kini menampilkan kode + jenis (lihat riwayat 2026-11-26); tampilan nomor VA di invoice.
 - Cek status supplier terjadwal / reconcile `transactionStatus()`; penandaan order `pending` kedaluwarsa menjadi `expired`.
 - Sinkron harga Melo, import CSV akun game.
 - Notifikasi.
@@ -87,24 +87,28 @@ Lokasi & detail:
 | M14 | Thumbnail game dari Melo (URL absolut) jadi gambar rusak | Gambar game tidak tampil | Selesai (2026-11-21), data lama perlu upload ulang |
 | M15 | 17 test gagal saat dev server (`public/hot`) aktif / admin 404 | Hasil test tidak bisa dipercaya | Terbuka |
 | M16 | `php artisan test` memakai DB dev jika config di-cache | Data `topup_game` terhapus | Terbuka |
+| M17 | `CustomerAuthTest::test_customer_can_login_and_logout` gagal, di luar M15 (`MeloServiceTest::test_topup_...` sudah diperbaiki 2026-11-27) | Login pelanggan tidak terverifikasi | Terbuka |
+| M18 | Format rupiah (titik ribuan) belum ada di form harga Produk (`base_price`, `price`, `strike_price`) dan Order (`price`) | Admin input harga tanpa format, rawan salah baca nominal | Terbuka |
 
 Detail:
 - **M1:** `StorefrontController::invoice`. Kredensial akun tidak ada lagi di sistem (2026-11-22). Yang masih terbuka: nomor SN dan data pesanan.
 - **M2:** ~~`AccountStockService::releaseExpired`~~. Dihapus 2026-11-22 bersama fitur reservasi.
-- **M3:** `app/Filament/Resources/Orders/Schemas/OrderForm.php`. Kolom total, status, dan payment ikut bisa diedit.
+- **M3:** `app/Filament/Resources/Orders/Schemas/OrderForm.php`. Kolom total, status, dan payment ikut bisa diedit. Mengubah `price` atau target pesanan yang sudah `paid` dapat membuat body retry ke Melo berbeda (`max_price`, `customer_target`), lalu Melo membalas 409 untuk `buyer_trx_id` yang sama.
 - **M4:** Selesai 2026-11-22. Migration `2026_11_22_120007` menghapus `users.balance` dan `products.reseller_price` (user `reseller` jadi `member`); `UserRole::Reseller`, `Product::priceFor()`, `UserFactory::reseller()`, dan kolom/field reseller di Filament dihapus.
 - **M5:** Selesai. `CLAUDE.md` root meng-import `@docs/AGENTS.md`, dan status file itu menjadi "berlaku".
 - **M6:** `boost.json` (`"cloud": true`) dan blok Boost di `CLAUDE.md`/`AGENTS.md` root. Bagian proyek di `CLAUDE.md` sudah menegaskan deploy = VPS.
 - **M7:** Selesai. `TECH_STACK.md` diperbarui menjadi ringkasan yang merujuk ke `docs/` (1 bulan, tanpa reseller, ada login pelanggan, Melo).
 - **M8:** `database/database.sqlite`, `resources/views/welcome.blade.php`.
 - **M9:** `MeloService::topup` mengirim `customer_target` dan `customer_target_zone` terpisah. Format per SKU game belum dicek dengan SKU nyata.
-- **M10:** `checkNickname()`, `nicknameGames()`, `nicknamePlan()`, `checkMobileLegendsPurchaseLimit()`, Smart, bulk, dan 2FA. Belum dipakai alur mana pun; memakainya butuh persetujuan PO (cek nickname di luar scope, dan memakai kuota/biaya).
+- **M10:** `checkNickname()`, `nicknameGames()`, `nicknamePlan()`, `checkMobileLegendsPurchaseLimit()`, Smart, bulk, dan 2FA. `nicknamePlan()` kini dipakai widget dashboard admin `MeloNicknamePlanOverview` (permintaan user 2026-11-27, persetujuan PO menunggu, lihat §5 no. 14). `nicknameGames()` kini dipakai dropdown kode game di form Game (permintaan user 2026-11-27, lihat riwayat). Method lain belum dipakai alur mana pun; memakainya butuh persetujuan PO (cek nickname di luar scope, dan memakai kuota/biaya).
 - **M11:** Default factory kini `melo`. Data `digiflazz` di database lama perlu diubah manual.
 - **M13:** (selesai 2026-11-16, commit `5f7e2f3`) inquiry, callback, dan `transactionStatus()` kini HMAC-SHA256 dengan body JSON, sesuai test dan `API_INTEGRATION.md` §3. Dokumentasi resmi Duitku (docs.duitku.com) juga menyatakan MD5/SHA256 biasa usang. `php artisan test --compact --filter='Duitku|WebhookSignature'`: 15 lulus. Masih perlu verifikasi ke sandbox Duitku asli. Riwayat temuan: [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §2.
 - **M12:** `config/services.php`: `'sandbox' => env('MELO_SANDBOX')` tanpa default. Jika variabel tidak ada di `.env`, `MeloService::withSandboxMode()` mengirim `sandbox_mode = false` sehingga order menjadi transaksi nyata. Usulan: default `true`. Dicatat saja, belum diperbaiki.
 - **M14:** Ditemukan saat uji manual di browser (2026-11-21). `GameForm` mengisi `games.thumbnail` dengan URL CDN Melo (`https://cdn.melostore.id/...`), lalu `StorefrontController::gameSummary()` (`thumbnailUrl`) membungkusnya dengan `Storage::disk('public')->url()` sehingga menjadi `/storage/https://...`. Gambar rusak di beranda dan halaman game. Selesai 2026-11-21: field thumbnail diganti upload file (lihat Riwayat), isi otomatis thumbnail dari Melo dihapus. Game yang sudah tersimpan dengan URL CDN tetap rusak sampai admin meng-upload ulang thumbnail-nya.
 - **M15:** Ditemukan 2026-11-21, gagal juga tanpa perubahan hari itu (130 test, 113 lulus). (a) 11 test storefront/`ExampleTest` error 500 `StrayRequestException` ke `http://[::1]:5173/__inertia_ssr`: saat `composer run dev` jalan, `public/hot` ada sehingga Inertia mencoba SSR ke Vite. Terkonfirmasi 2026-11-21: dengan `INERTIA_SSR_ENABLED=false php artisan test --compact` semua test storefront lulus kecuali (e). (b) Halaman admin (`AdminCatalogResourceTest`, `AdminCustomerResourceTest`, `AdminPanelAccessTest`, `MeloBalanceDashboardTest`) mengembalikan 404, bukan 200/403; penyebab belum diselidiki. (c) ~~`test_admin_marking_account_sold_...` gagal karena `credentials` wajib di form edit~~ (hilang 2026-11-22, kolom dihapus). (d) `MeloBalanceDashboardTest::test_command_notifies_admins_once_per_level_and_escalates` flaky (2 dari 3 run lulus): notifikasi `menipis` dan `hampir habis` kemungkinan dibuat di detik yang sama sehingga urutan `notifications` tidak pasti. (e) ~~`StorefrontTest::test_invoice_shows_own_qris_image_only_while_pending` mencari data URI di HTML~~ diperbaiki 2026-11-21 (QR QRIS di invoice).
 - **M16:** Ditemukan 2026-11-21. Jika `bootstrap/cache/config.php` ada (`php artisan optimize`/`config:cache`), env dari `phpunit.xml` diabaikan sehingga test berjalan di `topup_game` dan `RefreshDatabase` mengosongkannya (terjadi 2026-11-21, data dev hilang). Jalankan `php artisan optimize:clear` sebelum test. Usulan pengaman (belum dibuat): cek nama database di `TestCase::setUp()`.
+- **M17:** Ditemukan 2026-11-27 saat suite penuh. Belum diselidiki dan tidak diubah di task gambar stok akun. Jumlah kegagalan sama dengan 2026-11-26, jadi kemungkinan sudah ada sebelumnya.
+- **M18:** `app/Filament/Resources/Products/Schemas/ProductForm.php` dan `app/Filament/Resources/Orders/Schemas/OrderForm.php` memakai `->integer()->prefix('Rp')` tanpa mask. Pola yang sudah dipakai ada di `GameAccountForm.php` (`->mask(RawJs ... $money($input, ',', '.', 0))` dan `->stripCharacters('.')`). Belum diubah karena di luar permintaan 2026-11-27.
 
 ## 5. Keputusan yang Menunggu (PO/Klien)
 
@@ -125,6 +129,11 @@ Semua diputuskan oleh PO. Kolom "Dibutuhkan sebelum" diturunkan dari `IMPLEMENTA
 | 11  | Coolify vs Laravel Forge; domain & VPS                          | H27 (Tahap 6, E6)    |
 | 12  | Konfirmasi 1 bulan = 30 hari (H1–H30)                           | H1                   |
 | 13  | Tanggal mulai H1                                                | Sebelum mulai        |
+| 14  | Widget kuota cek nickname di dashboard (`nicknamePlan()`, M10, PROJECT_SPEC §10 [FINAL]). Dibuat atas permintaan user 2026-11-27, disetujui PO untuk pelanggan 2026-11-27, bagian dari cek nickname (`docs/PERSETUJUAN_CEK_NICKNAME.md`) | ✅ selesai |
+| 15  | Pemetaan game ke `game_code` Melo: **opsi A dipakai** (kolom `games.melo_game_code`, dipilih dari dropdown `GET /check-nickname/games` di form Game, atas permintaan user 2026-11-27). Persetujuan PO untuk kolom baru belum tercatat. Opsi B (`games.slug`) tidak dipakai: spesifikasi menyebut game_code terpisah dari slug brand. `PERSETUJUAN_CEK_NICKNAME.md` §9 no. 1 | Endpoint cek nickname pelanggan |
+| 16  | Batas pemakaian cek nickname per IP (usulan 10/menit), §9 no. 2 | Endpoint cek nickname pelanggan |
+| 17  | Cek nickname opsional atau wajib sebelum checkout (usulan: opsional), §9 no. 3 | Endpoint cek nickname pelanggan |
+| 18  | Konfirmasi "tidak ditemukan" tidak di-cache dengan premis yang dikoreksi (§9 no. 4); gerbang sandbox (§9 no. 5) | Endpoint cek nickname pelanggan |
 
 ## 6. Riwayat Perubahan Penting
 
@@ -296,12 +305,93 @@ Tripay diganti Duitku (keputusan PO): `DuitkuService`, `DuitkuCallbackController
 - Test: `AdminPanelAccessTest::test_admin_login_page_uses_the_logo_favicon` (kini memeriksa link favicon dan `src` logo) dan `test_admin_login_page_uses_the_landing_colors_in_dark_mode` (baru). Suite penuh: 159 test, 151 lulus, 8 gagal (sebelumnya 158 / 149 / 9; yang diperbaiki hanya test favicon, sisanya sama).
 - Belum dicek di browser. Verifikasi baru lewat HTML yang dirender dan test. Favicon 32 px di header bisa terlihat sedikit kabur di layar retina; alternatifnya `apple-touch-icon.png` (180 px, berisi tulisan "ZETH MARKET").
 
+### 2026-11-26 — Tampilan detail pesanan di panel admin
+
+- Permintaan PO: halaman detail pesanan (`ViewOrder`) dibuat lebih rapi. Hanya presentasi: `OrderInfolist` (read-only) kini dikelompokkan ke bagian Ringkasan, Rincian harga, Produk & tujuan, Pembeli, Pembayaran, dan Supplier (Melo), masing-masing dengan ikon dan grid responsif.
+- Total tampil tebal dan berwarna primary. ID, invoice, referensi, kode, dan URL pembayaran bisa disalin (`copyable`) dan memakai font mono. Label yang masih bahasa Inggris dialihkan ke Indonesia. Field yang kosong menampilkan `-`.
+- Tidak ada perubahan data, route, atau aksi. Kolom "Nama produk saat pesan" (snapshot) dan "Produk saat ini" (relasi) tetap ditampilkan keduanya.
+- Test baru: `AdminOrderViewTest` (2 test: bagian dan nilai tampil, placeholder untuk field kosong). Suite penuh: 161 test, 153 lulus, 8 gagal (sama dengan sebelumnya, semua M15 b/c dan `MeloServiceTest` `max_price`).
+- Belum dicek di browser; verifikasi lewat render Livewire dan test. Tombol salin dan lebar URL pembayaran yang panjang belum diuji secara visual.
+
+### 2026-11-26 — Jenis dan QR code metode bayar
+
+- Permintaan PO: metode bayar tampil bersama jenisnya (QRIS, Virtual Account, E-Wallet, atau Lainnya). Untuk order QRIS, kode pembayaran di detail admin tampil sebagai QR code.
+- Jenis diambil dari `DuitkuService::channelGroup()` (kode, bukan nama Duitku), tanpa kolom baru dan tanpa migration. Data yang tersimpan (`orders.payment_method`, `orders.payment_code`) tidak diubah, dan request ke Duitku tidak berubah.
+- Invoice: prop `order.paymentMethod` kini `SP (QRIS)` (kode + jenis). `DuitkuService::qrisImage()` dipindah dari `StorefrontController` agar invoice dan detail admin memakai satu fungsi.
+- Detail admin (`OrderInfolist`): entri baru "Jenis" (badge). Untuk order QRIS, "Kode pembayaran" diganti "QR code"; metode lain tetap teks kode.
+- Dari log API (`api_logs`, respons `getpaymentmethod` sandbox 2026-11-26): daftar Duitku memuat SP (SHOPEEPAY QRIS) dan NQ (NOBU QRIS) di grup QRIS, serta FT, VC, DN, IR, dan lainnya yang masuk "Lainnya". Order uji yang ada semuanya SP.
+- Belum: nama Duitku per metode belum disimpan di order (butuh kolom baru, perlu persetujuan PO). Pengelompokan FT (Retail), VC (Kartu kredit), DN (PayLater), IR (Indomaret) masih "Lainnya", dan perlu keputusan PO.
+- Test: `AdminOrderViewTest` (+2: QRIS tampil QR tanpa kode mentah; non-QRIS tampil teks kode dan jenis), `StorefrontTest::test_invoice_shows_payment_method_code_with_its_type` (+1). Suite penuh: 164 test, 156 lulus, 8 gagal (sama dengan sebelumnya).
+
+### 2026-11-27 — Gambar stok akun (maks 5, WebP)
+
+- Permintaan user: form Stok Akun (`GameAccountForm`) punya upload gambar, maksimal 5 file per akun.
+- Migration baru `2026_11_27_053142_add_images_to_game_accounts_table.php`: kolom `game_accounts.images` (JSON, nullable) berisi path di disk `public` (`game-accounts/images/*.webp`). Tanpa tabel baru.
+- Setiap file diubah ke WebP kualitas 80 lewat GD (`imagewebp`, tanpa package baru) di `GameAccountForm::storeAsWebp()`. Batas 2 MB per file, sama dengan thumbnail game. Batas ini mengikuti `upload_max_filesize` PHP (2M di CLI lokal). Naikkan batasnya hanya jika `upload_max_filesize` di server juga dinaikkan.
+- Model `GameAccount`: `images` di fillable dan cast `array`.
+- Belum: gambar belum tampil di storefront (halaman game hanya nama, harga, dan info publik). File yang dilepas dari form atau akun yang dihapus tetap ada di disk. Resize dan koreksi rotasi EXIF tidak dikerjakan (lihat komentar `shortcut` di `GameAccountForm`).
+- Bug yang ditemukan lewat test sebelum rilis: PNG berbentuk palette (mode indeks, umum pada screenshot terkompresi) membuat `imagewebp()` gagal dan request error 500. Diperbaiki dengan `imagepalettetotruecolor()` dan penolakan hasil encode kosong.
+- Test: `AdminCatalogResourceTest` (+3: gambar tersimpan sebagai WebP di disk `public`; maks 5 gambar; PNG palette tersimpan sebagai WebP). Suite penuh: 167 test, 159 lulus, 8 gagal. Enam kegagalan adalah 404 halaman admin (M15 b), dua lainnya tercatat sebagai M17.
+
+### 2026-11-27 — Kuota cek nickname di dashboard
+
+- Permintaan user: tampilkan kuota cek nickname (`GET /check-nickname/plan`) di dashboard admin. Respons berisi batas gratis per hari (`free_daily_limit`), batas gratis per menit (`free_minute_limit`), tarif berbayar (`paid_price_mc`), batas berbayar per menit (`paid_minute_limit`), dan jam reset (`resets_at`).
+- Widget baru `MeloNicknamePlanOverview` (`app/Filament/Widgets/`) memakai `MeloService::nicknamePlan()` yang sudah ada. Tanpa migration, tanpa tabel, tanpa service baru. Cache 10 menit (`melo.nickname_plan`), gagal tidak di-cache, polling dimatikan. Bila Melo gagal atau respons tidak lengkap, widget menampilkan "Tidak dapat dimuat".
+- **Keputusan terbuka:** fitur cek nickname di luar scope (PROJECT_SPEC §10 [FINAL]). Persetujuan PO belum tertulis, lihat §5 no. 14 dan `docs/PERSETUJUAN_CEK_NICKNAME.md`. Widget hanya membaca kuota, tidak memanggil `checkNickname()` dan tidak ada pencarian nickname untuk pelanggan.
+- **Belum:** respons plan hanya berisi batas, bukan jumlah yang sudah dipakai hari ini. Sisa kuota per hari hanya ada di header `X-Nickname-RateLimit-Remaining` pada respons `POST /check-nickname` (belum dipakai). Satuan "MC" dan arti `*_minute_limit` belum dikonfirmasi di spesifikasi; widget menampilkannya sebagai "per menit" dan "MC".
+- Respons divalidasi dengan `Validator` (4 batas harus integer, `resets_at` string). Nilai `null` atau bukan angka ditolak dan widget menampilkan "Tidak dapat dimuat", tidak error.
+- Test: `MeloNicknamePlanOverviewTest` (+4: tampil dan di-cache; gagal dari Melo; respons tidak lengkap; batas bernilai null). Suite penuh: 171 test, 163 lulus, 8 gagal (8 kegagalan sama dengan sebelumnya: M15 b dan M17).
+
+### 2026-11-27 — Susunan kartu dashboard admin
+
+- Kartu sapaan bawaan Filament (`AccountWidget`, "Selamat Datang" + Keluar) tampil setengah lebar dan terjepit di antara kartu lebar penuh. Sort-nya sama dengan kartu saldo Melo, jadi posisinya tidak jelas.
+- `App\Filament\Widgets\WelcomeWidget` (subclass `AccountWidget`): lebar penuh, `$sort = -4`, dan lazy (`$isLazyLoaded = true`) seperti widget lain. `AccountWidget` bawaan eager (`$isLazy = false`), sehingga di browser kartu ini tampil paling bawah sendirian meski urutan di HTML awal sudah benar. Registrasi manual `->widgets([AccountWidget::class])` di `AdminPanelProvider` dihapus agar tidak dobel dengan auto-discovery.
+- Urutan akhir: sapaan (penuh), saldo Melo (penuh), kuota cek nickname (penuh), lalu Pembayaran dan Toko berdampingan.
+- Test: `WelcomeWidgetTest` (+3: lebar penuh; sapaan tampil untuk admin; urutan widget di dashboard). Suite penuh: 174 test, 166 lulus, 8 gagal (sama dengan sebelumnya).
+
+### 2026-11-27 — Cek nickname pelanggan: keputusan PO dan cache
+
+- Keputusan PO (`docs/PERSETUJUAN_CEK_NICKNAME.md` §8): disetujui untuk pelanggan; hasil 200 di-cache 1 hari; hasil 404 tidak di-cache; tidak ada batas biaya (rekap biaya di dokumen yang sama).
+- Koreksi premis PO: "tidak ditemukan" tidak gratis. Spesifikasi Melo menulis hasil tidak ditemukan memakai jatah, lalu 1 MC per cek setelah jatah harian 40 habis (`PERSETUJUAN_CEK_NICKNAME.md` §3). Keputusan 404 perlu dikonfirmasi ulang PO (§9 no. 4).
+- Kode: `MeloService::cachedNickname()` (key `melo.nickname.*`, TTL 86.400 detik, hanya 200, tanpa panggilan Melo saat `MELO_SANDBOX=true`). `MeloService::logOutgoing()` menerima `redact:`, sehingga `data.username` dan `data.region` tidak masuk `api_logs` untuk `/check-nickname`.
+- Tidak ada migration, tabel, atau endpoint baru. Endpoint dan UI pelanggan belum dibuat, menunggu §5 no. 15–18.
+- Dokumen yang diperbarui: `PROJECT_SPEC.md` (§5 P11, catatan 2 dan 4, §10), `CLAUDE.md`, `docs/AGENTS.md` §4, `TECH_STACK.md`, `BUSINESS_FLOW.md`, `FRONTEND_PLAN.md`, `DATABASE_DESIGN.md`, `API_INTEGRATION.md`, `SECURITY_RULES.md` §13.
+- Test: `MeloServiceTest` (+7: cache 1 hari; 404, 402, 429, 502 tidak di-cache; sandbox tanpa panggilan; username tidak masuk `api_logs`). Suite penuh: 181 test, 173 lulus, 8 gagal. Delapan kegagalan sama dengan sebelumnya (admin 404 M15 b, `CustomerAuthTest` dan `MeloServiceTest::test_topup_...` M17).
+- **Belum:** baris cache kedaluwarsa belum dihapus terjadwal (`SECURITY_RULES.md` §13). Sebelum endpoint dibuka, retensi 24 jam belum benar secara fisik.
+
+### 2026-11-27 — Format rupiah harga akun game
+
+- Form akun game (`GameAccountForm`, dipakai create dan edit) memakai mask `$money($input, ',', '.', 0)` pada field `price`, plus `stripCharacters('.')`. Harga tampil `350.000` saat diketik dan tersimpan sebagai `350000`.
+- Validasi `integer` tetap berjalan pada nilai yang sudah dibersihkan titik. Input integer biasa (`350000`) juga tetap diterima.
+- Test: `AdminCatalogResourceTest` (+2: input `350.000` tersimpan sebagai 350000; ekspresi mask ter-render di halaman create). Suite penuh: 183 test, 175 lulus, 8 gagal (sama dengan sebelumnya).
+- **Belum diuji di browser.** Mask berjalan di sisi klien dengan `$money` dari Livewire (`formatMoney(input, delimiter, thousands, precision)`). Test hanya memeriksa sisi server dan ekspresi yang ter-render.
+- Form Produk dan Order belum diubah (M18).
+
+### 2026-11-27 — Idempotensi callback (SECURITY_RULES §7)
+
+- Refund Melo ganda: alert hanya sekali per order. Pengecekan `supplier_status` dilakukan sebelum `fill()` di `HandleSupplierCallback`. Status order tetap, karena keputusan refund masih terbuka (§5 no. 2).
+- Tidak ditambah `ShouldBeUnique` ke job callback. Row lock di transaksi sudah menjaga satu invoice diproses satu per satu. `ShouldBeUnique` per invoice bisa membuang callback yang datang sesudahnya saat callback sebelumnya masih di antrean (misalnya `pending` lalu `success`). `SendTopupToMelo` tetap memakai `ShouldBeUnique` per order.
+- Test baru: `SupplierCallbackTest` (+5: success ganda menyimpan serial pertama; failed ganda hanya satu alert; refunded ganda satu alert per order; job tidak mengirim ulang untuk order `Processing`; retry dengan body identik). `PaymentCallbackTest` (+1: paid ganda untuk order expired tetap expired).
+- `MeloServiceTest::test_topup_...` diperbaiki: ekspektasi body kini memuat `max_price`, sesuai kode `MeloService::topup()` yang sudah berubah tetapi belum di-commit. **Perilaku `max_price` belum diputuskan** (saldo ditahan penuh per order; `CORE_SYSTEM_REVIEW.md` O4). Test ini sekarang mengunci perilaku itu, jadi perlu ditinjau bila keputusan berubah.
+- Suite penuh (`INERTIA_SSR_ENABLED=false`): 189 test, 182 lulus, 7 gagal. Tujuh kegagalan adalah M15 b dan `CustomerAuthTest` (M17).
+- **Belum:** konkurensi lock di MySQL (SQLite mengabaikan `lockForUpdate`), perilaku Melo di sandbox, dan alert berulang untuk callback pada order yang sudah ditutup (noise, SECURITY_RULES §7).
+
+### 2026-11-27 — Kode game Melo untuk cek nickname
+
+- Permintaan user: tambahkan `game_code` supaya akun bisa dicek. Dipakai opsi A dari `PERSETUJUAN_CEK_NICKNAME.md` §9 no. 1. Spesifikasi (`GET /check-nickname/games`, `games[].game_code`) menyebut kode ini terpisah dari slug brand, jadi `games.slug` tidak dipakai.
+- Migration baru `2026_11_27_212731_add_melo_game_code_to_games_table.php`: kolom `games.melo_game_code` (VARCHAR, nullable, tidak unik). Dipilih dari dropdown (`Select` di `GameForm`) berisi `games[].game_code` dan nama dari `GET /check-nickname/games` lewat `MeloCatalogService::nicknameGameOptions()` (cache 1 jam, galat tidak di-cache). Kode yang sudah tersimpan tetap ada di pilihan walau Melo tidak terjangkau, supaya tidak terhapus saat simpan. Kosong = game tidak dicek nickname. `Game` ikut `#[Fillable]`.
+- `nicknameGames()` kini dipakai dropdown ini (M10). Endpointnya publik dan tanpa biaya, tetapi persetujuan PO tertulis untuk pemakaian ini belum ada.
+- Tidak ada endpoint atau UI cek nickname. Keputusan §5 no. 16–18 belum ada.
+- Test: `AdminCatalogResourceTest` (+2: kode dipilih dari daftar Melo tersimpan; kode tersimpan tetap ada saat Melo mati), `MeloCatalogServiceTest` (+1: urutan nama, galat tidak di-cache). Suite penuh: 192 test, 185 lulus, 7 gagal (sama dengan sebelumnya: M15 b ×6 dan M17).
+- Belum: kode untuk game yang sudah ada belum diisi (seeder tidak diubah). Jalankan `php artisan migrate` di DB lokal.
+
 ## 7. Pekerjaan Berikutnya
 
 0. Jawab pertanyaan di [`CORE_SYSTEM_REVIEW.md`](CORE_SYSTEM_REVIEW.md) §5 (review core system 2026-11-16). Dokumen itu juga mencatat keputusan baru yang belum masuk `PROJECT_SPEC.md` §13: akun dijual manual via WhatsApp (K1), kolom uang jadi integer dengan pengecualian edit migration (K2), dan pengujian pembayaran tanpa tampilan (K3).
 1. PO me-review dan merevisi dokumen `docs/`.
 2. Putuskan keputusan §5 yang dibutuhkan sebelum Tahap 1–2 (no. 4, 5, 10, 12, 13).
-3. Daftar akun sandbox Duitku & Melo (risiko E1/E2), lalu verifikasi signature callback dan format body `transactionStatus` (lihat `API_INTEGRATION.md` §3.3–3.4).
+2a. Cek nickname pelanggan (§5 no. 15–18): jawab `PERSETUJUAN_CEK_NICKNAME.md` §9, lalu buat endpoint (throttle per IP, validasi regex, gerbang sandbox), UI di halaman game, dan penghapusan terjadwal baris cache kedaluwarsa (`SECURITY_RULES.md` §13).
+3. Daftar akun sandbox Duitku & Melo (risiko E1/E2), lalu verifikasi signature callback dan format body `transactionStatus` (lihat `API_INTEGRATION.md` §3.3–3.4). Di sandbox Melo, uji juga idempotensi: `buyer_trx_id` yang sama membalas 200 tanpa debit ganda, dan body berbeda membalas 409 (`API_INTEGRATION.md` §4).
 4. Uji `MeloService` ke sandbox Melo, termasuk format target per SKU (M9).
 5. Lanjutkan Tahap 2: batasi form pesanan (M3), import CSV akun game; lalu core system sesuai `CORE_SYSTEM_REVIEW.md` §4.
 6. Semua developer: `php artisan migrate:fresh --seed` di DB lokal setelah menarik perubahan ini.

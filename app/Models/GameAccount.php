@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Akun game yang dijual. Tidak menyimpan kredensial; penjualan dilakukan manual oleh admin.
  */
-#[Fillable(['game_id', 'name', 'price', 'public_info', 'status', 'sold_at'])]
+#[Fillable(['game_id', 'name', 'price', 'public_info', 'images', 'status', 'sold_at'])]
 class GameAccount extends Model
 {
     /** @use HasFactory<GameAccountFactory> */
@@ -37,6 +37,7 @@ class GameAccount extends Model
     {
         return [
             'price' => 'integer',
+            'images' => 'array',
             'status' => AccountStatus::class,
             'sold_at' => 'datetime',
         ];

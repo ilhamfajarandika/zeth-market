@@ -8,7 +8,7 @@
 
 ## Permintaan Khusus Client & Keputusan PO
 
-1. **Tanpa** fitur MLBB calc / cek nickname (termasuk cek ID FF, dll.).
+1. **Tanpa** fitur MLBB calc dan cek ID lain (mis. cek ID FF). Cek nickname untuk pelanggan disetujui PO 2026-11-27 (`docs/PROJECT_SPEC.md` §5 P11).
 2. **Ada** tampilan stok akun (jualan akun game dengan stok terlihat di halaman produk).
 3. Login pelanggan **opsional**: guest boleh membeli, pelanggan yang login punya riwayat transaksi.
 4. Reseller (harga khusus, saldo/deposit) **di luar scope**.
@@ -43,8 +43,8 @@ Sumber resmi versi stack: [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) §11.
 ### 2.1 Tanpa MLBB calc / cek ID
 
 - Form order hanya meminta **User ID** (dan **Zone ID** bila `games.requires_zone_id = true`, mis. MLBB).
-- Validasi **format** via regex per game (`games.user_id_regex`, `games.zone_id_regex`), tanpa API cek nickname.
-- `MeloService` punya method `checkNickname()`, tetapi **tidak boleh dipakai** tanpa persetujuan PO.
+- Validasi **format** via regex per game (`games.user_id_regex`, `games.zone_id_regex`) tetap wajib. Cek nickname (API Melo) hanya tambahan opsional untuk pelanggan.
+- `MeloService::cachedNickname()` (cache 1 hari, tidak memanggil Melo saat sandbox) sudah ada. Endpoint pelanggan belum dibuat.
 - Rencana UI: checkbox konfirmasi _"ID yang saya masukkan sudah benar"_ [REKOMENDASI].
 
 ### 2.2 Tampilan stok akun

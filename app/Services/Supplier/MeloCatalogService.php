@@ -28,6 +28,10 @@ class MeloCatalogService
 
     public const BRANDS_CACHE_SECONDS = 600;
 
+    public const NICKNAME_GAMES_CACHE_KEY = 'melo.catalog.nickname_games';
+
+    public const NICKNAME_GAMES_CACHE_SECONDS = 3600;
+
     /**
      * Batas halaman per sync agar loop cursor tidak berjalan tanpa akhir.
      */
@@ -73,6 +77,38 @@ class MeloCatalogService
                 ->all();
         } catch (Throwable $e) {
             Log::warning('Gagal memuat brand Melo: '.$e->getMessage());
+
+            return [];
+        }
+    }
+
+    /**
+     * Pilihan Select kode game cek nickname ([game_code => nama]) dari GET /check-nickname/games. Publik, tanpa biaya.
+     * Kosong jika Melo tidak bisa dihubungi; galat tidak di-cache.
+     *
+     * @return array<string, string>
+     */
+    public function nicknameGameOptions(): array
+    {
+        try {
+            $games = Cache::remember(self::NICKNAME_GAMES_CACHE_KEY, self::NICKNAME_GAMES_CACHE_SECONDS, function (): array {
+                $body = $this->parse($this->melo->nicknameGames());
+
+                return collect($body['games'] ?? [])
+                    ->map(fn (array $game): array => [
+                        'game_code' => (string) $game['game_code'],
+                        'name' => (string) $game['name'],
+                    ])
+                    ->values()
+                    ->all();
+            });
+
+            return collect($games)
+                ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+                ->pluck('name', 'game_code')
+                ->all();
+        } catch (Throwable $e) {
+            Log::warning('Gagal memuat game cek nickname Melo: '.$e->getMessage());
 
             return [];
         }

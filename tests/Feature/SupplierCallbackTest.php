@@ -6,10 +6,12 @@ use App\Enums\OrderStatus;
 use App\Jobs\SendTopupToMelo;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\Supplier\MeloService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
+use RuntimeException;
 use Tests\TestCase;
 
 class SupplierCallbackTest extends TestCase
@@ -112,6 +114,44 @@ class SupplierCallbackTest extends TestCase
         $this->assertSame('Transaksi Melo di-refund', $this->admin->notifications()->sole()->data['title']);
     }
 
+    public function test_duplicate_success_webhook_keeps_first_serial_number(): void
+    {
+        $order = $this->processingOrder();
+
+        $this->webhook(['id' => 'trx-1', 'buyer_trx_id' => $order->invoice, 'status' => 'success', 'serial_number' => 'SN-001'])->assertOk();
+        $completedAt = $order->fresh()->completed_at;
+
+        $this->webhook(['id' => 'trx-1', 'buyer_trx_id' => $order->invoice, 'status' => 'success', 'serial_number' => 'SN-002'])->assertOk();
+
+        $order->refresh();
+        $this->assertSame('SN-001', $order->serial_number);
+        $this->assertEquals($completedAt, $order->completed_at);
+    }
+
+    public function test_duplicate_failed_webhook_alerts_admin_once(): void
+    {
+        $order = $this->processingOrder();
+
+        $this->webhook(['buyer_trx_id' => $order->invoice, 'status' => 'failed', 'message' => 'Supplier error.'])->assertOk();
+        $this->webhook(['buyer_trx_id' => $order->invoice, 'status' => 'failed', 'message' => 'Supplier error.'])->assertOk();
+
+        $this->assertSame(OrderStatus::Failed, $order->fresh()->status);
+        $this->assertSame(1, $this->admin->notifications()->count());
+    }
+
+    public function test_duplicate_refunded_webhook_alerts_admin_once_per_order(): void
+    {
+        $order = $this->processingOrder();
+        $otherOrder = Order::factory()->paid()->create(['status' => OrderStatus::Processing, 'supplier_reference' => 'trx-2']);
+
+        $this->webhook(['buyer_trx_id' => $order->invoice, 'status' => 'refunded'])->assertOk();
+        $this->webhook(['buyer_trx_id' => $order->invoice, 'status' => 'refunded'])->assertOk();
+        $this->webhook(['buyer_trx_id' => $otherOrder->invoice, 'status' => 'refunded'])->assertOk();
+
+        $this->assertSame(OrderStatus::Processing, $order->fresh()->status);
+        $this->assertSame(2, $this->admin->notifications()->count());
+    }
+
     // --- Job kirim ke Melo -------------------------------------------------
 
     public function test_accepted_topup_moves_order_to_processing(): void
@@ -176,5 +216,35 @@ class SupplierCallbackTest extends TestCase
 
         Http::assertNothingSent();
         $this->assertSame(OrderStatus::Pending, $order->fresh()->status);
+    }
+
+    public function test_job_does_not_send_topup_again_for_processing_order(): void
+    {
+        Http::fake();
+        $order = $this->processingOrder();
+
+        SendTopupToMelo::dispatchSync($order);
+
+        Http::assertNothingSent();
+        $this->assertSame(OrderStatus::Processing, $order->fresh()->status);
+    }
+
+    public function test_retry_after_unknown_result_sends_identical_request(): void
+    {
+        $order = Order::factory()->paid()->create(['price' => 20000]);
+        Http::fake([
+            self::BASE_URL.'/transaction' => Http::sequence()
+                ->push(['message' => 'error'], 500)
+                ->push(['data' => ['id' => 'trx-9', 'status' => 'pending']], 201),
+            self::BASE_URL.'/transaction/'.$order->invoice => Http::response(['message' => 'not found'], 404),
+        ]);
+
+        $this->assertThrows(fn () => (new SendTopupToMelo($order))->handle(app(MeloService::class)), RuntimeException::class);
+        (new SendTopupToMelo($order))->handle(app(MeloService::class));
+
+        $posts = Http::recorded(fn (Request $request): bool => $request->method() === 'POST' && str_ends_with($request->url(), '/transaction'));
+        $this->assertCount(2, $posts);
+        $this->assertSame($posts->first()[0]->data(), $posts->last()[0]->data());
+        $this->assertSame(OrderStatus::Processing, $order->fresh()->status);
     }
 }

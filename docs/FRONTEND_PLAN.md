@@ -20,7 +20,7 @@ Menyiapkan dan membangun storefront Vue 3 + Inertia (Home, Game, Invoice, Checko
 ## 3. Dokumen & Aturan Wajib
 
 - [ ] [`AGENTS.md`](AGENTS.md) (aturan kerja, larangan, batas file).
-- [ ] [`PROJECT_SPEC.md`](PROJECT_SPEC.md) (scope; di luar scope: cek nickname, MLBB calc, reseller).
+- [ ] [`PROJECT_SPEC.md`](PROJECT_SPEC.md) (scope; di luar scope: MLBB calc, reseller, cek ID lain; cek nickname pelanggan disetujui 2026-11-27, P11).
 - [ ] [`TASK_DIVISION.md`](TASK_DIVISION.md) §2–§3 (batas file + kontrak FE↔BE).
 - [ ] [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) (status order & alur bayar).
 - [ ] [`CURRENT_STATUS.md`](CURRENT_STATUS.md) (yang ada + M1–M12).

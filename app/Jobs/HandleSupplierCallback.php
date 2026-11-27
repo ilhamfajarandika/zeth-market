@@ -47,6 +47,12 @@ class HandleSupplierCallback implements ShouldQueue
             }
 
             $status = $this->payload['status'] ?? null;
+
+            // Refund yang sudah tercatat tidak memicu alert lagi. Status order sengaja tidak diubah (keputusan refund masih terbuka).
+            if ($status === 'refunded' && $order->supplier_status === 'refunded') {
+                return;
+            }
+
             $order->fill([
                 'supplier_status' => $status,
                 'supplier_reference' => $order->supplier_reference ?? ($this->payload['id'] ?? null),

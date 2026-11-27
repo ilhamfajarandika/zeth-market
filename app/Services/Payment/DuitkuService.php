@@ -4,6 +4,7 @@ namespace App\Services\Payment;
 
 use App\Models\ApiLog;
 use App\Models\Order;
+use chillerlan\QRCode\QRCode;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -93,6 +94,18 @@ class DuitkuService
             in_array($code, ['OV', 'SA', 'LF', 'LA', 'DA', 'SL', 'OL', 'JP'], true) => 'E-Wallet',
             default => 'Lainnya',
         };
+    }
+
+    /**
+     * QR (data URI SVG) dari `qrString` Duitku untuk order QRIS; null untuk metode lain atau jika kode kosong.
+     */
+    public static function qrisImage(Order $order): ?string
+    {
+        if (blank($order->payment_code) || self::channelGroup((string) $order->payment_method) !== 'QRIS') {
+            return null;
+        }
+
+        return (new QRCode)->render($order->payment_code);
     }
 
     /**

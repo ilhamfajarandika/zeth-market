@@ -196,6 +196,15 @@ class StorefrontTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->where('game.requiresZoneId', false));
     }
 
+    public function test_invoice_shows_payment_method_code_with_its_type(): void
+    {
+        $order = Order::factory()->create(['payment_method' => 'SP']);
+
+        $this->get(route('invoice.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('order.paymentMethod', 'SP (QRIS)'));
+    }
+
     public function test_invoice_shows_own_qris_image_only_while_pending(): void
     {
         $order = Order::factory()->create(['payment_method' => 'SP', 'payment_code' => '00020101021226610016ID.CO.SHOPEE.WWW']);

@@ -32,6 +32,7 @@ class MeloCatalogServiceTest extends TestCase
             'services.melo.sandbox' => true,
         ]);
         Cache::forget(MeloCatalogService::BRANDS_CACHE_KEY);
+        Cache::forget(MeloCatalogService::NICKNAME_GAMES_CACHE_KEY);
     }
 
     /**
@@ -305,5 +306,24 @@ class MeloCatalogServiceTest extends TestCase
         } finally {
             $this->assertTrue($kept->refresh()->is_active);
         }
+    }
+
+    public function test_nickname_game_options_are_sorted_by_name_and_failures_are_not_cached(): void
+    {
+        Http::fake(['*/check-nickname/games' => Http::sequence()
+            ->pushStatus(502)
+            ->push(['success' => true, 'games' => [
+                ['game_code' => 'pubg-mobile', 'name' => 'PUBG Mobile'],
+                ['game_code' => 'mobile-legends', 'name' => 'Mobile Legends'],
+            ]]),
+        ]);
+        $catalog = app(MeloCatalogService::class);
+
+        $this->assertSame([], $catalog->nicknameGameOptions());
+        $expected = ['mobile-legends' => 'Mobile Legends', 'pubg-mobile' => 'PUBG Mobile'];
+        $this->assertSame($expected, $catalog->nicknameGameOptions());
+        $this->assertSame($expected, $catalog->nicknameGameOptions());
+
+        Http::assertSentCount(2);
     }
 }

@@ -51,7 +51,7 @@ Catatan: panduan Boost menyarankan Laravel Cloud untuk deploy. Proyek ini **tida
 
 ## 4. Aturan Perubahan Kode
 
-- Kerjakan **hanya** yang diminta dan yang ada di scope `PROJECT_SPEC.md`. Fitur di luar scope (mis. cek nickname termasuk `MeloService::checkNickname()`, MLBB calc, reseller) tidak boleh dibuat tanpa persetujuan.
+- Kerjakan **hanya** yang diminta dan yang ada di scope `PROJECT_SPEC.md`. Fitur di luar scope (mis. MLBB calc, reseller, cek ID lain) tidak boleh dibuat tanpa persetujuan. Cek nickname untuk pelanggan disetujui PO 2026-11-27 (`PROJECT_SPEC.md` §5 P11) dan dipanggil lewat `MeloService::cachedNickname()`.
 - Audit kode yang ada sebelum menulis kode baru. Pakai ulang service/model/enum yang sudah ada:
   - stok akun → `app/Services/AccountStockService.php`
   - payment → `app/Services/Payment/DuitkuService.php`
