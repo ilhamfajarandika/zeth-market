@@ -86,10 +86,12 @@
 
 ## 7. Idempotency
 
-- Callback yang sama bisa datang lebih dari sekali. Order berstatus final (`OrderStatus::isFinal()`) tidak boleh diproses ulang. ⏳
-- `markSold()` sudah idempotent. ✅
-- Satu invoice hanya menghasilkan satu transaksi supplier (`buyer_trx_id = invoice`). Retry memakai `buyer_trx_id` yang sama. ⏳
-- Job pemrosesan callback sebaiknya unik per invoice (`ShouldBeUnique` atau lock). [REKOMENDASI] ⏳
+- Callback yang sama bisa datang lebih dari sekali. Order berstatus final (`OrderStatus::isFinal()`) tidak diproses ulang. ✅ Dites: paid ganda dari Duitku (order `pending` dan `expired`), dan success, failed, serta refunded ganda dari Melo. Status `Refunded` belum dipakai karena keputusan refund masih terbuka. ⏳
+- Alert refund dari Melo hanya sekali per order. Status order tidak berubah. ✅ dites (`test_duplicate_refunded_webhook_alerts_admin_once_per_order`)
+- ~~`markSold()` sudah idempotent.~~ Dihapus 2026-11-22 bersama fitur akun stok.
+- Satu invoice hanya menghasilkan satu transaksi supplier (`buyer_trx_id = invoice`). Retry memakai `buyer_trx_id` dan body yang sama. ✅ dites di sisi kode (`test_retry_after_unknown_result_sends_identical_request`). Perilaku Melo di sandbox (200 untuk `buyer_trx_id` yang sudah ada, 409 untuk body berbeda) belum diverifikasi. ⏳
+- Job pemrosesan callback unik per invoice lewat row lock: `lockForUpdate` dan cek status di dalam transaksi. ✅ `ShouldBeUnique` tidak dipakai untuk job callback, karena kunci per invoice bisa membuang callback yang datang sesudahnya (misalnya `pending` lalu `success`) saat callback sebelumnya masih di antrean. `SendTopupToMelo` memakai `ShouldBeUnique` per order. ✅ Lock belum teruji konkurensi, karena test memakai SQLite yang mengabaikan `lockForUpdate`. ⏳
+- Alert berulang: paid ganda untuk order `expired` atau `failed`, dan callback dengan nominal tidak cocok, memicu alert admin lagi setiap kali. Status order tidak berubah. ⏳ Dibiarkan sebagai noise; bisa dideduplikasi bila diminta.
 
 ## 8. Transaksi Database
 
@@ -123,3 +125,12 @@
 - Request/callback eksternal → `api_logs`. ✅
 - Error integrasi (timeout, respons tidak valid) dicatat dengan konteks `invoice`, tanpa secret. ⏳
 - Job yang gagal permanen masuk `failed_jobs`. Admin perlu tahu order yang tertahan. [REKOMENDASI] ⏳
+
+## 13. Data Cek Nickname Pelanggan (disetujui PO 2026-11-27)
+
+- Username dan region pemain hanya disimpan di cache (tabel `cache`, driver `database`) selama **1 hari**. Setelah itu `Cache::get` tidak mengembalikannya lagi. ✅ dites (`test_cached_nickname_reuses_found_result_for_one_day`)
+- Baris cache kedaluwarsa hanya dihapus saat dibaca ulang. Belum ada penghapusan terjadwal, jadi baris yang tidak dibaca lagi tetap ada di tabel. Harus dibuat sebelum endpoint pelanggan dibuka. ⏳
+- `api_logs` tidak menyimpan `data.username` dan `data.region` untuk `/check-nickname` (redaksi di `MeloService::logOutgoing`). ✅ dites (`test_nickname_username_and_region_are_not_stored_in_api_logs`)
+- Kunci cache memakai hash SHA-256 dari `game_code|customer_target|zone`, sehingga ID pemain tidak terbaca dari nama key. ✅
+- `customer_target` (ID pemain) tetap tercatat di `api_logs` (kolom `request`) tanpa masa berlaku, sama seperti ID pada pesanan. Retensi `api_logs` belum diputuskan. [TBD]
+- Batas pemakaian per IP untuk endpoint cek nickname belum diputuskan (`PERSETUJUAN_CEK_NICKNAME.md` §9 no. 2). ⏳

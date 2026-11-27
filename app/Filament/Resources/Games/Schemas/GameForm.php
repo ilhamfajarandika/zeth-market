@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Games\Schemas;
 
+use App\Models\Game;
 use App\Services\Supplier\MeloCatalogService;
 use Closure;
 use Filament\Forms\Components\FileUpload;
@@ -30,6 +31,11 @@ class GameForm
                     ->unique(ignoreRecord: true)
                     ->afterStateUpdated(fn (?string $state, Get $get, Set $set) => self::fillFromMeloBrand($state, $get, $set))
                     ->columnSpanFull(),
+                Select::make('melo_game_code')
+                    ->label('Game cek nickname Melo (opsional)')
+                    ->helperText('Daftar dari GET /check-nickname/games Melo. Kosongkan jika game tidak mendukung cek nickname.')
+                    ->options(fn (?Game $record): array => self::nicknameGameOptions($record))
+                    ->searchable(),
                 Select::make('category_id')
                     ->relationship('category', 'name'),
                 TextInput::make('name')
@@ -123,6 +129,23 @@ class GameForm
         $set('requires_zone_id', $defaults['requires_zone_id']);
         filled($defaults['user_id_label']) && $set('user_id_label', $defaults['user_id_label']);
         filled($defaults['zone_id_label']) && $set('zone_id_label', $defaults['zone_id_label']);
+    }
+
+    /**
+     * Kode yang sudah tersimpan tetap ada di pilihan walau Melo sedang tidak bisa dihubungi, supaya tidak terhapus saat simpan.
+     *
+     * @return array<string, string>
+     */
+    private static function nicknameGameOptions(?Game $record): array
+    {
+        $options = app(MeloCatalogService::class)->nicknameGameOptions();
+        $saved = $record?->melo_game_code;
+
+        if (filled($saved) && ! array_key_exists($saved, $options)) {
+            $options[$saved] = $saved;
+        }
+
+        return $options;
     }
 
     /**

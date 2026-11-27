@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
-    'category_id', 'name', 'slug', 'melo_brand_id', 'publisher', 'thumbnail', 'banner', 'description', 'instruction',
+    'category_id', 'name', 'slug', 'melo_brand_id', 'melo_game_code', 'publisher', 'thumbnail', 'banner', 'description', 'instruction',
     'requires_zone_id', 'user_id_label', 'zone_id_label', 'user_id_regex', 'zone_id_regex',
     'is_active', 'is_popular', 'sort',
 ])]

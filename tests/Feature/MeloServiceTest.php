@@ -45,6 +45,7 @@ class MeloServiceTest extends TestCase
             'invoice' => 'INV1',
             'target_user_id' => '12345678',
             'target_zone_id' => '2001',
+            'price' => 20000,
         ]);
 
         $response = app(MeloService::class)->topup($order);
@@ -58,6 +59,7 @@ class MeloServiceTest extends TestCase
                 'customer_target' => '12345678',
                 'customer_target_zone' => '2001',
                 'buyer_trx_id' => 'INV1',
+                'max_price' => 20000,
                 'sandbox_mode' => true,
             ]);
 
@@ -273,5 +275,69 @@ class MeloServiceTest extends TestCase
         $this->assertFalse($melo->isValidWebhookSignature($body.' ', $signature));
         $this->assertFalse($melo->isValidWebhookSignature($body, null));
         $this->assertFalse($melo->isValidWebhookSignature($body, ''));
+    }
+
+    public function test_cached_nickname_reuses_found_result_for_one_day(): void
+    {
+        config(['services.melo.sandbox' => false]);
+        Http::fake(['*/check-nickname' => Http::response(['success' => true, 'data' => ['username' => 'Example Player']], 200)]);
+
+        $melo = app(MeloService::class);
+        $payload = ['game_code' => 'mobile-legends', 'customer_target' => '12345', 'customer_target_zone' => '2001'];
+
+        $this->assertSame('Example Player', $melo->cachedNickname($payload)['username']);
+        $this->assertSame('Example Player', $melo->cachedNickname($payload)['username']);
+        Http::assertSentCount(1);
+
+        $this->travel(23)->hours();
+        $melo->cachedNickname($payload);
+        Http::assertSentCount(1);
+
+        $this->travel(2)->hours();
+        $melo->cachedNickname($payload);
+        Http::assertSentCount(2);
+    }
+
+    #[DataProvider('nonOkNicknameStatusProvider')]
+    public function test_cached_nickname_does_not_cache_non_200_responses(int $status): void
+    {
+        config(['services.melo.sandbox' => false]);
+        Http::fake(['*/check-nickname' => Http::response(['success' => false], $status)]);
+
+        $melo = app(MeloService::class);
+        $payload = ['game_code' => 'mobile-legends', 'customer_target' => '12345', 'customer_target_zone' => '2001'];
+
+        $this->assertNull($melo->cachedNickname($payload));
+        $this->assertNull($melo->cachedNickname($payload));
+        Http::assertSentCount(2);
+    }
+
+    public static function nonOkNicknameStatusProvider(): array
+    {
+        return [[404], [402], [429], [502]];
+    }
+
+    public function test_cached_nickname_sends_no_request_while_sandbox_is_on(): void
+    {
+        Http::fake();
+
+        $this->assertNull(app(MeloService::class)->cachedNickname(['game_code' => 'mobile-legends', 'customer_target' => '12345']));
+        Http::assertNothingSent();
+    }
+
+    public function test_nickname_username_and_region_are_not_stored_in_api_logs(): void
+    {
+        Http::fake(['*/check-nickname' => Http::response([
+            'success' => true,
+            'data' => ['game_code' => 'mobile-legends', 'customer_target' => '12345', 'customer_target_zone' => '2001', 'username' => 'Example Player', 'region' => 'ID', 'region_type' => 'country'],
+            'billing' => ['charged_mc' => 0, 'free_remaining_today' => 39, 'transaction_id' => null],
+        ], 200)]);
+
+        app(MeloService::class)->checkNickname(['game_code' => 'mobile-legends', 'customer_target' => '12345', 'customer_target_zone' => '2001']);
+
+        $log = ApiLog::where('provider', 'melo')->sole();
+        $this->assertArrayNotHasKey('username', $log->response['data']);
+        $this->assertArrayNotHasKey('region', $log->response['data']);
+        $this->assertSame(0, $log->response['billing']['charged_mc']);
     }
 }

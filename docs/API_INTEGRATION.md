@@ -59,12 +59,19 @@ Semua endpoint di bawah `MELO_BASE_URL`. Sumber: `melostore-h2h.json` (OpenAPI r
 | Progres bulk | `GET /bulk-orders/{id}` | `bulkOrder()` | — |
 | Transaksi anak bulk | `GET /bulk-orders/{id}/transactions` | `bulkTransactions()` | — |
 | Invoice PDF bulk | `GET /bulk-orders/{id}/invoice` | `bulkInvoice()` | — |
-| Game yang bisa dicek (publik) | `GET /check-nickname/games` | `nicknameGames()` | — |
-| Kuota/tarif cek akun (publik) | `GET /check-nickname/plan` | `nicknamePlan()` | — |
-| Cek nickname | `POST /check-nickname` | `checkNickname()` | — |
+| Game yang bisa dicek (publik) | `GET /check-nickname/games` | `nicknameGames()` via `MeloCatalogService::nicknameGameOptions()` | ✅ dropdown kode game di form Game (2026-11-27, cache 1 jam; persetujuan PO tertulis belum ada) |
+| Kuota/tarif cek akun (publik) | `GET /check-nickname/plan` | `nicknamePlan()` | ✅ widget `MeloNicknamePlanOverview` (dashboard admin, 2026-11-27, persetujuan PO menunggu) |
+| Cek nickname | `POST /check-nickname` | `checkNickname()`, dibungkus `cachedNickname()` | — (endpoint pelanggan belum dibuat, lihat `PERSETUJUAN_CEK_NICKNAME.md` §9) |
 | Batas pembelian Mobile Legends | `POST /mobile-legends/purchase-limit` | `checkMobileLegendsPurchaseLimit()` | — |
 
-Method bertanda "—" sudah tersedia di service tetapi **belum dipakai** oleh alur apa pun. Spec proyek (`PROJECT_SPEC.md`) menyatakan **tanpa cek nickname** dan tanpa Smart/bulk/2FA, jadi memanggil method itu dari fitur baru memerlukan persetujuan PO. Cek nickname memakai kuota atau biaya meski hasilnya "tidak ditemukan".
+Method bertanda "—" sudah tersedia di service tetapi **belum dipakai** oleh alur apa pun, kecuali `nicknameGames()` (dropdown kode game di form Game, lihat tabel). `nicknamePlan()` dipakai hanya untuk menampilkan kuota di dashboard admin (read-only, di-cache 10 menit, tanpa kredensial); `checkNickname()` hanya dipakai lewat `cachedNickname()`, dan belum ada endpoint yang memanggilnya. Cek nickname untuk pelanggan disetujui PO 2026-11-27 (`PROJECT_SPEC.md` §5 P11). Smart, bulk, dan 2FA tetap di luar scope. Cek nickname memakai jatah atau biaya meski hasilnya "tidak ditemukan" (deskripsi spesifikasi Melo).
+
+**Cache cek nickname** (`MeloService::cachedNickname()`, keputusan PO 2026-11-27):
+- Key: SHA-256 dari `game_code|customer_target|zone` dengan prefix `melo.nickname.`. TTL 86.400 detik (1 hari). Driver cache `database`, tanpa tabel baru.
+- Hanya respons 200 yang di-cache. 404, 402, 429, dan 502 tidak di-cache.
+- Saat `MELO_SANDBOX=true`, tidak ada panggilan ke Melo dan hasilnya `null`.
+- `api_logs` tidak menyimpan `data.username` dan `data.region` untuk `/check-nickname` (`logOutgoing(..., redact:)`).
+- Baris cache kedaluwarsa belum dihapus terjadwal. Lihat `SECURITY_RULES.md` §13.
 
 Rate limit: katalog (reguler, Smart, kategori) berbagi 20 request/menit. Jika 429, tunggu sesuai header `Retry-After`.
 
@@ -209,13 +216,17 @@ Buat service setara di `app/Services/Payment/` dengan kemampuan: daftar metode, 
 | Retry Duitku 2x, jeda 500 ms (1)                   | ✅                   |
 | Retry Melo lewat job queue, `buyer_trx_id` sama (2) | ✅ `SendTopupToMelo` |
 | Callback diproses di queue job (3)                 | ✅                   |
-| Callback untuk order final diabaikan (4)           | ✅                   |
-| 1 invoice = 1 `buyer_trx_id` = 1 transaksi supplier | [FINAL]              |
+| Callback untuk order final diabaikan (4)           | ✅ dites             |
+| Refund Melo hanya dialert sekali per order (5)     | ✅ dites             |
+| 1 invoice = 1 `buyer_trx_id` = 1 transaksi supplier | [FINAL] · kode dan test ✅, perilaku Melo di sandbox ⏳ |
 
 1. `retry(2, 500, throw: false)`.
 2. HTTP client Melo **tidak** retry otomatis. Retry aman karena `buyer_trx_id` sama (tanpa debit ganda); setelah respons 500, cek `status()` dulu. Diterapkan di `SendTopupToMelo`.
 3. Controller hanya verifikasi, log, dispatch, lalu langsung membalas. Lock order, cek `isFinal()`, dan perubahan status dilakukan di job. Syarat idempotent = [FINAL]; mekanisme queue = [REKOMENDASI].
 4. Memakai `OrderStatus::isFinal()` (Melo) dan hanya-dari-`pending` (Duitku).
+5. `refunded` belum mengubah status order (menunggu keputusan refund). Alert hanya dikirim jika `supplier_status` belum `refunded`, dibaca sebelum `fill()`.
+
+Mekanisme per invoice: job callback tidak memakai `ShouldBeUnique`. Row lock (`lockForUpdate`) di dalam transaksi menjaga urutan proses per invoice. `ShouldBeUnique` per invoice akan membuang callback yang datang saat callback sebelumnya masih di antrean, sehingga status akhir bisa terlewat. Respons 409 dari Melo (body berbeda untuk `buyer_trx_id` yang sama) berarti body retry harus identik. Perubahan `price` atau target pada order yang sudah `paid` dapat membuatnya berbeda (lihat `CURRENT_STATUS.md` M3).
 
 ## 5. Logging
 

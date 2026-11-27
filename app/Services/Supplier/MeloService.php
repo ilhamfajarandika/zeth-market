@@ -6,6 +6,8 @@ use App\Models\ApiLog;
 use App\Models\Order;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -279,9 +281,46 @@ class MeloService
     {
         $response = $this->client()->post('/check-nickname', $payload);
 
-        $this->logOutgoing($payload['customer_target'], '/check-nickname', $payload, $response);
+        $this->logOutgoing($payload['customer_target'], '/check-nickname', $payload, $response, redact: ['data.username', 'data.region']);
 
         return $response;
+    }
+
+    /**
+     * Cek nickname dengan cache 1 hari (keputusan PO 2026-11-27). Hanya respons 200 yang di-cache; 404 dan galat
+     * tidak. Tidak memanggil Melo saat MELO_SANDBOX aktif, karena billing cek nickname mengikuti mode akun.
+     *
+     * @param  array{game_code: string, customer_target: string, customer_target_zone?: ?string}  $payload
+     * @return array<string, mixed>|null data pemain (username, region, ...); null jika sandbox, tidak ditemukan, atau galat
+     */
+    public function cachedNickname(array $payload): ?array
+    {
+        if (config('services.melo.sandbox')) {
+            return null;
+        }
+
+        $key = 'melo.nickname.'.hash('sha256', implode('|', [
+            $payload['game_code'],
+            $payload['customer_target'],
+            $payload['customer_target_zone'] ?? '',
+        ]));
+
+        $cached = Cache::get($key);
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $response = $this->checkNickname($payload);
+
+        if (! $response->ok()) {
+            return null;
+        }
+
+        $data = $response->json('data');
+        Cache::put($key, $data, now()->addDay());
+
+        return $data;
     }
 
     /**
@@ -353,16 +392,23 @@ class MeloService
 
     /**
      * @param  array<string, mixed>  $payload
+     * @param  list<string>  $redact  kunci (notasi titik) pada respons yang tidak boleh masuk api_logs
      */
-    protected function logOutgoing(string $reference, string $endpoint, array $payload, Response $response): void
+    protected function logOutgoing(string $reference, string $endpoint, array $payload, Response $response, array $redact = []): void
     {
+        $body = $response->json();
+
+        if (is_array($body)) {
+            Arr::forget($body, $redact);
+        }
+
         ApiLog::create([
             'provider' => 'melo',
             'direction' => 'outgoing',
             'reference' => $reference,
             'endpoint' => $endpoint,
             'request' => $payload,
-            'response' => $response->json(),
+            'response' => $body,
             'http_status' => $response->status(),
         ]);
     }

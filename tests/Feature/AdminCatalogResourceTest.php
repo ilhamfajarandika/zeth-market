@@ -50,6 +50,7 @@ class AdminCatalogResourceTest extends TestCase
             'services.melo.secret_key' => 's',
         ]);
         Cache::forget(MeloCatalogService::BRANDS_CACHE_KEY);
+        Cache::forget(MeloCatalogService::NICKNAME_GAMES_CACHE_KEY);
         Http::preventStrayRequests();
 
         $this->actingAs(User::factory()->admin()->create());
@@ -127,6 +128,33 @@ class AdminCatalogResourceTest extends TestCase
             ->fillForm($this->gameData(['user_id_regex' => '^(\d{6']))
             ->call('create')
             ->assertHasFormErrors(['user_id_regex']);
+    }
+
+    public function test_game_melo_game_code_is_saved_from_melo_nickname_games(): void
+    {
+        Http::fake([self::MELO_URL.'/check-nickname/games' => Http::response(['success' => true, 'games' => [
+            ['game_code' => 'mobile-legends', 'name' => 'Mobile Legends', 'type' => 'game', 'zone_required' => true, 'zone_values' => null, 'params' => [], 'status' => 'available'],
+        ]])]);
+
+        Livewire::test(CreateGame::class)
+            ->fillForm($this->gameData(['melo_game_code' => 'mobile-legends']))
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('mobile-legends', Game::query()->where('slug', 'free-fire')->value('melo_game_code'));
+    }
+
+    public function test_saved_game_code_is_kept_when_melo_nickname_games_is_down(): void
+    {
+        Http::fake([self::MELO_URL.'/check-nickname/games' => Http::response(['success' => false], 502)]);
+        $game = Game::factory()->create(['melo_game_code' => 'mobile-legends']);
+
+        Livewire::test(EditGame::class, ['record' => $game->getRouteKey()])
+            ->fillForm(['name' => 'Mobile Legends Renamed'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('mobile-legends', $game->refresh()->melo_game_code);
     }
 
     public function test_game_requiring_zone_must_define_zone_label_and_regex(): void
@@ -458,6 +486,24 @@ class AdminCatalogResourceTest extends TestCase
             ->assertHasNoFormErrors();
 
         $this->assertDatabaseHas('game_accounts', ['game_id' => $game->id, 'name' => 'Akun Mythic', 'price' => 350000, 'status' => 'disabled', 'sold_at' => null]);
+    }
+
+    public function test_account_price_accepts_indonesian_thousands_separator(): void
+    {
+        $game = Game::factory()->create();
+
+        Livewire::test(CreateGameAccount::class)
+            ->fillForm(['game_id' => $game->id, 'name' => 'Akun Mythic', 'price' => '350.000', 'status' => AccountStatus::Available->value])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('game_accounts', ['name' => 'Akun Mythic', 'price' => 350000]);
+    }
+
+    public function test_account_price_input_renders_indonesian_money_mask(): void
+    {
+        Livewire::test(CreateGameAccount::class)
+            ->assertSee("\$money(\$input, ',', '.', 0)", false);
     }
 
     public function test_game_accounts_table_has_no_credentials_column(): void

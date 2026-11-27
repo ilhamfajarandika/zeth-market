@@ -47,6 +47,7 @@ erDiagram
         bigint category_id FK
         string slug UK
         int melo_brand_id UK
+        string melo_game_code N
         bool requires_zone_id }
     products { bigint id PK
         bigint game_id FK
@@ -110,6 +111,7 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | `name`, `publisher`              | VARCHAR      |                                   |
 | `slug`                           | VARCHAR UQ   | Dipakai di URL `/game/{slug}`     |
 | `melo_brand_id`                  | INT UNSIGNED UQ N | Tautan opsional ke brand Melo untuk sync item (3). Migration `2026_11_16_200655` |
+| `melo_game_code`                 | VARCHAR N    | Kode game untuk cek nickname Melo (`games[].game_code` dari `GET /check-nickname/games`), bukan slug brand. Dipilih dari dropdown kode game Melo di form Game. Migration `2026_11_27_212731` (4) |
 | `thumbnail`, `banner`            | VARCHAR N    | Path file di storage              |
 | `description`, `instruction`     | TEXT N       | `instruction` = cara cari User ID |
 | `requires_zone_id`               | BOOLEAN      | Mis. MLBB = true                  |
@@ -120,8 +122,9 @@ Singkatan: **PK** primary key · **FK** foreign key · **UQ** unique · **IDX** 
 | `sort`                           | INT UNSIGNED |                                   |
 
 1. `ON DELETE SET NULL`.
-2. Pengganti cek nickname.
+2. Validasi format tetap wajib. Cek nickname pelanggan (disetujui 2026-11-27, `PROJECT_SPEC.md` §5 P11) hanya tambahan, bukan pengganti.
 3. NULL = game dibuat manual tanpa sync. Diisi lewat Select "Brand Melo" di form Game (`MeloCatalogService::brands()`).
+4. NULL = game tidak dicek nickname. Tidak unik, karena aturan kode per game belum ada di spesifikasi. Keputusan pemetaan: `PERSETUJUAN_CEK_NICKNAME.md` §9 no. 1 (opsi A).
 
 ### `products`
 

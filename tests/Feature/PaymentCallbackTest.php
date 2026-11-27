@@ -106,4 +106,15 @@ class PaymentCallbackTest extends TestCase
         $this->assertSame('Pembayaran masuk untuk order yang sudah ditutup', $this->admin->notifications()->sole()->data['title']);
         Bus::assertNotDispatched(SendTopupToMelo::class);
     }
+
+    public function test_duplicate_paid_callback_for_expired_order_keeps_order_expired(): void
+    {
+        $order = Order::factory()->create(['status' => OrderStatus::Expired]);
+
+        $this->sendCallback($order)->assertOk();
+        $this->sendCallback($order)->assertOk();
+
+        $this->assertSame(OrderStatus::Expired, $order->fresh()->status);
+        Bus::assertNotDispatched(SendTopupToMelo::class);
+    }
 }

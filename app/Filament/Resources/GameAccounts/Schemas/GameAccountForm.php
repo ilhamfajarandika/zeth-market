@@ -9,6 +9,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
+use Filament\Support\RawJs;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
@@ -32,7 +33,11 @@ class GameAccountForm
                     ->integer()
                     ->minValue(0)
                     ->default(0)
-                    ->prefix('Rp'),
+                    ->prefix('Rp')
+                    ->mask(RawJs::make(<<<'JS'
+                        $money($input, ',', '.', 0)
+                    JS))
+                    ->stripCharacters('.'),
                 Select::make('status')
                     ->helperText('Akun dijual manual di luar sistem: ubah ke Terjual setelah akun diserahkan ke pembeli.')
                     ->options(AccountStatus::class)
