@@ -129,8 +129,8 @@
 ## 13. Data Cek Nickname Pelanggan (disetujui PO 2026-11-27)
 
 - Username dan region pemain hanya disimpan di cache (tabel `cache`, driver `database`) selama **1 hari**. Setelah itu `Cache::get` tidak mengembalikannya lagi. ✅ dites (`test_cached_nickname_reuses_found_result_for_one_day`)
-- Baris cache kedaluwarsa hanya dihapus saat dibaca ulang. Belum ada penghapusan terjadwal, jadi baris yang tidak dibaca lagi tetap ada di tabel. Harus dibuat sebelum endpoint pelanggan dibuka. ⏳
+- Baris cache kedaluwarsa dihapus terjadwal tiap jam oleh `melo:prune-nickname-cache` (`routes/console.php`). Prasyarat sebelum endpoint pelanggan dibuka, terpenuhi 2026-11-28. ✅ dites (`PruneNicknameCacheTest`)
 - `api_logs` tidak menyimpan `data.username` dan `data.region` untuk `/check-nickname` (redaksi di `MeloService::logOutgoing`). ✅ dites (`test_nickname_username_and_region_are_not_stored_in_api_logs`)
 - Kunci cache memakai hash SHA-256 dari `game_code|customer_target|zone`, sehingga ID pemain tidak terbaca dari nama key. ✅
 - `customer_target` (ID pemain) tetap tercatat di `api_logs` (kolom `request`) tanpa masa berlaku, sama seperti ID pada pesanan. Retensi `api_logs` belum diputuskan. [TBD]
-- Batas pemakaian per IP untuk endpoint cek nickname belum diputuskan (`PERSETUJUAN_CEK_NICKNAME.md` §9 no. 2). ⏳
+- Batas pemakaian per IP untuk endpoint cek nickname: `throttle:10,1` (usulan §9 no. 2, diterapkan 2026-11-28, menunggu konfirmasi PO). ✅ dites (`NicknameCheckTest::test_requests_are_throttled_per_ip`)

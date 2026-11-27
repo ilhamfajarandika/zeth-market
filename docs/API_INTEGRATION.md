@@ -61,17 +61,18 @@ Semua endpoint di bawah `MELO_BASE_URL`. Sumber: `melostore-h2h.json` (OpenAPI r
 | Invoice PDF bulk | `GET /bulk-orders/{id}/invoice` | `bulkInvoice()` | — |
 | Game yang bisa dicek (publik) | `GET /check-nickname/games` | `nicknameGames()` via `MeloCatalogService::nicknameGameOptions()` | ✅ dropdown kode game di form Game (2026-11-27, cache 1 jam; persetujuan PO tertulis belum ada) |
 | Kuota/tarif cek akun (publik) | `GET /check-nickname/plan` | `nicknamePlan()` | ✅ widget `MeloNicknamePlanOverview` (dashboard admin, 2026-11-27, persetujuan PO menunggu) |
-| Cek nickname | `POST /check-nickname` | `checkNickname()`, dibungkus `cachedNickname()` | — (endpoint pelanggan belum dibuat, lihat `PERSETUJUAN_CEK_NICKNAME.md` §9) |
+| Cek nickname | `POST /check-nickname` | `checkNickname()`, dibungkus `cachedNickname()` | ✅ endpoint pelanggan `POST /game/{game}/nickname` (2026-11-28, dialog Beli Sekarang, throttle 10/menit; test `NicknameCheckTest`). Konfirmasi PO §9 menyusul |
 | Batas pembelian Mobile Legends | `POST /mobile-legends/purchase-limit` | `checkMobileLegendsPurchaseLimit()` | — |
 
-Method bertanda "—" sudah tersedia di service tetapi **belum dipakai** oleh alur apa pun, kecuali `nicknameGames()` (dropdown kode game di form Game, lihat tabel). `nicknamePlan()` dipakai hanya untuk menampilkan kuota di dashboard admin (read-only, di-cache 10 menit, tanpa kredensial); `checkNickname()` hanya dipakai lewat `cachedNickname()`, dan belum ada endpoint yang memanggilnya. Cek nickname untuk pelanggan disetujui PO 2026-11-27 (`PROJECT_SPEC.md` §5 P11). Smart, bulk, dan 2FA tetap di luar scope. Cek nickname memakai jatah atau biaya meski hasilnya "tidak ditemukan" (deskripsi spesifikasi Melo).
+Method bertanda "—" sudah tersedia di service tetapi **belum dipakai** oleh alur apa pun, kecuali `nicknameGames()` (dropdown kode game di form Game, lihat tabel). `nicknamePlan()` dipakai hanya untuk menampilkan kuota di dashboard admin (read-only, di-cache 10 menit, tanpa kredensial); `checkNickname()` hanya dipakai lewat `cachedNickname()`, oleh endpoint pelanggan `POST /game/{game}/nickname`. Cek nickname untuk pelanggan disetujui PO 2026-11-27 (`PROJECT_SPEC.md` §5 P11). Smart, bulk, dan 2FA tetap di luar scope. Cek nickname memakai jatah atau biaya meski hasilnya "tidak ditemukan" (deskripsi spesifikasi Melo).
 
 **Cache cek nickname** (`MeloService::cachedNickname()`, keputusan PO 2026-11-27):
 - Key: SHA-256 dari `game_code|customer_target|zone` dengan prefix `melo.nickname.`. TTL 86.400 detik (1 hari). Driver cache `database`, tanpa tabel baru.
 - Hanya respons 200 yang di-cache. 404, 402, 429, dan 502 tidak di-cache.
 - Saat `MELO_SANDBOX=true`, tidak ada panggilan ke Melo dan hasilnya `null`.
 - `api_logs` tidak menyimpan `data.username` dan `data.region` untuk `/check-nickname` (`logOutgoing(..., redact:)`).
-- Baris cache kedaluwarsa belum dihapus terjadwal. Lihat `SECURITY_RULES.md` §13.
+- Baris cache kedaluwarsa dihapus terjadwal tiap jam lewat `melo:prune-nickname-cache`. Lihat `SECURITY_RULES.md` §13.
+- Endpoint pelanggan `POST /game/{game}/nickname`: body `target_user_id` (+ `target_zone_id` bila game punya zona). Respons 200 `{username, region}`. Keduanya `null` jika tidak ditemukan, Melo galat, atau sandbox aktif. Game tanpa `melo_game_code` → 404 tanpa panggilan Melo.
 
 Rate limit: katalog (reguler, Smart, kategori) berbagi 20 request/menit. Jika 429, tunggu sesuai header `Retry-After`.
 

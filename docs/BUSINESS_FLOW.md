@@ -42,7 +42,7 @@ stateDiagram-v2
 ## 2. Alur Pembelian Top Up [FINAL]
 
 1. Pembeli membuka halaman game, memilih produk top up.
-2. Mengisi User ID (+ Zone ID jika `games.requires_zone_id = true`). Sistem memvalidasi **format** (regex per game). Pembeli boleh cek nickname (P11 di `PROJECT_SPEC.md`, disetujui PO 2026-11-27; opsional dan tidak menahan checkout [REKOMENDASI], belum dibuat).
+2. Mengisi User ID (+ Zone ID jika `games.requires_zone_id = true`). Sistem memvalidasi **format** (regex per game). Pembeli boleh cek nickname (P11 di `PROJECT_SPEC.md`, disetujui PO 2026-11-27; opsional dan tidak menahan checkout [REKOMENDASI], dibuat 2026-11-28 sebagai dialog sebelum bayar).
 3. Login opsional. Guest mengisi email dan/atau WhatsApp ([TBD] mana yang wajib).
 4. Memilih metode pembayaran, lalu sistem membuat order `pending` dengan snapshot harga.
 5. Sistem meminta invoice ke payment gateway dan mengarahkan pembeli ke halaman invoice.
