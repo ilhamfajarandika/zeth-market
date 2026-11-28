@@ -1,7 +1,8 @@
 <?php
 
-use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\Auth\CustomerAuthController;
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\NicknameCheckController;
 use App\Http\Controllers\OrderHistoryController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\Webhook\DuitkuCallbackController;
@@ -18,6 +19,12 @@ Route::controller(StorefrontController::class)->group(function () {
 Route::post('/game/{game}/checkout', [CheckoutController::class, 'store'])
     ->middleware('throttle:10,1')
     ->name('checkout.store');
+
+// Throttle: setiap cek memakai kuota/saldo H2H Melo bila hasil belum di-cache (usulan 10/menit per IP, sama dengan checkout).
+Route::post('/game/{game}/nickname', NicknameCheckController::class)
+    ->middleware('throttle:10,1')
+    ->name('nickname.check');
+
 Route::middleware('guest')->controller(CustomerAuthController::class)->group(function () {
     Route::get('/login', 'showLogin')->name('login');
     Route::post('/login', 'login')->middleware('throttle:5,1')->name('login.store');

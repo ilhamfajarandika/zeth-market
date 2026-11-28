@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesGameIdPattern;
 use App\Models\Game;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -13,6 +14,8 @@ use Illuminate\Validation\Rule;
  */
 class CheckoutRequest extends FormRequest
 {
+    use ValidatesGameIdPattern;
+
     public function authorize(): bool
     {
         return true;
@@ -66,15 +69,5 @@ class CheckoutRequest extends FormRequest
             'id_confirmed.accepted' => 'Centang konfirmasi bahwa ID sudah benar.',
             '*.max' => 'Isian terlalu panjang.',
         ];
-    }
-
-    /**
-     * Pola regex game disimpan tanpa delimiter (lihat GameForm::validRegex).
-     *
-     * @return list<string>
-     */
-    private function patternRule(?string $pattern): array
-    {
-        return filled($pattern) ? ['regex:/'.str_replace('/', '\/', $pattern).'/'] : [];
     }
 }

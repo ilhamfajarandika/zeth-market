@@ -60,7 +60,7 @@ Catatan:
 1. Akun game hanya ditampilkan (status `available`) dan tidak bisa dibeli di storefront.
 2. Zone/Server ID hanya jika game membutuhkan. Validasi **format** wajib; cek nickname hanya tambahan opsional (P11).
 3. Menampilkan status order, instruksi bayar, dan hasil (SN top up / detail akun).
-4. P11 disetujui PO 2026-11-27 (`PERSETUJUAN_CEK_NICKNAME.md` §8): hasil 200 di-cache 1 hari, hasil 404 tidak di-cache, tanpa batas biaya. Pemetaan game ke `game_code` Melo, batas per IP, dan posisi tombol belum diputuskan (§9).
+4. P11 disetujui PO 2026-11-27: hasil 200 di-cache 1 hari, hasil 404 tidak di-cache, tanpa batas biaya. Pemetaan game ke `game_code` Melo, batas per IP, dan posisi tombol belum diputuskan (CURRENT_STATUS §5 no. 15–17).
 - P9: kanal notifikasi dan apakah masuk scope belum diputuskan.
 
 ## 6. Fitur Admin

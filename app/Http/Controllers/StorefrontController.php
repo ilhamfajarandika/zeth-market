@@ -83,6 +83,8 @@ class StorefrontController extends Controller
             // Closure: Duitku hanya dipanggil saat pembeli memilih item (partial reload ?product=ID).
             'paymentChannels' => fn (): array => $this->paymentChannels($game, $request->integer('product'), $duitku),
             'checkoutUrl' => route('checkout.store', $game),
+            // Null = game tidak punya kode cek nickname Melo; pembeli tetap bisa lanjut bayar.
+            'nicknameUrl' => $game->melo_game_code ? route('nickname.check', $game) : null,
         ]);
     }
 

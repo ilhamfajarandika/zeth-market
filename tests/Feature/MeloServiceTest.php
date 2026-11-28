@@ -279,7 +279,7 @@ class MeloServiceTest extends TestCase
 
     public function test_cached_nickname_reuses_found_result_for_one_day(): void
     {
-        config(['services.melo.sandbox' => false]);
+        config(['services.melo.nickname_live' => true]);
         Http::fake(['*/check-nickname' => Http::response(['success' => true, 'data' => ['username' => 'Example Player']], 200)]);
 
         $melo = app(MeloService::class);
@@ -301,7 +301,7 @@ class MeloServiceTest extends TestCase
     #[DataProvider('nonOkNicknameStatusProvider')]
     public function test_cached_nickname_does_not_cache_non_200_responses(int $status): void
     {
-        config(['services.melo.sandbox' => false]);
+        config(['services.melo.nickname_live' => true]);
         Http::fake(['*/check-nickname' => Http::response(['success' => false], $status)]);
 
         $melo = app(MeloService::class);
@@ -317,12 +317,22 @@ class MeloServiceTest extends TestCase
         return [[404], [402], [429], [502]];
     }
 
-    public function test_cached_nickname_sends_no_request_while_sandbox_is_on(): void
+    public function test_cached_nickname_sends_no_request_while_nickname_live_is_off(): void
     {
+        config(['services.melo.sandbox' => false, 'services.melo.nickname_live' => false]);
         Http::fake();
 
         $this->assertNull(app(MeloService::class)->cachedNickname(['game_code' => 'mobile-legends', 'customer_target' => '12345']));
         Http::assertNothingSent();
+    }
+
+    public function test_cached_nickname_calls_melo_while_sandbox_is_on_if_nickname_live(): void
+    {
+        config(['services.melo.sandbox' => true, 'services.melo.nickname_live' => true]);
+        Http::fake(['*/check-nickname' => Http::response(['success' => true, 'data' => ['username' => 'Example Player']], 200)]);
+
+        $this->assertSame('Example Player', app(MeloService::class)->cachedNickname(['game_code' => 'mobile-legends', 'customer_target' => '12345'])['username']);
+        Http::assertSentCount(1);
     }
 
     public function test_nickname_username_and_region_are_not_stored_in_api_logs(): void
