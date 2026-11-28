@@ -103,6 +103,16 @@ class StorefrontTest extends TestCase
             ->assertSee('apple-touch-icon.png', false);
     }
 
+    public function test_storefront_exposes_only_storefront_routes_to_ziggy(): void
+    {
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('"orders.index"', false)
+            ->assertSee('"logout"', false)
+            ->assertDontSee('filament.admin', false)
+            ->assertDontSee('webhook.', false);
+    }
+
     public function test_game_page_lists_only_available_accounts(): void
     {
         $game = Game::factory()->create();

@@ -1,18 +1,18 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { route } from 'ziggy-js';
 import BrandLogo from '../components/BrandLogo.vue';
 
 const page = usePage();
 const appName = computed(() => page.props.appName ?? 'Zeth Market');
 const authUser = computed(() => page.props.auth?.user ?? null);
-const links = computed(() => page.props.links);
 const isHome = computed(() => page.component === 'Home');
-const orderLookupUrl = computed(() => `${links.value.home}#cek-pesanan`);
+const orderLookupUrl = `${route('home')}#cek-pesanan`;
 const year = new Date().getFullYear();
 
 function logout() {
-    router.post(links.value.logout);
+    router.post(route('logout'));
 }
 </script>
 
@@ -20,13 +20,13 @@ function logout() {
     <div class="min-h-screen bg-ground font-sans text-text antialiased">
         <header class="sticky top-0 z-40 border-t-2 border-b border-t-brand border-b-border bg-ground">
             <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
-                <Link :href="links.home" class="focus-ring rounded-md">
+                <Link :href="route('home')" class="focus-ring rounded-md">
                     <BrandLogo subtitle="Top up game & akun" />
                 </Link>
 
                 <nav class="hidden items-center gap-6 md:flex" aria-label="Navigasi utama">
                     <Link
-                        :href="links.home"
+                        :href="route('home')"
                         class="focus-ring relative py-2 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-px after:origin-left after:bg-brand after:transition-transform hover:text-text hover:after:scale-x-100"
                         :class="isHome ? 'text-text after:scale-x-100' : 'text-muted after:scale-x-0'"
                     >
@@ -40,7 +40,7 @@ function logout() {
                     </a>
                     <template v-if="authUser">
                         <Link
-                            :href="links.orders"
+                            :href="route('orders.index')"
                             class="focus-ring rounded-md border border-border px-3.5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text transition-colors hover:border-brand/60 hover:text-brand-highlight"
                         >
                             Riwayat
@@ -55,7 +55,7 @@ function logout() {
                     </template>
                     <Link
                         v-else
-                        :href="links.login"
+                        :href="route('login')"
                         class="focus-ring rounded-md border border-brand/50 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-highlight transition-colors hover:bg-brand hover:text-text"
                     >
                         Masuk
@@ -79,7 +79,7 @@ function logout() {
                 <div>
                     <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">Menu</p>
                     <ul class="mt-3 flex flex-col gap-2.5 text-sm">
-                        <li><Link :href="links.home" class="focus-ring rounded-sm text-text/80 transition-colors hover:text-brand-highlight">Beranda</Link></li>
+                        <li><Link :href="route('home')" class="focus-ring rounded-sm text-text/80 transition-colors hover:text-brand-highlight">Beranda</Link></li>
                         <li><a :href="orderLookupUrl" class="focus-ring rounded-sm text-text/80 transition-colors hover:text-brand-highlight">Cek pesanan</a></li>
                     </ul>
                 </div>
@@ -92,7 +92,7 @@ function logout() {
         <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-ground md:hidden" aria-label="Navigasi mobile">
             <div class="mx-auto grid max-w-md grid-cols-2 font-mono text-[10px] uppercase tracking-[0.14em]">
                 <Link
-                    :href="links.home"
+                    :href="route('home')"
                     class="focus-ring flex flex-col items-center gap-1 py-2.5 transition-colors"
                     :class="isHome ? 'text-brand-highlight' : 'text-muted hover:text-text'"
                 >

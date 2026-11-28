@@ -1,11 +1,10 @@
 <script setup>
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { route } from 'ziggy-js';
 import BaseButton from '../../components/ui/BaseButton.vue';
 import BaseCard from '../../components/ui/BaseCard.vue';
 import BaseInput from '../../components/ui/BaseInput.vue';
 import AppLayout from '../../layouts/AppLayout.vue';
-
-const page = usePage();
 
 const form = useForm({
     name: '',
@@ -16,7 +15,7 @@ const form = useForm({
 });
 
 function submit() {
-    form.post(page.props.links.register, {
+    form.post(route('register.store'), {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 }
@@ -95,7 +94,7 @@ function submit() {
 
                 <p class="mt-6 border-t border-border pt-5 text-center text-sm text-muted">
                     Sudah punya akun?
-                    <Link :href="page.props.links.login" class="focus-ring rounded-sm font-semibold text-brand-highlight hover:text-text">
+                    <Link :href="route('login')" class="focus-ring rounded-sm font-semibold text-brand-highlight hover:text-text">
                         Masuk di sini
                     </Link>
                 </p>

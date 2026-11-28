@@ -56,7 +56,7 @@ flowchart TB
 ✅ ada di kode · ➕ direkomendasikan, belum dibuat.
 
 1. CRUD katalog, akun game, pesanan, dashboard. Akses dibatasi `User::canAccessPanel()` (role admin).
-2. Middleware `App\Http\Middleware\HandleInertiaRequests` (grup `web`) membagikan `appName` dan `links`. Checkout nanti dikirim sebagai form Inertia ke controller.
+2. Middleware `App\Http\Middleware\HandleInertiaRequests` (grup `web`) membagikan `appName`, `logoUrl`, dan `auth.user`. Route untuk Vue dicetak oleh `@routes` (Ziggy) di `app.blade.php`, dibatasi `config/ziggy.php`. Checkout nanti dikirim sebagai form Inertia ke controller.
 3. `resources/js/pages/*.vue`, `resources/js/layouts/AppLayout.vue`, `resources/js/components/*.vue`. Props dari controller berupa array eksplisit (lihat `SECURITY_RULES.md` §11).
 4. Filament tetap memakai Livewire/Blade miliknya sendiri; storefront tidak memakai Livewire.
 5. Admin memakai styling bawaan Filament.

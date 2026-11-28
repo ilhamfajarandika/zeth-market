@@ -1,17 +1,17 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { route } from 'ziggy-js';
 import BrandLogo from '../components/BrandLogo.vue';
 
 const page = usePage();
 const appName = computed(() => page.props.appName ?? 'Zeth Market');
 const authUser = computed(() => page.props.auth?.user ?? null);
-const links = computed(() => page.props.links);
 const year = new Date().getFullYear();
 
 function logout() {
     closeMenu();
-    router.post(links.value.logout);
+    router.post(route('logout'));
 }
 
 const navItems = [
@@ -77,7 +77,7 @@ onBeforeUnmount(() => {
     <div class="min-h-screen bg-ground font-sans text-text antialiased">
         <header class="sticky top-0 z-40 border-t-2 border-b border-t-brand border-b-border bg-ground">
             <div class="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
-                <Link :href="links.home" class="focus-ring rounded-md">
+                <Link :href="route('home')" class="focus-ring rounded-md">
                     <BrandLogo subtitle="Top up game & akun" />
                 </Link>
 
@@ -95,7 +95,7 @@ onBeforeUnmount(() => {
                 <div class="hidden items-center gap-3 md:ml-2 md:flex">
                     <template v-if="authUser">
                         <Link
-                            :href="links.orders"
+                            :href="route('orders.index')"
                             class="focus-ring rounded-md border border-border px-3.5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text transition-colors hover:border-brand/60 hover:text-brand-highlight"
                         >
                             Riwayat
@@ -110,7 +110,7 @@ onBeforeUnmount(() => {
                     </template>
                     <Link
                         v-else
-                        :href="links.login"
+                        :href="route('login')"
                         class="focus-ring rounded-md border border-brand/50 px-4 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-highlight transition-colors hover:bg-brand hover:text-text"
                     >
                         Masuk
@@ -179,7 +179,7 @@ onBeforeUnmount(() => {
                     </p>
                     <div class="flex flex-col gap-2.5">
                         <Link
-                            :href="links.orders"
+                            :href="route('orders.index')"
                             class="focus-ring flex items-center justify-between rounded-md bg-brand px-5 py-4 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-text transition-colors hover:bg-brand-hover"
                             @click="closeMenu"
                         >
@@ -199,7 +199,7 @@ onBeforeUnmount(() => {
                 </template>
                 <div v-else class="flex flex-col gap-2.5">
                     <Link
-                        :href="links.login"
+                        :href="route('login')"
                         class="focus-ring flex items-center justify-between rounded-md bg-brand px-5 py-4 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-text transition-colors hover:bg-brand-hover"
                         @click="closeMenu"
                     >
@@ -209,7 +209,7 @@ onBeforeUnmount(() => {
                         </svg>
                     </Link>
                     <Link
-                        :href="links.register"
+                        :href="route('register')"
                         class="focus-ring flex items-center justify-center rounded-md border border-border bg-surface px-5 py-3.5 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-text transition-colors hover:border-brand/60 hover:text-brand-highlight"
                         @click="closeMenu"
                     >

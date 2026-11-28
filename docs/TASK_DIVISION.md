@@ -37,7 +37,7 @@ Pemilik = yang mengerjakan dan me-review perubahan di area itu. Pihak lain boleh
 2. Backend mengirim props sebagai **array eksplisit**, bukan model utuh. Props Inertia tercetak sebagai JSON di sumber halaman, jadi kolom internal tidak boleh ikut (`SECURITY_RULES.md` §11).
 3. Jika Frontend butuh data baru, minta ke Backend untuk ditambahkan ke props, lalu dicatat di §3.3.
 4. Frontend hanya menampilkan `credentials` lewat prop yang disiapkan Backend; Backend hanya mengisinya pada kondisi yang diizinkan.
-5. URL berasal dari Backend (prop `url` atau shared prop `links`), tidak ditulis langsung di Vue. Proyek tidak memakai Ziggy.
+5. URL tidak ditulis langsung di Vue. Route statis memakai `route('nama.route')` dari Ziggy (keputusan 2026-11-28); hanya route di `config/ziggy.php` (`only`) yang tersedia, jadi route baru untuk Vue harus ditambahkan di sana. URL per data (mis. `url` game/order, `checkoutUrl`, `nicknameUrl`) tetap dikirim Backend lewat props.
 6. Perubahan kontrak (nama props, field, route) diperbarui **di dokumen ini lebih dulu** oleh Backend, lalu diberitahukan ke Frontend.
 
 ### 3.2 Route
@@ -57,8 +57,10 @@ Route pelanggan (login, register, riwayat), checkout, dan cek status order: ⏳ 
 | Prop                | Isi                                      |
 | ------------------- | ---------------------------------------- |
 | `appName`           | Nama aplikasi (`config('app.name')`)     |
-| `links.home`        | URL beranda                              |
-| `links.invoiceBase` | URL dasar invoice, ditambah `/{invoice}` |
+| `logoUrl`           | URL logo (`public/images/logo.png`)      |
+| `auth.user`         | `{ name, email }` user login, atau `null` |
+
+Prop `links` dihapus 2026-11-28, diganti `route()` Ziggy.
 
 **Props per halaman** (`StorefrontController`):
 

@@ -1,5 +1,5 @@
 <script setup>
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import BaseButton from '../components/ui/BaseButton.vue';
 import BaseCard from '../components/ui/BaseCard.vue';
@@ -8,8 +8,6 @@ import AppLayout from '../layouts/AppLayout.vue';
 const { status } = defineProps({
     status: { type: Number, required: true },
 });
-
-const page = usePage();
 
 const copyByStatus = {
     403: {
@@ -66,7 +64,7 @@ function reloadPage() {
                 <p class="mt-2.5 text-sm leading-relaxed text-muted">{{ content.message }}</p>
 
                 <div class="mt-6 flex flex-wrap gap-3">
-                    <BaseButton :href="page.props.links.home" size="lg">
+                    <BaseButton :href="route('home')" size="lg">
                         Kembali ke beranda
                     </BaseButton>
                     <BaseButton
@@ -79,7 +77,7 @@ function reloadPage() {
                     </BaseButton>
                     <BaseButton
                         v-else
-                        :href="`${page.props.links.home}#katalog`"
+                        :href="`${route('home')}#katalog`"
                         variant="secondary"
                         size="lg"
                     >

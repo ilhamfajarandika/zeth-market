@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { computed, shallowRef } from 'vue';
 import StatusBadge from '../../components/StatusBadge.vue';
 import BaseButton from '../../components/ui/BaseButton.vue';
@@ -10,8 +10,6 @@ import AppLayout from '../../layouts/AppLayout.vue';
 const { orders } = defineProps({
     orders: { type: Object, required: true },
 });
-
-const page = usePage();
 
 const ALL_STATUS = 'all';
 
@@ -71,7 +69,7 @@ function resetFilters() {
                     </p>
                 </div>
 
-                <BaseButton :href="`${page.props.links.home}#katalog`" variant="secondary" size="md">
+                <BaseButton :href="`${route('home')}#katalog`" variant="secondary" size="md">
                     Top up lagi
                 </BaseButton>
             </div>
@@ -156,7 +154,7 @@ function resetFilters() {
                 <BaseButton v-if="hasActiveFilter" variant="secondary" @click="resetFilters">
                     Reset filter
                 </BaseButton>
-                <BaseButton v-else :href="`${page.props.links.home}#katalog`">
+                <BaseButton v-else :href="`${route('home')}#katalog`">
                     Mulai top up
                 </BaseButton>
             </EmptyState>

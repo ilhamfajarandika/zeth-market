@@ -200,7 +200,7 @@ function channelCardClass(channel) {
             <div class="relative flex items-end gap-4 p-5 pt-10 sm:gap-6 sm:p-8 sm:pt-14">
                 <GameCover :game="game" class="size-20 shrink-0 rounded-lg border border-border sm:size-28" />
                 <div class="min-w-0">
-                    <Link :href="page.props.links.home"
+                    <Link :href="route('home')"
                         class="focus-ring inline-flex items-center gap-1.5 rounded-sm font-mono text-[11px] uppercase tracking-[0.14em] text-muted transition-colors hover:text-brand-highlight">
                         <svg class="size-3.5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2"
                             stroke="currentColor">

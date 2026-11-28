@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, usePage, usePoll } from '@inertiajs/vue3';
+import { Head, Link, usePoll } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import CopyButton from '../components/CopyButton.vue';
 import StatusBadge from '../components/StatusBadge.vue';
@@ -11,8 +11,6 @@ import AppLayout from '../layouts/AppLayout.vue';
 const { order } = defineProps({
     order: { type: Object, required: true },
 });
-
-const page = usePage();
 
 // Status berubah lewat callback Duitku/Melo di server; cek ulang tiap 5 detik sampai status final.
 const { stop } = usePoll(1000, { only: ['order'] }, { autoStart: !order.status.isFinal });
@@ -132,7 +130,7 @@ const details = computed(() =>
                 </div>
             </BaseCard>
 
-            <Link :href="page.props.links.home"
+            <Link :href="route('home')"
                 class="focus-ring mx-auto inline-flex items-center gap-1.5 rounded-sm font-mono text-xs uppercase tracking-[0.14em] text-muted transition-colors hover:text-brand-highlight">
                 <svg class="size-3.5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2"
                     stroke="currentColor">

@@ -41,13 +41,11 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'appName' => config('app.name'),
             'logoUrl' => asset('images/logo.png'),
-            'links' => [
-                'home' => route('home'),
-                'invoiceBase' => url('invoice'),
-                'orders' => route('orders.index'),
-                'login' => route('login'),
-                'register' => route('register'),
-                'logout' => route('logout'),
+            'auth' => [
+                'user' => $user ? [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ] : null,
             ],
         ];
     }

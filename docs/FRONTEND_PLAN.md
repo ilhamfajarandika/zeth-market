@@ -29,7 +29,7 @@ Menyiapkan dan membangun storefront Vue 3 + Inertia (Home, Game, Invoice, Checko
 ## 4. Stack & Konvensi
 
 - Vue **3.5 JavaScript** (bukan TS), Composition API `<script setup>`.
-- **Inertia 3** — tanpa Vue Router, tanpa Ziggy; URL dari props (`links`, `url`, `checkoutUrl`).
+- **Inertia 3** — tanpa Vue Router. Route statis lewat Ziggy `route()` (sejak 2026-11-28, allowlist di `config/ziggy.php`); URL per data tetap dari props (`url`, `checkoutUrl`, `nicknameUrl`).
 - **Tailwind 4** CSS-first (`@theme` di `resources/css/app.css`), tema gelap matte bertema gaming (Dark Tactical / Deep Charcoal dengan aksen Cyber Gold/Amber, **bukan ungu/violet**), font Instrument Sans / Sans-serif modern.
 - Tanpa Pinia; state lokal `shallowRef`/`computed`.
 - Skill & panduan acuan: `vue-best-practices`, `tailwindcss-development`, `design-taste-frontend`, `antislop-*` (khususnya `antislop-ui` & `antislop-copywriting`).
